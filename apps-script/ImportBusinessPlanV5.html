@@ -1,0 +1,1041 @@
+<style>
+/* ============================================================
+ * AfriGreen24 — Import Business Plan V5
+ * Premium document intake + observable extraction workflow.
+ * ============================================================ */
+
+.bp-import-card {
+  width: min(100%, 760px);
+  padding: clamp(18px, 3vw, 28px);
+  border-radius: 28px;
+  box-shadow: 0 28px 72px rgba(5, 60, 39, 0.10);
+}
+
+.bp-import-dropzone {
+  min-height: 238px;
+  padding: 34px 28px;
+  overflow: hidden;
+  isolation: isolate;
+  border-color: #b7d5c3;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(18, 126, 72, .08), transparent 42%),
+    linear-gradient(180deg, #fbfefc 0%, #f4faf6 100%);
+}
+
+.bp-import-dropzone::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  z-index: -1;
+  border: 1px solid rgba(11, 107, 58, .05);
+  border-radius: 15px;
+  pointer-events: none;
+}
+
+.bp-import-dropzone.is-dragover {
+  border-color: #0b6b3a;
+  background: #eef9f2;
+  box-shadow: inset 0 0 0 4px rgba(11, 107, 58, .06);
+  transform: translateY(-2px) scale(1.005);
+}
+
+.bp-import-dropzone.is-busy {
+  cursor: progress;
+  pointer-events: none;
+}
+
+.bp-import-dropzone .ag24-import-formats {
+  display: inline-flex;
+  gap: 7px;
+  margin-top: 15px;
+}
+
+.ag24-import-format {
+  padding: 5px 8px;
+  color: #48685b;
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: rgba(255,255,255,.9);
+  border: 1px solid #dce9e1;
+  border-radius: 8px;
+}
+
+.ag24-import-limit {
+  margin-top: 10px !important;
+  color: #839189 !important;
+  font-size: .72rem !important;
+}
+
+.ag24-import-file-card {
+  display: none;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 13px 14px;
+  background: #f7fbf8;
+  border: 1px solid #dceae1;
+  border-radius: 16px;
+}
+
+.ag24-import-file-card.is-visible {
+  display: grid;
+}
+
+.ag24-import-file-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: #0b6b3a;
+  font-size: .68rem;
+  font-weight: 950;
+  background: #e7f4ec;
+  border-radius: 13px;
+}
+
+.ag24-import-file-main {
+  min-width: 0;
+}
+
+.ag24-import-file-name {
+  display: block;
+  overflow: hidden;
+  color: #183e30;
+  font-size: .84rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag24-import-file-meta {
+  display: block;
+  margin-top: 3px;
+  color: #788a81;
+  font-size: .72rem;
+}
+
+.ag24-import-change {
+  padding: 7px 9px;
+  color: #0b6b3a;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 850;
+  background: #fff;
+  border: 1px solid #d7e5dd;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.ag24-import-pipeline {
+  display: none;
+  margin: 18px 0 14px;
+  padding: 16px;
+  background: #fbfdfb;
+  border: 1px solid #e0eae4;
+  border-radius: 17px;
+}
+
+.ag24-import-pipeline.is-visible {
+  display: block;
+}
+
+.ag24-import-progress-track {
+  height: 7px;
+  overflow: hidden;
+  background: #e8efeb;
+  border-radius: 999px;
+}
+
+.ag24-import-progress-bar {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #0b6b3a, #1a9b5b);
+  border-radius: inherit;
+  transition: width .35s ease;
+}
+
+.ag24-import-pipeline-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 9px;
+}
+
+.ag24-import-stage {
+  color: #214b3a;
+  font-size: .77rem;
+  font-weight: 850;
+}
+
+.ag24-import-percent {
+  color: #75877f;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.ag24-import-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.ag24-import-step {
+  color: #89968f;
+  font-size: .64rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.ag24-import-step.is-done,
+.ag24-import-step.is-active {
+  color: #0b6b3a;
+}
+
+.ag24-import-step::before {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: 0 auto 5px;
+  background: #d6e1da;
+  border-radius: 50%;
+}
+
+.ag24-import-step.is-done::before {
+  background: #0b6b3a;
+}
+
+.ag24-import-step.is-active::before {
+  background: #18a15e;
+  box-shadow: 0 0 0 4px rgba(24,161,94,.12);
+}
+
+.bp-import-status.is-error {
+  padding: 11px 12px;
+  color: #973b33 !important;
+  background: #fff4f2;
+  border: 1px solid #f0d1cc;
+  border-radius: 11px;
+}
+
+.bp-import-status.is-success {
+  color: #176b45 !important;
+}
+
+.ag24-import-result-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.ag24-import-result-meta > div {
+  padding: 10px;
+  background: rgba(255,255,255,.8);
+  border: 1px solid #e2ebe6;
+  border-radius: 12px;
+}
+
+.ag24-import-result-meta span {
+  display: block;
+  color: #7a8a83;
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.ag24-import-result-meta strong {
+  display: block;
+  margin-top: 4px;
+  color: #173f30;
+  font-size: .78rem;
+}
+
+.ag24-import-preview {
+  margin-top: 13px;
+}
+
+.ag24-import-preview summary {
+  color: #315848;
+  font-size: .75rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ag24-import-preview p {
+  max-height: 170px;
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow: auto;
+  color: #61756c;
+  font-size: .72rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid #e4ece7;
+  border-radius: 11px;
+}
+
+.ag24-import-trust {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ag24-import-trust > div {
+  padding: 10px 8px;
+  color: #60756b;
+  font-size: .67rem;
+  font-weight: 750;
+  text-align: center;
+  background: #f8fbf9;
+  border: 1px solid #e7eee9;
+  border-radius: 11px;
+}
+
+.ag24-import-review-found {
+  margin: 18px 0 0;
+  padding: 15px;
+  background: #f5faf7;
+  border: 1px solid #dfebe4;
+  border-radius: 16px;
+}
+
+.ag24-import-review-found summary {
+  color: #174633;
+  font-size: .8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ag24-import-found-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ag24-import-found-row {
+  display: grid;
+  grid-template-columns: minmax(140px, .8fr) 1.4fr;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e3ebe6;
+}
+
+.ag24-import-found-label {
+  color: #71827a;
+  font-size: .69rem;
+  font-weight: 800;
+}
+
+.ag24-import-found-value {
+  color: #24493a;
+  font-size: .73rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ag24-import-confidence {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 4px 7px;
+  color: #6b765e;
+  font-size: .62rem;
+  font-weight: 850;
+  background: #f3f6ee;
+  border-radius: 999px;
+}
+
+.bp-completion-field.is-missing {
+  border-color: rgba(166, 41, 41, .18);
+  background: linear-gradient(145deg, #fffafa, #fff);
+}
+
+.bp-completion-status.is-missing {
+  color: #934338;
+  background: #fff0ed;
+}
+
+@media (max-width: 680px) {
+  .bp-import-card {
+    width: 100%;
+    border-radius: 22px;
+  }
+
+  .bp-import-dropzone {
+    min-height: 210px;
+    padding: 26px 18px;
+  }
+
+  .ag24-import-steps {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 11px;
+  }
+
+  .ag24-import-result-meta,
+  .ag24-import-trust {
+    grid-template-columns: 1fr;
+  }
+
+  .ag24-import-file-card {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .ag24-import-change {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .ag24-import-found-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var MAX_FILE_BYTES = 15 * 1024 * 1024;
+  var ALLOWED_EXT = ['pdf', 'doc', 'docx'];
+  var ALLOWED_MIME = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+
+  var state = {
+    file: null,
+    busy: false,
+    startedAt: 0
+  };
+
+  function el(id) {
+    return document.getElementById(id);
+  }
+
+  function extensionOf(file) {
+    var name = String(file && file.name || '').toLowerCase();
+    return name.indexOf('.') >= 0 ? name.split('.').pop() : '';
+  }
+
+  function formatBytes(bytes) {
+    var n = Number(bytes || 0);
+    if (n < 1024) return n + ' octets';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' Ko';
+    return (n / (1024 * 1024)).toFixed(2) + ' Mo';
+  }
+
+  function formatType(file) {
+    var ext = extensionOf(file);
+    if (ext === 'pdf') return 'PDF';
+    if (ext === 'docx') return 'WORD';
+    if (ext === 'doc') return 'DOC';
+    return 'DOC';
+  }
+
+  function ensureEnhancementUi() {
+    var dropzone = document.querySelector('.bp-import-dropzone');
+    var selected = el('businessPlanImportSelected');
+    var status = el('businessPlanImportStatus');
+    var analysis = el('businessPlanImportAnalysis');
+
+    if (!dropzone || !selected || !status || !analysis) return false;
+
+    if (!dropzone.querySelector('.ag24-import-formats')) {
+      var formats = document.createElement('div');
+      formats.className = 'ag24-import-formats';
+      ['PDF', 'DOC', 'DOCX'].forEach(function (name) {
+        var badge = document.createElement('span');
+        badge.className = 'ag24-import-format';
+        badge.textContent = name;
+        formats.appendChild(badge);
+      });
+      dropzone.appendChild(formats);
+
+      var limit = document.createElement('span');
+      limit.className = 'ag24-import-limit';
+      limit.textContent = '15 Mo maximum · document texte ou PDF scanné';
+      dropzone.appendChild(limit);
+    }
+
+    selected.classList.add('hidden');
+
+    if (!el('ag24ImportFileCard')) {
+      var card = document.createElement('div');
+      card.id = 'ag24ImportFileCard';
+      card.className = 'ag24-import-file-card';
+      card.innerHTML =
+        '<div id="ag24ImportFileIcon" class="ag24-import-file-icon">PDF</div>' +
+        '<div class="ag24-import-file-main">' +
+          '<strong id="ag24ImportFileName" class="ag24-import-file-name"></strong>' +
+          '<span id="ag24ImportFileMeta" class="ag24-import-file-meta"></span>' +
+        '</div>' +
+        '<button id="ag24ImportChange" type="button" class="ag24-import-change">Changer</button>';
+      selected.insertAdjacentElement('afterend', card);
+      el('ag24ImportChange').addEventListener('click', function () {
+        if (state.busy) return;
+        var input = el('businessPlanImportFile');
+        if (input) input.click();
+      });
+    }
+
+    if (!el('ag24ImportPipeline')) {
+      var pipeline = document.createElement('div');
+      pipeline.id = 'ag24ImportPipeline';
+      pipeline.className = 'ag24-import-pipeline';
+      pipeline.setAttribute('aria-live', 'polite');
+      pipeline.innerHTML =
+        '<div class="ag24-import-pipeline-head">' +
+          '<span id="ag24ImportStage" class="ag24-import-stage">Préparation</span>' +
+          '<span id="ag24ImportPercent" class="ag24-import-percent">0%</span>' +
+        '</div>' +
+        '<div class="ag24-import-progress-track">' +
+          '<div id="ag24ImportProgressBar" class="ag24-import-progress-bar"></div>' +
+        '</div>' +
+        '<div class="ag24-import-steps">' +
+          '<span class="ag24-import-step" data-import-step="read">Lecture</span>' +
+          '<span class="ag24-import-step" data-import-step="extract">Extraction</span>' +
+          '<span class="ag24-import-step" data-import-step="analyse">Analyse IA</span>' +
+          '<span class="ag24-import-step" data-import-step="verify">Vérification</span>' +
+        '</div>';
+      status.insertAdjacentElement('beforebegin', pipeline);
+    }
+
+    if (!el('ag24ImportTrust')) {
+      var trust = document.createElement('div');
+      trust.id = 'ag24ImportTrust';
+      trust.className = 'ag24-import-trust';
+      trust.innerHTML =
+        '<div>Lecture automatique du document</div>' +
+        '<div>Preuves vérifiées avant validation</div>' +
+        '<div>Vous confirmez avant génération</div>';
+      analysis.insertAdjacentElement('afterend', trust);
+    }
+
+    if (!el('ag24ImportResultMeta')) {
+      var meta = document.createElement('div');
+      meta.id = 'ag24ImportResultMeta';
+      meta.className = 'ag24-import-result-meta';
+      meta.innerHTML =
+        '<div><span>Lecture</span><strong id="ag24ImportMethod">—</strong></div>' +
+        '<div><span>Texte exploitable</span><strong id="ag24ImportTextLength">—</strong></div>' +
+        '<div><span>Fiabilité</span><strong id="ag24ImportReliability">—</strong></div>';
+      analysis.appendChild(meta);
+
+      var preview = document.createElement('details');
+      preview.id = 'ag24ImportPreview';
+      preview.className = 'ag24-import-preview';
+      preview.innerHTML =
+        '<summary>Voir un aperçu du texte lu</summary>' +
+        '<p id="ag24ImportPreviewText"></p>';
+      analysis.appendChild(preview);
+    }
+
+    return true;
+  }
+
+  function setStatus(message, error, success) {
+    var status = el('businessPlanImportStatus');
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(error));
+    status.classList.toggle('is-success', Boolean(success));
+    status.style.color = '';
+  }
+
+  function resetAnalysis() {
+    window.businessPlanImportResult = null;
+    window.businessPlanImportEnvelope = null;
+    var analysis = el('businessPlanImportAnalysis');
+    if (analysis) analysis.classList.add('hidden');
+    var pipeline = el('ag24ImportPipeline');
+    if (pipeline) pipeline.classList.remove('is-visible');
+  }
+
+  function setFile(file) {
+    resetAnalysis();
+    state.file = null;
+
+    var button = el('businessPlanImportButton');
+    if (button) button.disabled = true;
+
+    var card = el('ag24ImportFileCard');
+    if (card) card.classList.remove('is-visible');
+
+    if (!file) {
+      setStatus('', false, false);
+      return false;
+    }
+
+    var ext = extensionOf(file);
+    var mimeOk = !file.type || ALLOWED_MIME.indexOf(file.type) !== -1;
+    var extOk = ALLOWED_EXT.indexOf(ext) !== -1;
+
+    if (!extOk || !mimeOk) {
+      setStatus('Format non accepté. Choisissez un PDF, DOC ou DOCX.', true, false);
+      return false;
+    }
+
+    if (!file.size) {
+      setStatus('Le fichier sélectionné est vide.', true, false);
+      return false;
+    }
+
+    if (file.size > MAX_FILE_BYTES) {
+      setStatus('Ce fichier dépasse 15 Mo. Réduisez sa taille puis réessayez.', true, false);
+      return false;
+    }
+
+    state.file = file;
+
+    if (card) {
+      card.classList.add('is-visible');
+      el('ag24ImportFileIcon').textContent = formatType(file);
+      el('ag24ImportFileName').textContent = file.name;
+      el('ag24ImportFileMeta').textContent =
+        formatBytes(file.size) + ' · ' + formatType(file);
+    }
+
+    setStatus('Document prêt. Lancez l’analyse pour récupérer les informations déjà présentes.', false, false);
+
+    if (button) button.disabled = false;
+    return true;
+  }
+
+  function setBusy(busy) {
+    state.busy = Boolean(busy);
+
+    var button = el('businessPlanImportButton');
+    var dropzone = document.querySelector('.bp-import-dropzone');
+
+    if (button) {
+      button.disabled = state.busy || !state.file;
+      button.setAttribute('aria-busy', state.busy ? 'true' : 'false');
+      var span = button.querySelector('span');
+      if (span) span.textContent = state.busy ? 'Analyse en cours…' : 'Analyser mon dossier';
+    }
+
+    if (dropzone) {
+      dropzone.classList.toggle('is-busy', state.busy);
+    }
+  }
+
+  function setPipeline(stage, percent) {
+    var pipeline = el('ag24ImportPipeline');
+    if (!pipeline) return;
+
+    pipeline.classList.add('is-visible');
+
+    var p = Math.max(0, Math.min(100, Number(percent || 0)));
+    el('ag24ImportProgressBar').style.width = p + '%';
+    el('ag24ImportPercent').textContent = Math.round(p) + '%';
+    el('ag24ImportStage').textContent = stage || 'Analyse';
+
+    var thresholds = {
+      read: 20,
+      extract: 45,
+      analyse: 70,
+      verify: 92
+    };
+
+    Array.prototype.forEach.call(
+      pipeline.querySelectorAll('[data-import-step]'),
+      function (node) {
+        var key = node.getAttribute('data-import-step');
+        var threshold = thresholds[key] || 0;
+        node.classList.toggle('is-done', p > threshold + 15);
+        node.classList.toggle(
+          'is-active',
+          p >= threshold && p <= threshold + 15
+        );
+      }
+    );
+  }
+
+  function confidenceLabel(result) {
+    var quality =
+      result &&
+      result.analysisResult &&
+      result.analysisResult.quality
+        ? result.analysisResult.quality
+        : null;
+
+    if (!quality) return 'Contrôlée';
+
+    var score = Number(quality.reliabilityPct || 0);
+    if (score >= 85) return score + '% · élevée';
+    if (score >= 65) return score + '% · bonne';
+    if (score > 0) return score + '% · à vérifier';
+    return 'À vérifier';
+  }
+
+  function renderAnalysis(response) {
+    var analysisResult = response.analysisResult || {};
+    var analysis = analysisResult.analysis || {};
+    var analysisBlock = el('businessPlanImportAnalysis');
+
+    window.businessPlanImportEnvelope = response;
+    window.businessPlanImportResult = analysisResult;
+
+    if (!analysisBlock || !analysis.total) {
+      setStatus(
+        'Le document a été lu, mais aucune analyse structurée exploitable n’a été retournée.',
+        true,
+        false
+      );
+      return;
+    }
+
+    analysisBlock.classList.remove('hidden');
+
+    el('bpImportCompleteness').textContent =
+      String(analysis.completeness || 0) + '%';
+
+    el('bpImportAnalysisCount').textContent =
+      String((analysis.total || 0) - (analysis.missing || 0)) +
+      ' / ' +
+      String(analysis.total || 0) +
+      ' informations détectées';
+
+    el('bpImportFoundCount').textContent = String(analysis.found || 0);
+    el('bpImportConfirmCount').textContent = String(analysis.toConfirm || 0);
+    el('bpImportMissingCount').textContent = String(analysis.missing || 0);
+
+    var meta = response.importMeta || {};
+    var method = String(meta.extractionMethod || response.extractionMethod || '');
+    var methodLabel =
+      method.indexOf('OCR') !== -1
+        ? 'OCR Google Drive'
+        : method.indexOf('WORD') !== -1
+          ? 'Conversion Word'
+          : 'Lecture document';
+
+    el('ag24ImportMethod').textContent = methodLabel;
+    el('ag24ImportTextLength').textContent =
+      Number(meta.wordCount || 0) > 0
+        ? Number(meta.wordCount).toLocaleString('fr-FR') + ' mots'
+        : Number(response.textLength || 0).toLocaleString('fr-FR') + ' caractères';
+    el('ag24ImportReliability').textContent = confidenceLabel(response);
+    el('ag24ImportPreviewText').textContent = String(response.preview || 'Aucun aperçu disponible.');
+
+    var continueButton = el('bpImportContinueButton');
+    if (continueButton) {
+      var rest =
+        Number(analysis.toConfirm || 0) +
+        Number(analysis.missing || 0);
+      var label = continueButton.querySelector('span');
+      if (label) {
+        label.textContent =
+          rest > 0
+            ? 'Vérifier ' + rest + ' information' + (rest > 1 ? 's' : '')
+            : 'Créer mon Business Plan';
+      }
+    }
+
+    var seconds =
+      state.startedAt
+        ? Math.max(1, Math.round((Date.now() - state.startedAt) / 1000))
+        : 0;
+
+    setPipeline('Analyse terminée', 100);
+    setStatus(
+      'Analyse terminée' +
+      (seconds ? ' en ' + seconds + ' s' : '') +
+      '. Vérifiez uniquement ce qui nécessite votre confirmation.',
+      false,
+      true
+    );
+  }
+
+  function failImport(message) {
+    setBusy(false);
+    setPipeline('Analyse interrompue', 0);
+    setStatus(message || 'Une erreur est survenue pendant l’import.', true, false);
+  }
+
+  function readAndSend(file) {
+    var reader = new FileReader();
+
+    reader.onprogress = function (event) {
+      if (event && event.lengthComputable) {
+        var ratio = event.total ? event.loaded / event.total : 0;
+        setPipeline('Lecture du fichier', 5 + ratio * 18);
+      }
+    };
+
+    reader.onerror = function () {
+      failImport('Impossible de lire le fichier sélectionné.');
+    };
+
+    reader.onload = function (event) {
+      try {
+        var raw = String(event.target.result || '');
+        var base64 = raw.indexOf(',') !== -1 ? raw.split(',')[1] : raw;
+
+        setPipeline('Extraction du contenu', 32);
+        setStatus('Document reçu. Lecture et extraction du contenu…', false, false);
+
+        window.setTimeout(function () {
+          setPipeline('Analyse des informations', 58);
+        }, 650);
+
+        window.setTimeout(function () {
+          setPipeline('Vérification des preuves', 78);
+        }, 1900);
+
+        google.script.run
+          .withSuccessHandler(function (response) {
+            setBusy(false);
+
+            if (!response || response.success !== true) {
+              failImport(
+                response && response.message
+                  ? response.message
+                  : 'Impossible d’analyser ce document.'
+              );
+              return;
+            }
+
+            renderAnalysis(response);
+          })
+          .withFailureHandler(function (error) {
+            failImport(
+              error && error.message
+                ? error.message
+                : 'Le serveur n’a pas pu analyser le document.'
+            );
+          })
+          .recevoirFichierBusinessPlan({
+            fileName: file.name,
+            mimeType: file.type,
+            size: file.size,
+            base64: base64
+          });
+      } catch (error) {
+        failImport('Impossible de préparer ce document pour l’analyse.');
+      }
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function enhanceCompletionPage() {
+    var result = window.businessPlanImportResult;
+    var form = el('bpCompletionForm');
+    if (!result || !result.fields || !form) return;
+
+    Array.prototype.forEach.call(
+      form.querySelectorAll('[data-bp-field]'),
+      function (control) {
+        var field = control.getAttribute('data-bp-field');
+        var info = result.fields[field] || {};
+        var wrap = control.closest('.bp-completion-field');
+        if (!wrap) return;
+
+        if (info.status === 'MISSING') {
+          wrap.classList.add('is-missing');
+          var head = wrap.querySelector('.bp-completion-field-head');
+          if (head && !head.querySelector('.bp-completion-status.is-missing')) {
+            var badge = document.createElement('span');
+            badge.className = 'bp-completion-status is-missing';
+            badge.textContent = 'À compléter';
+            head.appendChild(badge);
+          }
+        }
+
+        if (
+          info.status === 'TO_CONFIRM' &&
+          Number(info.confidence || 0) > 0 &&
+          !wrap.querySelector('.ag24-import-confidence')
+        ) {
+          var conf = document.createElement('span');
+          conf.className = 'ag24-import-confidence';
+          conf.textContent =
+            'Confiance de détection : ' +
+            Math.round(Number(info.confidence) * 100) +
+            '%';
+          wrap.appendChild(conf);
+        }
+      }
+    );
+
+    var hero = document.querySelector('.bp-completion-hero');
+    if (!hero) return;
+
+    var existing = el('ag24ImportFoundReview');
+    if (existing) existing.remove();
+
+    var found = [];
+    Object.keys(result.fields).forEach(function (field) {
+      var info = result.fields[field] || {};
+      if (info.status === 'FOUND' && String(info.value || '').trim()) {
+        found.push({
+          field: field,
+          value: String(info.value || '').trim()
+        });
+      }
+    });
+
+    if (!found.length) return;
+
+    var details = document.createElement('details');
+    details.id = 'ag24ImportFoundReview';
+    details.className = 'ag24-import-review-found';
+
+    var summary = document.createElement('summary');
+    summary.textContent =
+      found.length +
+      ' information' +
+      (found.length > 1 ? 's déjà vérifiées' : ' déjà vérifiée');
+    details.appendChild(summary);
+
+    var list = document.createElement('div');
+    list.className = 'ag24-import-found-list';
+
+    found.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'ag24-import-found-row';
+
+      var label = document.createElement('span');
+      label.className = 'ag24-import-found-label';
+      label.textContent =
+        window.BP_IMPORT_FIELD_META &&
+        window.BP_IMPORT_FIELD_META[item.field]
+          ? window.BP_IMPORT_FIELD_META[item.field].label
+          : item.field;
+
+      var value = document.createElement('span');
+      value.className = 'ag24-import-found-value';
+      value.textContent = item.value;
+
+      row.appendChild(label);
+      row.appendChild(value);
+      list.appendChild(row);
+    });
+
+    details.appendChild(list);
+    hero.appendChild(details);
+  }
+
+  function init() {
+    if (!ensureEnhancementUi()) return;
+
+    var input = el('businessPlanImportFile');
+    var dropzone = document.querySelector('.bp-import-dropzone');
+
+    if (input) {
+      input.addEventListener('change', function () {
+        var file =
+          input.files && input.files.length
+            ? input.files[0]
+            : null;
+        setFile(file);
+      });
+    }
+
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach(function (name) {
+        dropzone.addEventListener(name, function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!state.busy) dropzone.classList.add('is-dragover');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach(function (name) {
+        dropzone.addEventListener(name, function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          dropzone.classList.remove('is-dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        dropzone.classList.remove('is-dragover');
+
+        if (state.busy) return;
+
+        var file =
+          event.dataTransfer &&
+          event.dataTransfer.files &&
+          event.dataTransfer.files.length
+            ? event.dataTransfer.files[0]
+            : null;
+
+        if (!file) return;
+
+        if (input && typeof DataTransfer !== 'undefined') {
+          try {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+          } catch (ignored) {}
+        }
+
+        setFile(file);
+      });
+    }
+
+    window.envoyerDossierBusinessPlan = function () {
+      var file = state.file ||
+        (
+          input && input.files && input.files.length
+            ? input.files[0]
+            : null
+        );
+
+      if (!file || !setFile(file)) {
+        if (!file) {
+          setStatus('Sélectionnez d’abord votre Business Plan ou document de projet.', true, false);
+        }
+        return;
+      }
+
+      if (!window.google || !google.script || !google.script.run) {
+        setStatus('Le service d’analyse est momentanément indisponible.', true, false);
+        return;
+      }
+
+      state.startedAt = Date.now();
+      setBusy(true);
+      setPipeline('Préparation du document', 3);
+      setStatus('Préparation sécurisée de votre document…', false, false);
+      readAndSend(file);
+    };
+
+    var originalOpen = window.ouvrirComplementsBusinessPlan;
+    if (typeof originalOpen === 'function') {
+      window.ouvrirComplementsBusinessPlan = function () {
+        originalOpen.apply(this, arguments);
+        window.setTimeout(enhanceCompletionPage, 0);
+      };
+    }
+
+    var originalBack = window.retourAccueilImportBusinessPlan;
+    if (typeof originalBack === 'function') {
+      window.retourAccueilImportBusinessPlan = function () {
+        state.file = null;
+        state.busy = false;
+        resetAnalysis();
+        var card = el('ag24ImportFileCard');
+        if (card) card.classList.remove('is-visible');
+        return originalBack.apply(this, arguments);
+      };
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
