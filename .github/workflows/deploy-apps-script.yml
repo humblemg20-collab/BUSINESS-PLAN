@@ -1,0 +1,81 @@
+name: Deploy Business Plan Apps Script
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: Deployment description
+        required: false
+        default: GitHub manual release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: business-plan-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@v5
+
+      - name: Validate source before deployment
+        run: python3 scripts/validate_apps_script.py
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install clasp
+        run: npm install --global @google/clasp@latest
+
+      - name: Configure clasp credentials
+        shell: bash
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$CLASPRC_JSON"
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Push canonical source
+        working-directory: apps-script
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp show-authorized-user
+          clasp push --force
+
+      - name: Update existing production deployment
+        working-directory: apps-script
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          RELEASE_DESCRIPTION: ${{ inputs.description }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOYMENT_ID"
+          clasp create-deployment \
+            --deploymentId "$DEPLOYMENT_ID" \
+            --description "$RELEASE_DESCRIPTION | ${GITHUB_SHA}"
+          clasp list-deployments
+
+      - name: Production health check
+        shell: bash
+        env:
+          WEB_APP_URL: ${{ vars.BUSINESS_PLAN_WEB_APP_URL }}
+        run: |
+          set -euo pipefail
+          URL="${WEB_APP_URL:-https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec}"
+          CODE="$(curl -L --silent --show-error --output /tmp/business-plan.html --write-out '%{http_code}' "$URL")"
+          echo "PRODUCTION_HTTP_STATUS=$CODE"
+          test "$CODE" = "200"
+          grep -qi "Business Plan" /tmp/business-plan.html
+          echo "PRODUCTION_HEALTH=PASS"
