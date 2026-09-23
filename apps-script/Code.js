@@ -290,7 +290,7 @@ function genererBusinessPlan(data) {
 
     if (agBridge) {
       try {
-        synchroniserBusinessPlanVersDashboard(agBridge, {
+        synchroniserBusinessPlanVersDashboard_(agBridge, {
           documentId: documentId,
           documentUrl: docUrl,
           pdfId: pdfId,
