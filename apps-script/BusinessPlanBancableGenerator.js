@@ -57,12 +57,16 @@ function genererBusinessPlanBancableDepuisInterface(dossierId, jetonAcces) {
 
 function genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces) {
   const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-preparation-report');
-  return genererRapportPreparationBancaire_(id, { forcer: false });
+  return BPB3_reponseClientGeneration_(
+    genererRapportPreparationBancaire_(id, { forcer: false })
+  );
 }
 
 function genererBusinessPlanFinanceurDepuisInterface(dossierId, jetonAcces) {
   const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-financier-plan');
-  return genererBusinessPlanFinanceur_(id, { forcer: false });
+  return BPB3_reponseClientGeneration_(
+    genererBusinessPlanFinanceur_(id, { forcer: false })
+  );
 }
 
 /**
@@ -138,7 +142,9 @@ function obtenirResultatRapportPreparationBancaire(dossierId, jetonAcces) {
   if (!generation || generation.statut !== 'RAPPORT_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
   }
-  return Object.assign({ succes: true }, generation);
+  return BPB3_reponseClientGeneration_(
+    Object.assign({ succes: true }, generation)
+  );
 }
 
 function obtenirResultatBusinessPlanFinanceur(dossierId, jetonAcces) {
@@ -147,7 +153,36 @@ function obtenirResultatBusinessPlanFinanceur(dossierId, jetonAcces) {
   if (!generation || generation.statut !== 'FINANCEUR_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
   }
-  return Object.assign({ succes: true }, generation);
+  return BPB3_reponseClientGeneration_(
+    Object.assign({ succes: true }, generation)
+  );
+}
+
+function BPB3_reponseClientGeneration_(generation) {
+  generation = generation || {};
+
+  return {
+    succes: generation.succes !== false,
+    reutilise: Boolean(generation.reutilise),
+    statut: String(generation.statut || ''),
+    typeDocument: String(generation.typeDocument || ''),
+    dossierId: String(generation.dossierId || ''),
+    nomProjet: String(generation.nomProjet || ''),
+    genereLe: String(generation.genereLe || ''),
+    version: String(generation.version || ''),
+    pdfId: String(generation.pdfId || ''),
+    score:
+      generation.score === undefined
+        ? undefined
+        : Number(generation.score),
+    niveau: String(generation.niveau || ''),
+    moteurRedaction: String(generation.moteurRedaction || ''),
+    dashboardSync:
+      generation.dashboardSync &&
+      typeof generation.dashboardSync === 'object'
+        ? generation.dashboardSync
+        : undefined
+  };
 }
 
 /**

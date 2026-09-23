@@ -4696,176 +4696,80 @@
       state.generation =
         result;
 
-
       refs.statusPill.textContent =
         'Document généré';
-
 
       let panel =
         refs.auditView.querySelector(
           '.generation-panel'
         );
 
-
       if(!panel){
-
         panel =
           document.createElement(
             'div'
           );
 
-
         panel.className =
           'generation-panel';
-
 
         refs.auditView.appendChild(
           panel
         );
-
       }
-
 
       panel.innerHTML =
         '';
-
 
       const title =
         document.createElement(
           'h3'
         );
 
-
       title.textContent =
         'Votre rapport de préparation est prêt';
-
 
       const text =
         document.createElement(
           'p'
         );
 
-
       text.textContent =
-        'Consultez le rapport, corrigez si nécessaire, puis générez la version finale destinée au financeur.';
+        'Le PDF est conservé privé et délivré uniquement depuis votre session sécurisée.';
 
-
-      const links =
+      const downloadButton =
         document.createElement(
-          'div'
+          'button'
         );
 
+      downloadButton.type =
+        'button';
 
-      links.className =
-        'document-links';
-
-
-      const docLink =
-        document.createElement(
-          'a'
-        );
-
-
-      docLink.className =
-        'document-link secondary';
-
-
-      docLink.href =
-        result.documentUrl;
-
-
-      docLink.target =
-        '_blank';
-
-
-      docLink.rel =
-        'noopener';
-
-
-      docLink.textContent =
-        'Ouvrir le Google Docs';
-
-
-      const pdfLink =
-        document.createElement(
-          'a'
-        );
-
-
-      pdfLink.className =
+      downloadButton.className =
         'document-link primary';
 
+      downloadButton.textContent =
+        'Télécharger le PDF';
 
-      pdfLink.href =
-        result.pdfUrl;
-
-
-      pdfLink.target =
-        '_blank';
-
-
-      pdfLink.rel =
-        'noopener';
-
-
-      pdfLink.textContent =
-        'Ouvrir le PDF';
-
-
-      links.append(
-        docLink,
-        pdfLink
-      );
-
-
-      if(
-        result.folderUrl
-      ){
-
-        const folderLink =
-          document.createElement(
-            'a'
+      downloadButton.addEventListener(
+        'click',
+        function(){
+          telechargerPdfBancable_(
+            result.pdfId,
+            downloadButton
           );
-
-
-        folderLink.className =
-          'document-link secondary';
-
-
-        folderLink.href =
-          result.folderUrl;
-
-
-        folderLink.target =
-          '_blank';
-
-
-        folderLink.rel =
-          'noopener';
-
-
-        folderLink.textContent =
-          'Voir le dossier Drive';
-
-
-        links.appendChild(
-          folderLink
-        );
-
-      }
-
+        }
+      );
 
       panel.append(
         title,
         text,
-        links
+        downloadButton
       );
-
 
       afficherValidationFinale(
         panel
       );
-
 
       chargerResultatFinanceur();
 
@@ -5476,159 +5380,250 @@
       refs.statusPill.textContent =
         'Version financeur prête';
 
-
       const panel =
         refs.auditView.querySelector(
           '.generation-panel'
         );
-
 
       let box =
         panel.querySelector(
           '.financeur-result'
         );
 
-
       if(!box){
-
         box =
           document.createElement(
             'div'
           );
 
-
         box.className =
           'success-panel financeur-result';
-
 
         panel.appendChild(
           box
         );
-
       }
-
 
       box.innerHTML =
         '';
-
 
       const title =
         document.createElement(
           'h3'
         );
 
-
       title.textContent =
         'Business Plan final prêt à être transmis';
-
 
       const text =
         document.createElement(
           'p'
         );
 
-
       text.textContent =
-        'Cette version est épurée : elle ne contient ni score détaillé, ni alertes internes, ni identifiant technique du dossier.';
+        'Le PDF final reste privé dans Drive et est délivré uniquement après vérification de votre accès Bancable.';
 
-
-      const links =
+      const downloadButton =
         document.createElement(
-          'div'
+          'button'
         );
 
+      downloadButton.type =
+        'button';
 
-      links.className =
-        'document-links';
-
-
-      const docLink =
-        document.createElement(
-          'a'
-        );
-
-
-      docLink.className =
-        'document-link secondary';
-
-
-      docLink.href =
-        result.documentUrl;
-
-
-      docLink.target =
-        '_blank';
-
-
-      docLink.rel =
-        'noopener';
-
-
-      docLink.textContent =
-        'Ouvrir le Google Docs final';
-
-
-      const pdfLink =
-        document.createElement(
-          'a'
-        );
-
-
-      pdfLink.className =
+      downloadButton.className =
         'document-link primary';
 
+      downloadButton.textContent =
+        'Télécharger le PDF final';
 
-      pdfLink.href =
-        result.pdfUrl;
-
-
-      pdfLink.target =
-        '_blank';
-
-
-      pdfLink.rel =
-        'noopener';
-
-
-      pdfLink.textContent =
-        'Ouvrir le PDF final';
-
-
-      links.append(
-        docLink,
-        pdfLink
+      downloadButton.addEventListener(
+        'click',
+        function(){
+          telechargerPdfBancable_(
+            result.pdfId,
+            downloadButton
+          );
+        }
       );
-
 
       box.append(
         title,
         text,
-        links
+        downloadButton
       );
-
 
       const status =
         panel.querySelector(
           '#financeurStatus'
         );
 
-
       if(status){
-
         status.remove();
-
       }
-
-
-      /*
-       * =========================================================
-       * ENREGISTREMENT AUTOMATIQUE DANS LE DASHBOARD
-       * =========================================================
-       */
 
       enregistrerBusinessPlanDansDocuments(
         result
       );
+
+    }
+
+
+    function telechargerPdfBancable_(
+      fileId,
+      button
+    ){
+
+      const id =
+        String(
+          fileId || ''
+        )
+        .trim();
+
+      if(!id){
+        window.alert(
+          'PDF introuvable.'
+        );
+        return;
+      }
+
+      const originalText =
+        button
+          ? button.textContent
+          : '';
+
+      if(button){
+        button.disabled =
+          true;
+
+        button.textContent =
+          'Téléchargement…';
+      }
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            if(button){
+              button.disabled =
+                false;
+
+              button.textContent =
+                originalText;
+            }
+
+            if(
+              !result ||
+              result.success !== true ||
+              !result.base64
+            ){
+              window.alert(
+                'Le PDF sécurisé n’a pas pu être récupéré.'
+              );
+              return;
+            }
+
+            const binary =
+              window.atob(
+                String(
+                  result.base64
+                )
+              );
+
+            const bytes =
+              new Uint8Array(
+                binary.length
+              );
+
+            for(
+              let index = 0;
+              index < binary.length;
+              index += 1
+            ){
+              bytes[index] =
+                binary.charCodeAt(
+                  index
+                );
+            }
+
+            const blob =
+              new Blob(
+                [bytes],
+                {
+                  type:
+                    result.mimeType ||
+                    'application/pdf'
+                }
+              );
+
+            const url =
+              URL.createObjectURL(
+                blob
+              );
+
+            const anchor =
+              document.createElement(
+                'a'
+              );
+
+            anchor.href =
+              url;
+
+            anchor.download =
+              result.fileName ||
+              'Business Plan.pdf';
+
+            document.body.appendChild(
+              anchor
+            );
+
+            anchor.click();
+            anchor.remove();
+
+            window.setTimeout(
+              function(){
+                URL.revokeObjectURL(
+                  url
+                );
+              },
+              1500
+            );
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            if(button){
+              button.disabled =
+                false;
+
+              button.textContent =
+                originalText;
+            }
+
+            window.alert(
+              error &&
+              error.message
+                ? error.message
+                : String(
+                    error ||
+                    'Téléchargement impossible.'
+                  )
+            );
+
+          }
+        )
+
+        .telechargerPdfBusinessPlanBancable(
+          DOSSIER_ID,
+          JETON_ACCES,
+          id
+        );
 
     }
 
