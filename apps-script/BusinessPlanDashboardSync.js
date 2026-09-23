@@ -5,8 +5,55 @@
  * ============================================================
  */
 
-const BP_DASHBOARD_SYNC_URL =
+const BP_DASHBOARD_SYNC_URL_PROPERTY =
+  'AFRIGREEN24_DASHBOARD_SYNC_URL';
+
+const BP_DASHBOARD_SYNC_URL_DEFAULT =
   'https://script.google.com/macros/s/AKfycby_l9d-zzyjLP7AZvsyj5Ov7Dsu9YrB9PQi4ZUpRxZ0e05XSkzhQwTyPoTAhtfhLaqaow/exec';
+
+function BP_obtenirDashboardSyncUrl_() {
+  const configured = String(
+    PropertiesService.getScriptProperties().getProperty(
+      BP_DASHBOARD_SYNC_URL_PROPERTY
+    ) || ''
+  ).trim();
+
+  const url = configured || BP_DASHBOARD_SYNC_URL_DEFAULT;
+
+  if (
+    !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)
+  ) {
+    throw new Error('URL Dashboard AfriGreen24 invalide.');
+  }
+
+  return url;
+}
+
+function synchroniserBusinessPlanVersDashboardDepuisInterface(
+  dossierId,
+  jetonAcces,
+  bridge,
+  generation
+) {
+  const id = AG24_SEC_assertBancableAccess_(
+    dossierId,
+    jetonAcces,
+    'dashboard-sync'
+  );
+
+  if (
+    generation &&
+    generation.dossierId &&
+    String(generation.dossierId) !== id
+  ) {
+    throw new Error('Le document ne correspond pas au dossier autorisé.');
+  }
+
+  return synchroniserBusinessPlanVersDashboard_(
+    bridge,
+    generation
+  );
+}
 
 
 /**
@@ -15,7 +62,7 @@ const BP_DASHBOARD_SYNC_URL =
  * ============================================================
  */
 
-function synchroniserBusinessPlanVersDashboard(
+function synchroniserBusinessPlanVersDashboard_(
   bridge,
   generation
 ){
@@ -128,7 +175,7 @@ function synchroniserBusinessPlanVersDashboard(
   const response =
     UrlFetchApp.fetch(
 
-      BP_DASHBOARD_SYNC_URL,
+      BP_obtenirDashboardSyncUrl_(),
 
       {
 
