@@ -568,6 +568,12 @@
     var card = el('ag24ImportFileCard');
     if (card) card.classList.remove('is-visible');
 
+    var legacySelected = el('businessPlanImportSelected');
+    if (legacySelected) {
+      legacySelected.classList.add('hidden');
+      legacySelected.textContent = '';
+    }
+
     if (!file) {
       setStatus('', false, false);
       return false;
