@@ -11,7 +11,7 @@ var AFRIGREEN24_DASHBOARD_NAME = "Dashboard";
 /**
  * Crée ou actualise le tableau de pilotage commercial.
  */
-function actualiserDashboardCommercial() {
+function actualiserDashboardCommercial_() {
   var classeur = SpreadsheetApp.openById(
     AFRIGREEN24_SHEET_ID
   );
@@ -720,9 +720,9 @@ function construireDashboardVide(
 /**
  * Test direct depuis Apps Script.
  */
-function testerDashboardCommercial() {
+function testerDashboardCommercial_() {
   var resultat =
-    actualiserDashboardCommercial();
+    actualiserDashboardCommercial_();
 
   console.log(
     JSON.stringify(

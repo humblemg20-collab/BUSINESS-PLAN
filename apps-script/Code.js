@@ -307,7 +307,7 @@ function genererBusinessPlan_(data) {
     }
 
     if (
-  typeof enregistrerSoumission !==
+  typeof enregistrerSoumission_ !==
   "function"
 ) {
   throw new Error(
@@ -315,14 +315,14 @@ function genererBusinessPlan_(data) {
   );
 }
 
-enregistrerSoumission(
+enregistrerSoumission_(
   data,
   liens,
   profilCommercial
 );
 
 if (
-  typeof actualiserDashboardCommercial !==
+  typeof actualiserDashboardCommercial_ !==
   "function"
 ) {
   throw new Error(
@@ -330,7 +330,7 @@ if (
   );
 }
 
-actualiserDashboardCommercial();
+actualiserDashboardCommercial_();
 
     /*
      * Nettoyage du cache narratif IA après la génération réussie.
@@ -3567,7 +3567,7 @@ function formaterDateLongue(date) {
  *
  * Elle n'est pas appelée par le questionnaire.
  */
-function testerGenerationBusinessPlan() {
+function testerGenerationBusinessPlan_() {
   var donneesTest = {
     projectName: "EcoCycle Africa",
     promoterName: "Entrepreneur test",
@@ -3661,7 +3661,7 @@ function testerGenerationBusinessPlan() {
  * - les introductions et transitions varient ;
  * - les deux PDF sont correctement créés.
  */
-function testerStoryEngine() {
+function testerStoryEngine_() {
   var projetA = creerDonneesTestStoryEngine(
     "EcoCycle Africa"
   );
@@ -3973,7 +3973,7 @@ function ajouterSyntheseStrategique(body, data) {
    */
   body.appendPageBreak();
 }
-function testerGenerationStandardRapidePDF() {
+function testerGenerationStandardRapidePDF_() {
   var data = {
     projectName: "GreenStep Shoes",
     promoterName: "Client Test",
