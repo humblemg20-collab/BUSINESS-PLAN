@@ -1209,7 +1209,7 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
     const bridge = String(dossier.meta.agBridge || '').trim();
     if (bridge) {
       try {
-        synchroniserBusinessPlanVersDashboard(bridge, generation);
+        synchroniserBusinessPlanVersDashboard_(bridge, generation);
         generation.dashboardSync = { success: true };
       } catch (error) {
         const message = error && error.message ? error.message : String(error);
