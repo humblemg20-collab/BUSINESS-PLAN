@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b6b3a">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Business Plan | AfriGreen24</title>
+
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #f5f8f6;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #ag24-app {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      border: 0;
+      display: block;
+      background: #f5f8f6;
+    }
+
+    #ag24-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f8f6;
+      transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    #ag24-loader.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .ag24-loader-card {
+      text-align: center;
+      color: #12372a;
+      padding: 24px;
+    }
+
+    .ag24-logo {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 14px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: #0b6b3a;
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    .ag24-pulse {
+      width: 32px;
+      height: 32px;
+      margin: 18px auto 0;
+      border: 3px solid rgba(11, 107, 58, .18);
+      border-top-color: #0b6b3a;
+      border-radius: 50%;
+      animation: ag24-spin .8s linear infinite;
+    }
+
+    @keyframes ag24-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ag24-loader" aria-live="polite">
+    <div class="ag24-loader-card">
+      <div class="ag24-logo">AG</div>
+      <strong>AfriGreen24</strong>
+      <div>Chargement du Business Plan…</div>
+      <div class="ag24-pulse" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <iframe
+    id="ag24-app"
+    title="AfriGreen24 — Business Plan"
+    allow="clipboard-read; clipboard-write"
+    allowfullscreen
+    referrerpolicy="strict-origin-when-cross-origin"
+  ></iframe>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var WEB_APP_URL =
+        'https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec';
+
+      var iframe = document.getElementById('ag24-app');
+      var loader = document.getElementById('ag24-loader');
+
+      var target = new URL(WEB_APP_URL);
+      var incoming = new URLSearchParams(window.location.search);
+
+      incoming.forEach(function (value, key) {
+        target.searchParams.set(key, value);
+      });
+
+      if (window.location.hash) {
+        target.hash = window.location.hash;
+      }
+
+      iframe.addEventListener('load', function () {
+        window.setTimeout(function () {
+          loader.classList.add('is-hidden');
+        }, 150);
+      });
+
+      iframe.src = target.toString();
+    })();
+  </script>
+</body>
+</html>
