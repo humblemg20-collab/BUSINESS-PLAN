@@ -1,4 +1,4 @@
-name: Extract canonical Apps Script source
+name: Sync canonical Apps Script source
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract Apps Script source
         shell: bash
@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
 
           ZIP="business plan.zip"
-          EXPECTED_SCRIPT_ID="1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS"
+          EXPECTED_SCRIPT_ID="1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
 
           if [[ ! -f "$ZIP" ]]; then
             echo "SOURCE_ZIP_NOT_FOUND=$ZIP"
@@ -51,10 +51,6 @@ jobs:
 
           SRC="$(dirname "$CLASP_FILE")"
           echo "SOURCE_ROOT=$SRC"
-
-          echo "SOURCE_FILE_LIST=START"
-          find "$SRC" -type f -print | sort
-          echo "SOURCE_FILE_LIST=END"
 
           rm -rf apps-script
           mkdir -p apps-script docs
@@ -93,13 +89,13 @@ jobs:
           {
             echo "# Provenance de la source"
             echo
-            echo "- Projet : AfriGreen24 — Business Model Finançable"
+            echo "- Projet : AfriGreen24 — Business Plan"
             echo "- Script ID : $SCRIPT_ID"
-            echo "- Source : business plan.zip"
+            echo "- Source d'import : business plan.zip"
             echo "- Extraction : GitHub Actions déterministe"
-            echo "- Web App canonique : https://script.google.com/macros/s/AKfycbzuuT3vesWHRoTmG7lkiRiG8ITwBQbTzdqbEcW-72bRZyCzUBpSGDBeyIaV9pK5Y476/exec"
+            echo "- Web App URL : non enregistrée dans l'archive ; à renseigner après vérification du déploiement correspondant"
             echo
-            echo "Les fichiers sous apps-script/ sont régénérés automatiquement depuis l'archive canonique."
+            echo "Le ZIP racine est conservé comme snapshot. Le dossier apps-script/ est la source lisible et modifiable dans GitHub."
           } > docs/source-provenance.md
 
           (
@@ -123,11 +119,13 @@ jobs:
           import re
           from pathlib import Path
 
+          EXPECTED_SCRIPT_ID = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
           root = Path("apps-script")
+
           manifest = json.loads((root / "appsscript.json").read_text(encoding="utf-8"))
           clasp = json.loads((root / ".clasp.json").read_text(encoding="utf-8"))
 
-          assert clasp["scriptId"] == "1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS"
+          assert clasp["scriptId"] == EXPECTED_SCRIPT_ID
           assert manifest.get("runtimeVersion") == "V8"
 
           code_files = list(root.rglob("*.js")) + list(root.rglob("*.gs"))
@@ -136,13 +134,10 @@ jobs:
           assert code_files, "No Apps Script code files found"
           assert html_files, "No HTML files found"
 
-          do_get_found = False
-          for path in code_files:
-              text = path.read_text(encoding="utf-8", errors="replace")
-              if re.search(r"function\s+doGet\s*\(", text):
-                  do_get_found = True
-                  break
-
+          do_get_found = any(
+              re.search(r"function\s+doGet\s*\(", p.read_text(encoding="utf-8", errors="replace"))
+              for p in code_files
+          )
           assert do_get_found, "doGet function not found"
 
           print(f"CODE_FILES={len(code_files)}")

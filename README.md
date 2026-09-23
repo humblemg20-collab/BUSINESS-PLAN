@@ -1,22 +1,30 @@
-# AfriGreen24 — Business Model Finançable
+# AfriGreen24 — Business Plan
 
-Repository canonique du module **Business Model Finançable** d’AfriGreen24.
+Repository canonique du module **Business Plan** d’AfriGreen24.
 
 ## Architecture
 
-- `apps-script/` — source Google Apps Script exécutable.
-- `hostinger/` — façade publique du sous-domaine Hostinger.
-- `docs/` — provenance et informations de déploiement.
-- `business plan.zip` — archive source originale conservée comme snapshot.
+- `apps-script/` — code Google Apps Script lisible et modifiable.
+- `docs/` — provenance, empreintes SHA-256 et informations de synchronisation.
+- `business plan.zip` — snapshot original de l’export Apps Script.
+- `.github/workflows/extract-business-plan.yml` — moteur automatique d’extraction, validation et synchronisation.
 
 ## Source Apps Script
 
-Script ID : `1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS`
+Script ID détecté directement dans l’archive :
 
-Déploiement Web App canonique : `AKfycbzuuT3vesWHRoTmG7lkiRiG8ITwBQbTzdqbEcW-72bRZyCzUBpSGDBeyIaV9pK5Y476` (version 23 au moment de l’export).
+`1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz`
 
-La façade Hostinger conserve Apps Script comme moteur afin de préserver les appels `google.script.run`.
+La source de vérité technique est désormais le code versionné sous `apps-script/`. Le ZIP reste conservé comme snapshot d’origine.
 
-## Principe de modification
+## Synchronisation
 
-Toute évolution doit être réalisée dans les sources versionnées, validée, puis déployée. Le ZIP racine reste un snapshot historique et ne doit pas devenir la source de travail quotidienne.
+Toute mise à jour de `business plan.zip` déclenche automatiquement :
+
+`ZIP → extraction → validation Script ID/runtime/doGet → SHA-256 → commit du code extrait`
+
+Cela évite l’extraction et le copier-coller manuels.
+
+## Hostinger
+
+Aucune URL Web App n’est enregistrée ici tant que le déploiement `/exec` correspondant à ce Script ID n’a pas été vérifié. Cela empêche de relier le sous-domaine au mauvais projet Apps Script.
