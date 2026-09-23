@@ -83,6 +83,8 @@ const BP_IMPORT_STATUS = Object.freeze({
  */
 function recevoirFichierBusinessPlan(payload) {
 
+  AG24_SEC_assertImportRequest_(payload);
+
   var fichiersTemporaires = [];
 
   try {
@@ -953,7 +955,7 @@ function mimeDepuisExtensionBusinessPlan_(
 /**
  * Test direct du nouvel endpoint HumbleOS.
  */
-function testerExtractionBusinessPlanHumbleOS() {
+function testerExtractionBusinessPlanHumbleOS_() {
 
   var texteTest = [
     "BUSINESS PLAN",
@@ -984,7 +986,7 @@ function testerExtractionBusinessPlanHumbleOS() {
 
   return resultat;
 }
-function TEST_BP_STAGE_FUNDING_MAPPING_LOCAL() {
+function TEST_BP_STAGE_FUNDING_MAPPING_LOCAL_() {
 
   var tests = [
     {
