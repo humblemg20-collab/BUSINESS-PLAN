@@ -1,165 +1,62 @@
-name: Sync canonical Apps Script source
+name: Validate canonical Business Plan source
 
 on:
   push:
     branches:
       - main
+      - "hardening/**"
     paths:
-      - "business plan.zip"
-      - ".github/workflows/extract-business-plan.yml"
+      - "apps-script/**"
+      - "hostinger/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+      - "README.md"
+  pull_request:
+    paths:
+      - "apps-script/**"
+      - "hostinger/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+      - "README.md"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: business-plan-source-sync
-  cancel-in-progress: false
+  group: business-plan-validation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  extract:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout canonical source
         uses: actions/checkout@v5
 
-      - name: Extract Apps Script source
+      - name: Validate repository contract
+        run: python3 scripts/validate_apps_script.py
+
+      - name: JavaScript syntax checks
         shell: bash
         run: |
           set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find apps-script -maxdepth 1 -type f -name '*.js' -print0)
 
-          ZIP="business plan.zip"
-          EXPECTED_SCRIPT_ID="1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
-
-          if [[ ! -f "$ZIP" ]]; then
-            echo "SOURCE_ZIP_NOT_FOUND=$ZIP"
-            exit 1
-          fi
-
-          TMP="$(mktemp -d)"
-          trap 'rm -rf "$TMP"' EXIT
-
-          unzip -q "$ZIP" -d "$TMP"
-
-          CLASP_FILE="$(find "$TMP" -type f -name '.clasp.json' -print -quit)"
-
-          if [[ -z "$CLASP_FILE" ]]; then
-            echo "CLASP_FILE_NOT_FOUND_IN_ARCHIVE"
-            exit 1
-          fi
-
-          SRC="$(dirname "$CLASP_FILE")"
-          echo "SOURCE_ROOT=$SRC"
-
-          rm -rf apps-script
-          mkdir -p apps-script docs
-
-          rsync -a             --exclude='*.zip'             --exclude='AFRIGREEN24_DEPLOYMENTS.txt'             --exclude='AFRIGREEN24_EXPORT_METADATA.txt'             --exclude='AFRIGREEN24_FILE_INVENTORY.txt'             --exclude='AFRIGREEN24_SHA256.txt'             "$SRC/" apps-script/
-
-          test -f apps-script/.clasp.json
-          test -f apps-script/appsscript.json
-
-          SCRIPT_ID="$(python - <<'PY'
-          import json
-          with open("apps-script/.clasp.json", encoding="utf-8") as f:
-              print(json.load(f)["scriptId"])
-          PY
-          )"
-
-          if [[ "$SCRIPT_ID" != "$EXPECTED_SCRIPT_ID" ]]; then
-            echo "SCRIPT_ID_MISMATCH=$SCRIPT_ID"
-            exit 1
-          fi
-
-          SOURCE_COUNT="$(find apps-script -type f | wc -l | tr -d ' ')"
-          HTML_COUNT="$(find apps-script -type f -name '*.html' | wc -l | tr -d ' ')"
-          CODE_COUNT="$(find apps-script -type f \( -name '*.js' -o -name '*.gs' \) | wc -l | tr -d ' ')"
-
-          if [[ "$SOURCE_COUNT" -lt 3 || "$HTML_COUNT" -lt 1 || "$CODE_COUNT" -lt 1 ]]; then
-            echo "SOURCE_STRUCTURE_INVALID files=$SOURCE_COUNT html=$HTML_COUNT code=$CODE_COUNT"
-            exit 1
-          fi
-
-          if ! grep -R -E -q 'function[[:space:]]+doGet' apps-script --include='*.js' --include='*.gs'; then
-            echo "DOGET_NOT_FOUND"
-            exit 1
-          fi
-
-          {
-            echo "# Provenance de la source"
-            echo
-            echo "- Projet : AfriGreen24 — Business Plan"
-            echo "- Script ID : $SCRIPT_ID"
-            echo "- Source d'import : business plan.zip"
-            echo "- Extraction : GitHub Actions déterministe"
-            echo "- Web App URL : non enregistrée dans l'archive ; à renseigner après vérification du déploiement correspondant"
-            echo
-            echo "Le ZIP racine est conservé comme snapshot. Le dossier apps-script/ est la source lisible et modifiable dans GitHub."
-          } > docs/source-provenance.md
-
-          (
-            cd apps-script
-            find . -type f -print0 | sort -z | xargs -0 sha256sum
-          ) > docs/apps-script-sha256.txt
-
-          echo "APPS_SCRIPT_FILES=$SOURCE_COUNT"
-          echo "APPS_SCRIPT_HTML=$HTML_COUNT"
-          echo "APPS_SCRIPT_CODE=$CODE_COUNT"
-          echo "SCRIPT_ID=$SCRIPT_ID"
-          echo "SOURCE_EXTRACTION=PASS"
-
-      - name: Validate extracted source
+      - name: Verify Hostinger facade target
         shell: bash
         run: |
           set -euo pipefail
+          grep -q "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R" hostinger/index.html
 
-          python - <<'PY'
-          import json
-          import re
-          from pathlib import Path
-
-          EXPECTED_SCRIPT_ID = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
-          root = Path("apps-script")
-
-          manifest = json.loads((root / "appsscript.json").read_text(encoding="utf-8"))
-          clasp = json.loads((root / ".clasp.json").read_text(encoding="utf-8"))
-
-          assert clasp["scriptId"] == EXPECTED_SCRIPT_ID
-          assert manifest.get("runtimeVersion") == "V8"
-
-          code_files = list(root.rglob("*.js")) + list(root.rglob("*.gs"))
-          html_files = list(root.rglob("*.html"))
-
-          assert code_files, "No Apps Script code files found"
-          assert html_files, "No HTML files found"
-
-          do_get_found = any(
-              re.search(r"function\s+doGet\s*\(", p.read_text(encoding="utf-8", errors="replace"))
-              for p in code_files
-          )
-          assert do_get_found, "doGet function not found"
-
-          print(f"CODE_FILES={len(code_files)}")
-          print(f"HTML_FILES={len(html_files)}")
-          print("SOURCE_VALIDATION=PASS")
-          PY
-
-      - name: Commit synchronized source
+      - name: Canonical source summary
         shell: bash
         run: |
           set -euo pipefail
-
-          if git diff --quiet -- apps-script docs/source-provenance.md docs/apps-script-sha256.txt; then
-            echo "SOURCE_SYNC=NO_CHANGES"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add apps-script docs/source-provenance.md docs/apps-script-sha256.txt
-          git commit -m "sync: extract canonical Apps Script source"
-          git push origin HEAD:main
-
-          echo "SOURCE_SYNC=PASS"
+          echo "SOURCE_OF_TRUTH=apps-script/"
+          echo "ZIP_ROLE=ARCHIVE_ONLY"
+          echo "SCRIPT_ID=$(python3 -c 'import json; print(json.load(open("apps-script/.clasp.json"))["scriptId"])')"
+          echo "VALIDATION_PIPELINE=PASS"

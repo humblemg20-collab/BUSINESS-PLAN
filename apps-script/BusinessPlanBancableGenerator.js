@@ -29,7 +29,7 @@ const BPB3_CONFIG = Object.freeze({
 /**
  * Configure le dossier Drive dans lequel les Google Docs et PDF seront créés.
  */
-function configurerDossierSortieBusinessPlanBancable(folderId) {
+function configurerDossierSortieBusinessPlanBancable_(folderId) {
   const id = String(folderId || '').trim();
   if (!id) throw new Error('Identifiant du dossier Drive obligatoire.');
   const folder = DriveApp.getFolderById(id);
@@ -40,7 +40,7 @@ function configurerDossierSortieBusinessPlanBancable(folderId) {
 /**
  * Configure un logo facultatif stocké dans Google Drive.
  */
-function configurerLogoBusinessPlanBancable(fileId) {
+function configurerLogoBusinessPlanBancable_(fileId) {
   const id = String(fileId || '').trim();
   if (!id) throw new Error('Identifiant du fichier logo obligatoire.');
   const file = DriveApp.getFileById(id);
@@ -51,22 +51,28 @@ function configurerLogoBusinessPlanBancable(fileId) {
 /**
  * Point d’entrée appelé par l’interface HTML.
  */
-function genererBusinessPlanBancableDepuisInterface(dossierId) {
-  return genererRapportPreparationBancaireDepuisInterface(dossierId);
+function genererBusinessPlanBancableDepuisInterface(dossierId, jetonAcces) {
+  return genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces);
 }
 
-function genererRapportPreparationBancaireDepuisInterface(dossierId) {
-  return genererRapportPreparationBancaire(dossierId, { forcer: false });
+function genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-preparation-report');
+  return BPB3_reponseClientGeneration_(
+    genererRapportPreparationBancaire_(id, { forcer: false })
+  );
 }
 
-function genererBusinessPlanFinanceurDepuisInterface(dossierId) {
-  return genererBusinessPlanFinanceur(dossierId, { forcer: false });
+function genererBusinessPlanFinanceurDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-financier-plan');
+  return BPB3_reponseClientGeneration_(
+    genererBusinessPlanFinanceur_(id, { forcer: false })
+  );
 }
 
 /**
  * Génère le Google Docs et son PDF.
  */
-function genererRapportPreparationBancaire(dossierId, options) {
+function genererRapportPreparationBancaire_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
 
@@ -76,7 +82,7 @@ function genererRapportPreparationBancaire(dossierId, options) {
   }
 
   try {
-    const source = obtenirDossierUnifieBusinessPlanBancable(id);
+    const source = BPB_obtenirDossierUnifie_(id);
     const analyse = analyserBusinessPlanBancable(source.standard, source.bancable);
 
     if (!analyse.audit || !analyse.audit.pretPourGeneration) {
@@ -126,40 +132,71 @@ function genererRapportPreparationBancaire(dossierId, options) {
 /**
  * Retourne le dernier résultat de génération du dossier.
  */
-function obtenirResultatGenerationBusinessPlanBancable(dossierId) {
-  return obtenirResultatRapportPreparationBancaire(dossierId);
+function obtenirResultatGenerationBusinessPlanBancable(dossierId, jetonAcces) {
+  return obtenirResultatRapportPreparationBancaire(dossierId, jetonAcces);
 }
 
-function obtenirResultatRapportPreparationBancaire(dossierId) {
-  const id = BPB3_normaliserDossierId_(dossierId);
+function obtenirResultatRapportPreparationBancaire(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'read-preparation-result');
   const generation = BPB_lireJsonChunked_(BPB_cle_(id, 'GENERATION_RAPPORT'));
   if (!generation || generation.statut !== 'RAPPORT_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
   }
-  return Object.assign({ succes: true }, generation);
+  return BPB3_reponseClientGeneration_(
+    Object.assign({ succes: true }, generation)
+  );
 }
 
-function obtenirResultatBusinessPlanFinanceur(dossierId) {
-  const id = BPB3_normaliserDossierId_(dossierId);
+function obtenirResultatBusinessPlanFinanceur(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'read-financier-result');
   const generation = BPB_lireJsonChunked_(BPB_cle_(id, 'GENERATION_FINANCEUR'));
   if (!generation || generation.statut !== 'FINANCEUR_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
   }
-  return Object.assign({ succes: true }, generation);
+  return BPB3_reponseClientGeneration_(
+    Object.assign({ succes: true }, generation)
+  );
+}
+
+function BPB3_reponseClientGeneration_(generation) {
+  generation = generation || {};
+
+  return {
+    succes: generation.succes !== false,
+    reutilise: Boolean(generation.reutilise),
+    statut: String(generation.statut || ''),
+    typeDocument: String(generation.typeDocument || ''),
+    dossierId: String(generation.dossierId || ''),
+    nomProjet: String(generation.nomProjet || ''),
+    genereLe: String(generation.genereLe || ''),
+    version: String(generation.version || ''),
+    pdfId: String(generation.pdfId || ''),
+    score:
+      generation.score === undefined
+        ? undefined
+        : Number(generation.score),
+    niveau: String(generation.niveau || ''),
+    moteurRedaction: String(generation.moteurRedaction || ''),
+    dashboardSync:
+      generation.dashboardSync &&
+      typeof generation.dashboardSync === 'object'
+        ? generation.dashboardSync
+        : undefined
+  };
 }
 
 /**
  * Génère à nouveau les fichiers en ignorant un résultat antérieur.
  */
-function regenererBusinessPlanBancable(dossierId) {
-  return genererRapportPreparationBancaire(dossierId, { forcer: true });
+function regenererBusinessPlanBancable_(dossierId) {
+  return genererRapportPreparationBancaire_(dossierId, { forcer: true });
 }
 
 /**
  * Test complet autonome du Module 3.
  * Crée un dossier d’exemple, l’audite, le confirme et génère Docs + PDF.
  */
-function testerGenerationBusinessPlanBancable() {
+function testerGenerationBusinessPlanBancable_() {
   const id = creerIdentifiantDossierBancable();
   const standard = {
     nomProjet: 'Unité de transformation de mangues',
@@ -258,7 +295,7 @@ function testerGenerationBusinessPlanBancable() {
     throw new Error('Le dossier de test n’est pas prêt : ' + JSON.stringify(auditResult));
   }
   confirmerDossierBusinessPlanBancable(id);
-  const resultat = genererRapportPreparationBancaire(id, { forcer: true });
+  const resultat = genererRapportPreparationBancaire_(id, { forcer: true });
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
@@ -402,11 +439,11 @@ function BPB5_obtenirNarratifIA_(dossier, modele) {
   }
 
   try {
-    if (typeof genererNarratifBusinessPlanAvecHumbleOS !== 'function') {
+    if (typeof genererNarratifBusinessPlanAvecHumbleOS_ !== 'function') {
       throw new Error('HumbleOSBridge.gs n’est pas installé.');
     }
 
-    const narratif = genererNarratifBusinessPlanAvecHumbleOS(
+    const narratif = genererNarratifBusinessPlanAvecHumbleOS_(
       BPB5_donneesBrutesIA_(dossier),
       BPB5_donneesCalculeesIA_(dossier, modele),
       'Rédige comme un consultant en financement d’entreprise. Préserve une tonalité humaine, précise et sobre. N’invente rien. Les sections doivent se compléter sans répétitions.'
@@ -426,7 +463,7 @@ function BPB5_texteIA_(dossier, cle) {
   return n && typeof n[cle] === 'string' ? n[cle].trim() : '';
 }
 
-function viderCacheRedactionHumbleOS(dossierId) {
+function viderCacheRedactionHumbleOS_(dossierId) {
   const id = BPB3_normaliserDossierId_(dossierId);
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_NARRATIF));
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_SIGNATURE));
@@ -1158,7 +1195,7 @@ function BPB3_creerDocumentFinanceur_(dossier, modele, folder) {
   };
 }
 
-function genererBusinessPlanFinanceur(dossierId, options) {
+function genererBusinessPlanFinanceur_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
   const preparation = BPB3_preparerGeneration_(id, Boolean(opts.forcer), 'FINANCEUR');
@@ -1167,7 +1204,7 @@ function genererBusinessPlanFinanceur(dossierId, options) {
   }
 
   try {
-    const source = obtenirDossierUnifieBusinessPlanBancable(id);
+    const source = BPB_obtenirDossierUnifie_(id);
     const validationFinale = BPB_lireJsonChunked_(BPB_cle_(id, 'VALIDATION_FINALE'));
     if (!validationFinale || validationFinale.informationsExactes !== true || validationFinale.decisionFinanceur !== true) {
       throw new Error('La validation finale du porteur doit être enregistrée avant la génération de la version financeur.');
@@ -1207,7 +1244,7 @@ function genererBusinessPlanFinanceur(dossierId, options) {
     const bridge = String(dossier.meta.agBridge || '').trim();
     if (bridge) {
       try {
-        synchroniserBusinessPlanVersDashboard(bridge, generation);
+        synchroniserBusinessPlanVersDashboard_(bridge, generation);
         generation.dashboardSync = { success: true };
       } catch (error) {
         const message = error && error.message ? error.message : String(error);
@@ -1297,65 +1334,9 @@ function BPB3_construireModeleFinancier_(dossier) {
 }
 
 function BPB3_construireEcheancier_(premium) {
-  const capitalInitial = Math.max(0, BPB3_nombre_(premium.montantDemande));
-  const duree = Math.max(1, Math.min(BPB3_CONFIG.MAX_MOIS_ECHEANCIER, BPB3_nombre_(premium.dureeRemboursementMois) || 1));
-  const differe = Math.max(0, Math.min(duree - 1, BPB3_nombre_(premium.differeMois)));
-  const tauxMensuel = Math.max(0, BPB3_nombre_(premium.tauxInteretAnnuel)) / 100 / 12;
-  const moisAmortissement = Math.max(1, duree - differe);
-  const mensualiteApresDiffere = capitalInitial <= 0
-    ? 0
-    : tauxMensuel > 0
-      ? capitalInitial * tauxMensuel / (1 - Math.pow(1 + tauxMensuel, -moisAmortissement))
-      : capitalInitial / moisAmortissement;
-
-  let solde = capitalInitial;
-  const mensuel = [];
-  for (let mois = 1; mois <= duree; mois += 1) {
-    const soldeInitial = solde;
-    const interets = soldeInitial * tauxMensuel;
-    let paiement;
-    let capital;
-
-    if (mois <= differe) {
-      paiement = interets;
-      capital = 0;
-    } else {
-      paiement = Math.min(soldeInitial + interets, mensualiteApresDiffere);
-      capital = Math.max(0, paiement - interets);
-    }
-
-    solde = Math.max(0, soldeInitial - capital);
-    mensuel.push({
-      mois: mois,
-      soldeInitial: BPB3_arrondir_(soldeInitial),
-      paiement: BPB3_arrondir_(paiement),
-      interets: BPB3_arrondir_(interets),
-      capital: BPB3_arrondir_(capital),
-      soldeFinal: BPB3_arrondir_(solde)
-    });
-  }
-
-  const annuel = [];
-  const nbAnnees = Math.ceil(duree / 12);
-  for (let annee = 1; annee <= nbAnnees; annee += 1) {
-    const lignes = mensuel.slice((annee - 1) * 12, annee * 12);
-    annuel.push({
-      annee: annee,
-      paiements: BPB3_arrondir_(BPB3_somme_(lignes, 'paiement')),
-      interets: BPB3_arrondir_(BPB3_somme_(lignes, 'interets')),
-      capitalRembourse: BPB3_arrondir_(BPB3_somme_(lignes, 'capital')),
-      soldeFin: lignes.length ? lignes[lignes.length - 1].soldeFinal : 0
-    });
-  }
-
-  return {
-    capitalInitial: BPB3_arrondir_(capitalInitial),
-    dureeMois: duree,
-    differeMois: differe,
-    mensualiteApresDiffere: BPB3_arrondir_(mensualiteApresDiffere),
-    mensuel: mensuel,
-    annuel: annuel
-  };
+  return AG24_FIN_calculerEcheancier_(
+    premium || {}
+  );
 }
 
 /* =====================================================
@@ -1628,14 +1609,14 @@ function BPB3_nettoyerNomFichier_(nom) {
  * Test de livraison V4 : génère le rapport de préparation puis la version financeur
  * à partir du même dossier de démonstration.
  */
-function testerWorkflowCompletBusinessPlanBancableV4() {
-  const rapport = testerGenerationBusinessPlanBancable();
-  const financeur = genererBusinessPlanFinanceur(rapport.dossierId, { forcer: true });
+function testerWorkflowCompletBusinessPlanBancableV4_() {
+  const rapport = testerGenerationBusinessPlanBancable_();
+  const financeur = genererBusinessPlanFinanceur_(rapport.dossierId, { forcer: true });
   const resultat = { succes: true, dossierId: rapport.dossierId, rapport: rapport, financeur: financeur };
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
-function TEST_BPB_LOGO_CLIENT() {
+function TEST_BPB_LOGO_CLIENT_() {
   const properties = PropertiesService.getScriptProperties();
 
   const propertyKey = BPB3_CONFIG.CLE_LOGO;
@@ -1694,8 +1675,8 @@ function TEST_BPB_LOGO_CLIENT() {
     };
   }
 }
-function CONFIGURER_LOGO_TEST_BPB() {
-  return configurerLogoBusinessPlanBancable(
+function CONFIGURER_LOGO_TEST_BPB_() {
+  return configurerLogoBusinessPlanBancable_(
     "1UX-WStJvJ_cVbBfAQAcOG9vwqud8WRIE"
   );
 }

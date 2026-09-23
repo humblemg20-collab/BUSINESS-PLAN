@@ -1,38 +1,34 @@
 /**
- * AfriGreen24 — Configuration administrateur du paiement manuel
- * Pack 4.1
+ * AfriGreen24 — Administration du paiement manuel
  *
- * Ce fichier est le seul endroit à modifier pour l'installation et les activations.
+ * IMPORTANT :
+ * - toutes les fonctions de ce fichier sont privées (suffixe "_") ;
+ * - elles ne sont pas appelables via google.script.run ;
+ * - l'URL du Web App provient du déploiement actif, pas d'une copie codée en dur.
  */
 
 const AFRIGREEN24_PAIEMENT_MANUEL_ADMIN = Object.freeze({
-  // Collez ici l'URL « Application Web » terminée par /exec.
-  URL_WEB_APP_EXEC: 'https://script.google.com/macros/s/AKfycbxQsd8HczZwdT4Ymb3WdJtZNna5dfneFVSLtR-M14AjF1NIyryS2Hv0AW4pXNGlEb-K/exec',
-
-  // Pour chaque paiement à activer, remplacez ces deux valeurs.
   REFERENCE_PAIEMENT_A_ACTIVER: 'AGP-COLLER_LA_REFERENCE_ICI',
   NUMERO_COMMANDE_SELAR: 'COLLER_LE_NUMERO_DE_COMMANDE_SELAR',
-
-  // Utilisé seulement avec refuserPaiementClientBancable().
   MOTIF_REFUS: 'Commande Selar introuvable ou paiement non confirmé.'
 });
 
-/** À exécuter une seule fois après avoir collé l'URL /exec ci-dessus. */
-function installerPaiementManuelBancable() {
-  return installerPaiementManuelBancable_(
-    AFRIGREEN24_PAIEMENT_MANUEL_ADMIN.URL_WEB_APP_EXEC
-  );
+function installerPaiementManuelBancable_DepuisEditeur_() {
+  const url = String(
+    ScriptApp.getService().getUrl() || ''
+  ).trim();
+
+  if (!/\/exec$/.test(url)) {
+    throw new Error(
+      'Aucun déploiement /exec actif n’a été détecté pour ce projet.'
+    );
+  }
+
+  return installerPaiementManuelBancable_(url);
 }
 
-/**
- * Après vérification de la commande dans Selar :
- * 1. remplacer REFERENCE_PAIEMENT_A_ACTIVER ;
- * 2. remplacer NUMERO_COMMANDE_SELAR ;
- * 3. enregistrer ;
- * 4. exécuter cette fonction.
- */
-function activerPaiementClientBancable() {
-  const resultat = validerPaiementBancableManuellement(
+function activerPaiementClientBancable_() {
+  const resultat = validerPaiementBancableManuellement_(
     AFRIGREEN24_PAIEMENT_MANUEL_ADMIN.REFERENCE_PAIEMENT_A_ACTIVER,
     AFRIGREEN24_PAIEMENT_MANUEL_ADMIN.NUMERO_COMMANDE_SELAR
   );
@@ -42,9 +38,8 @@ function activerPaiementClientBancable() {
   return resultat;
 }
 
-/** Refuse une déclaration lorsque la commande n'est pas confirmée dans Selar. */
-function refuserPaiementClientBancable() {
-  const resultat = refuserPaiementBancableManuellement(
+function refuserPaiementClientBancable_() {
+  const resultat = refuserPaiementBancableManuellement_(
     AFRIGREEN24_PAIEMENT_MANUEL_ADMIN.REFERENCE_PAIEMENT_A_ACTIVER,
     AFRIGREEN24_PAIEMENT_MANUEL_ADMIN.MOTIF_REFUS
   );

@@ -531,10 +531,17 @@
           ""
         );
 
+      const securePdfAvailable =
+        Boolean(
+          resultatServeur &&
+          resultatServeur.pdfId &&
+          resultatServeur.pdfAccessToken
+        );
+
       if (
         !resultatServeur ||
         resultatServeur.success !== true ||
-        !pdfDownloadUrl
+        (!pdfDownloadUrl && !securePdfAvailable)
       ) {
         afficherEchecGeneration(
           resultatServeur && (resultatServeur.error || resultatServeur.message)
@@ -549,6 +556,10 @@
       window.businessPlanId = docId;
       window.businessPlanPdfLink = pdfUrl;
       window.businessPlanPdfDownload = pdfDownloadUrl;
+      window.businessPlanPdfId =
+        resultatServeur.pdfId || '';
+      window.businessPlanPdfAccessToken =
+        resultatServeur.pdfAccessToken || '';
       window.businessPlanResult = resultatServeur;
       window.resultatBusinessPlan = resultatServeur;
 
@@ -759,13 +770,39 @@
 
     const lien = obtenirElement("resultPdfLink");
     if (lien) {
-      lien.href = lienDocument;
-      lien.setAttribute("aria-disabled", lienDocument === "#" ? "true" : "false");
+      const securePdf =
+        Boolean(
+          window.businessPlanPdfId &&
+          window.businessPlanPdfAccessToken
+        );
+
+      lien.href = securePdf ? "#" : lienDocument;
+      lien.setAttribute(
+        "aria-disabled",
+        !securePdf && lienDocument === "#" ? "true" : "false"
+      );
+
+      lien.onclick = securePdf
+        ? function(event) {
+            event.preventDefault();
+            telechargerBusinessPlanPremium(false);
+          }
+        : null;
     }
   }
 
   function ouvrirResultatPremium() {
-    if (!window.businessPlanPdfDownload && !window.businessPlanPdfLink) {
+    const securePdf =
+      Boolean(
+        window.businessPlanPdfId &&
+        window.businessPlanPdfAccessToken
+      );
+
+    if (
+      !securePdf &&
+      !window.businessPlanPdfDownload &&
+      !window.businessPlanPdfLink
+    ) {
       afficherEchecGeneration("Le PDF n’est pas encore disponible.");
       return;
     }
@@ -779,7 +816,48 @@
   }
 
   function telechargerBusinessPlanPremium(silencieux) {
-    const lien = window.businessPlanPdfDownload || window.businessPlanPdfLink;
+    const fileId =
+      String(window.businessPlanPdfId || "").trim();
+
+    const accessToken =
+      String(window.businessPlanPdfAccessToken || "").trim();
+
+    if (fileId && accessToken) {
+      google.script.run
+        .withSuccessHandler(function(resultat) {
+          if (!resultat || resultat.success !== true || !resultat.base64) {
+            if (!silencieux) {
+              afficherEchecGeneration("Le téléchargement sécurisé a échoué.");
+            }
+            return;
+          }
+
+          telechargerBase64Pdf_(
+            resultat.base64,
+            resultat.mimeType || "application/pdf",
+            resultat.fileName || "Business Plan.pdf"
+          );
+        })
+        .withFailureHandler(function(error) {
+          if (!silencieux) {
+            afficherEchecGeneration(
+              error && error.message
+                ? error.message
+                : "Le téléchargement sécurisé a échoué."
+            );
+          }
+        })
+        .telechargerPdfBusinessPlanStandard(
+          fileId,
+          accessToken
+        );
+
+      return;
+    }
+
+    const lien =
+      window.businessPlanPdfDownload ||
+      window.businessPlanPdfLink;
 
     if (!lien) {
       if (!silencieux) {
@@ -796,6 +874,33 @@
     document.body.appendChild(ancre);
     ancre.click();
     ancre.remove();
+  }
+
+  function telechargerBase64Pdf_(base64, mimeType, fileName) {
+    const binary = window.atob(String(base64 || ""));
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    const blob = new Blob(
+      [bytes],
+      { type: mimeType || "application/pdf" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const ancre = document.createElement("a");
+    ancre.href = url;
+    ancre.download = fileName || "Business Plan.pdf";
+    ancre.style.display = "none";
+    document.body.appendChild(ancre);
+    ancre.click();
+    ancre.remove();
+
+    window.setTimeout(function() {
+      URL.revokeObjectURL(url);
+    }, 1500);
   }
 
   function afficherResultatDemo() {

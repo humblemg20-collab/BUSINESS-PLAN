@@ -59,6 +59,21 @@ function preparerTransitionBusinessPlanBancable(
   agBridge
 ){
 
+  AG24_SEC_assertPayloadSize_(
+    reponsesStandard || {},
+    AG24_SECURITY.STANDARD_MAX_PAYLOAD_BYTES,
+    'Transition Business Plan Bancable'
+  );
+
+  AG24_SEC_assertRateLimit_(
+    'bancable-transition',
+    reponsesStandard && reponsesStandard.email
+      ? reponsesStandard.email
+      : dossierStandardId,
+    12,
+    900
+  );
+
   const source =
 
     reponsesStandard &&
@@ -656,30 +671,6 @@ function activerBusinessPlanBancableManuellement_(
 
 /**
  * ============================================================
- * ALIAS PUBLIC
- * ============================================================
- */
-
-function activerBusinessPlanBancableManuellement(
-  dossierStandardId,
-  emailClient
-){
-
-  return activerBusinessPlanBancableManuellement_(
-
-    dossierStandardId,
-
-    emailClient,
-
-    {}
-
-  );
-
-}
-
-
-/**
- * ============================================================
  * DESACTIVATION
  * ============================================================
  */
@@ -783,6 +774,12 @@ function obtenirStatutTransitionBusinessPlanBancable(
       dossierId
     );
 
+  AG24_SEC_assertRateLimit_(
+    'bancable-transition-status',
+    id,
+    30,
+    900
+  );
 
   const meta =
     BPB_lireJsonChunked_(
@@ -794,48 +791,12 @@ function obtenirStatutTransitionBusinessPlanBancable(
     ||
     {};
 
-
   return {
-
-    succes:
-      true,
-
-    dossierId:
-      id,
-
-    statut:
-      meta.statut ||
-      'INCONNU',
-
-    accesBancable:
-      meta.accesBancable ||
-      'INACTIF',
-
-    emailClient:
-      meta.emailClient ||
-      '',
-
-    paiement:
-      meta.paiement ||
-      null,
-
-    activeLe:
-      meta.activeLe ||
-      null,
-
-    /*
-     * Utile pour contrôler le bridge
-     * pendant les tests.
-     */
-
-    agBridgePresent:
-      Boolean(
-        String(
-          meta.agBridge || ''
-        )
-        .trim()
-      )
-
+    succes: true,
+    dossierId: id,
+    statut: meta.statut || 'INCONNU',
+    accesBancable: meta.accesBancable || 'INACTIF',
+    activeLe: meta.activeLe || null
   };
 
 }

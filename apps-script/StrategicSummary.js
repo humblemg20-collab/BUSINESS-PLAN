@@ -1365,7 +1365,7 @@ function strategicSummaryLimiterLongueur(
  * ============================================================
  */
 
-function testerStrategicSummaryEngine() {
+function testerStrategicSummaryEngine_() {
   var projet = {
     projectName:
       "EcoCycle Africa",

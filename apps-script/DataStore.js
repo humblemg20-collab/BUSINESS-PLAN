@@ -21,7 +21,7 @@ var AFRIGREEN24_SHEET_NAME = "Soumissions";
  * @param {Object} profilCommercial Analyse commerciale.
  * @return {Object} Résultat de l'enregistrement.
  */
-function enregistrerSoumission(data, liens, profilCommercial) {
+function enregistrerSoumission_(data, liens, profilCommercial) {
   data = data || {};
   liens = liens || {};
   profilCommercial = profilCommercial || {};
@@ -264,34 +264,45 @@ function enregistrerSoumission(data, liens, profilCommercial) {
     datastoreJsonSecurise_(profilCommercial)
   ];
 
-  var prochaineLigne = feuille.getLastRow() + 1;
+  ligne = ligne.map(function(cellule) {
+    return AG24_SEC_sheetSafe_(cellule);
+  });
 
-  feuille
-    .getRange(
-      prochaineLigne,
-      1,
-      1,
-      ligne.length
-    )
-    .setValues([ligne]);
+  var verrou = LockService.getScriptLock();
+  verrou.waitLock(10000);
 
-  feuille
-    .getRange(prochaineLigne, 2)
-    .setNumberFormat("dd/MM/yyyy HH:mm:ss");
+  var prochaineLigne;
 
-  feuille
-    .getRange(prochaineLigne, 1, 1, ligne.length)
-    .setVerticalAlignment("top")
-    .setWrap(true);
+  try {
+    prochaineLigne = feuille.getLastRow() + 1;
 
-  SpreadsheetApp.flush();
+    feuille
+      .getRange(
+        prochaineLigne,
+        1,
+        1,
+        ligne.length
+      )
+      .setValues([ligne]);
 
-  Logger.log(
-    "Soumission enregistrée : " +
-      identifiant +
-      " - " +
-      email
-  );
+    feuille
+      .getRange(prochaineLigne, 2)
+      .setNumberFormat("dd/MM/yyyy HH:mm:ss");
+
+    feuille
+      .getRange(prochaineLigne, 1, 1, ligne.length)
+      .setVerticalAlignment("top")
+      .setWrap(true);
+
+    SpreadsheetApp.flush();
+  } finally {
+    verrou.releaseLock();
+  }
+
+  AG24_AUDIT_event_('CRM_SUBMISSION_RECORDED', {
+    submissionId: identifiant,
+    row: prochaineLigne
+  });
 
   return {
     success: true,
@@ -477,7 +488,7 @@ function datastoreJsonSecurise_(valeur) {
 /**
  * Test de la connexion Google Sheets.
  */
-function testerConnexionDataStore() {
+function testerConnexionDataStore_() {
   var classeur = SpreadsheetApp.openById(
     AFRIGREEN24_SHEET_ID
   );
@@ -507,8 +518,8 @@ function testerConnexionDataStore() {
 /**
  * Test complet d'enregistrement.
  */
-function testerDataStore() {
-  var resultat = enregistrerSoumission(
+function testerDataStore_() {
+  var resultat = enregistrerSoumission_(
     {
       promoterName: "Test AfriGreen24",
       email: "test@afrigreen24.com",

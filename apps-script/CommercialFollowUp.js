@@ -15,7 +15,7 @@
  * @param {number} numeroLigne Numéro de ligne dans Soumissions.
  * @return {Object}
  */
-function creerBrouillonCommercial(numeroLigne) {
+function creerBrouillonCommercial_(numeroLigne) {
   var classeur = SpreadsheetApp.openById(
     AFRIGREEN24_SHEET_ID
   );
@@ -1503,7 +1503,7 @@ function echapperHtmlCommercial(valeur) {
 /**
  * Test avec la dernière soumission enregistrée.
  */
-function testerBrouillonCommercial() {
+function testerBrouillonCommercial_() {
   var classeur = SpreadsheetApp.openById(
     AFRIGREEN24_SHEET_ID
   );
@@ -1521,7 +1521,7 @@ function testerBrouillonCommercial() {
   var derniereLigne = feuille.getLastRow();
 
   var resultat =
-    creerBrouillonCommercial(
+    creerBrouillonCommercial_(
       derniereLigne
     );
 
@@ -1545,7 +1545,7 @@ function testerBrouillonCommercial() {
  * @param {Object} profilCommercial Analyse commerciale.
  * @return {Object} Résultat de l’envoi.
  */
-function envoyerEmailCommercialAutomatique(
+function envoyerEmailCommercialAutomatique_(
   data,
   liens,
   profilCommercial

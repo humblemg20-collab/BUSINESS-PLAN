@@ -66,21 +66,6 @@ function doGet(e) {
       : '';
 
 
-  if (page === 'bancable') {
-
-    const sortie =
-      ouvrirInterfaceBusinessPlanBancable(
-        e.parameter.dossierId || ''
-      );
-
-    return sortie
-      .setXFrameOptionsMode(
-        HtmlService.XFrameOptionsMode.ALLOWALL
-      );
-
-  }
-
-
   return HtmlService
     .createTemplateFromFile('Index')
     .evaluate()
@@ -115,9 +100,9 @@ function include(nomFichier) {
  * @param {Object} data Réponses du questionnaire.
  * @return {Object} Résultat de la génération.
  */
-function genererBusinessPlan(data) {
+function genererBusinessPlan_(data) {
   try {
-    verifierDonneesGeneration(data);
+    verifierDonneesGeneration_(data);
 
     /*
      * Pack 5.2 — HumbleOS :
@@ -225,6 +210,13 @@ function genererBusinessPlan(data) {
 
     var pdfId = fichierPdf.getId();
 
+    var pdfAccessToken =
+      AG24_DOC_issueCapability_(
+        pdfId,
+        'STANDARD',
+        ''
+      );
+
     /*
      * Liens retournés au navigateur.
      */
@@ -290,7 +282,7 @@ function genererBusinessPlan(data) {
 
     if (agBridge) {
       try {
-        synchroniserBusinessPlanVersDashboard(agBridge, {
+        synchroniserBusinessPlanVersDashboard_(agBridge, {
           documentId: documentId,
           documentUrl: docUrl,
           pdfId: pdfId,
@@ -322,7 +314,7 @@ function genererBusinessPlan(data) {
     }
 
     if (
-  typeof enregistrerSoumission !==
+  typeof enregistrerSoumission_ !==
   "function"
 ) {
   throw new Error(
@@ -330,14 +322,14 @@ function genererBusinessPlan(data) {
   );
 }
 
-enregistrerSoumission(
+enregistrerSoumission_(
   data,
   liens,
   profilCommercial
 );
 
 if (
-  typeof actualiserDashboardCommercial !==
+  typeof actualiserDashboardCommercial_ !==
   "function"
 ) {
   throw new Error(
@@ -345,7 +337,7 @@ if (
   );
 }
 
-actualiserDashboardCommercial();
+actualiserDashboardCommercial_();
 
     /*
      * Nettoyage du cache narratif IA après la génération réussie.
@@ -362,6 +354,7 @@ actualiserDashboardCommercial();
       documentId: documentId,
       docId: documentId,
       pdfId: pdfId,
+      pdfAccessToken: pdfAccessToken,
       url: docUrl,
       documentUrl: docUrl,
       docUrl: docUrl,
@@ -408,7 +401,24 @@ actualiserDashboardCommercial();
  */
 function genererBusinessPlanWeb(data) {
   try {
-    return JSON.stringify(genererBusinessPlan(data));
+    AG24_SEC_assertStandardRequest_(data);
+    AG24_AUDIT_event_('STANDARD_GENERATION_REQUESTED', {
+      projectName: data && data.projectName ? String(data.projectName).slice(0, 120) : ''
+    });
+
+    var resultat = genererBusinessPlan_(data);
+
+    AG24_AUDIT_event_(
+      resultat && resultat.success
+        ? 'STANDARD_GENERATION_SUCCEEDED'
+        : 'STANDARD_GENERATION_FAILED',
+      {
+        projectName: data && data.projectName ? String(data.projectName).slice(0, 120) : '',
+        pdfId: resultat && resultat.pdfId ? String(resultat.pdfId) : ''
+      }
+    );
+
+    return JSON.stringify(resultat);
   } catch (erreur) {
     return JSON.stringify({
       success: false,
@@ -423,7 +433,7 @@ function genererBusinessPlanWeb(data) {
 /**
  * Vérifie que les données reçues sont exploitables.
  */
-function verifierDonneesGeneration(data) {
+function verifierDonneesGeneration_(data) {
   if (!data || typeof data !== "object") {
     throw new Error(
       "Aucune donnée valide n'a été reçue depuis le questionnaire."
@@ -3456,22 +3466,9 @@ function creerPdfDansMemeDossier(
     );
   }
 
-  /*
-   * Le partage public peut être interdit par certaines
-   * configurations Google Workspace. Dans ce cas, le PDF reste
-   * créé et accessible au propriétaire du script.
-   */
-  try {
-    fichierPdf.setSharing(
-      DriveApp.Access.ANYONE_WITH_LINK,
-      DriveApp.Permission.VIEW
-    );
-  } catch (erreurPartage) {
-    console.warn(
-      "Partage public du PDF non autorisé :",
-      erreurPartage
-    );
-  }
+  AG24_AUDIT_event_('STANDARD_PDF_CREATED_PRIVATE', {
+    fileId: fichierPdf.getId()
+  });
 
   return fichierPdf;
 }
@@ -3565,7 +3562,7 @@ function formaterDateLongue(date) {
  *
  * Elle n'est pas appelée par le questionnaire.
  */
-function testerGenerationBusinessPlan() {
+function testerGenerationBusinessPlan_() {
   var donneesTest = {
     projectName: "EcoCycle Africa",
     promoterName: "Entrepreneur test",
@@ -3632,7 +3629,7 @@ function testerGenerationBusinessPlan() {
       "La variation du prix des matières recyclées et la difficulté à sécuriser un volume régulier de déchets."
   };
 
-  var resultat = genererBusinessPlan(
+  var resultat = genererBusinessPlan_(
     donneesTest
   );
 
@@ -3659,7 +3656,7 @@ function testerGenerationBusinessPlan() {
  * - les introductions et transitions varient ;
  * - les deux PDF sont correctement créés.
  */
-function testerStoryEngine() {
+function testerStoryEngine_() {
   var projetA = creerDonneesTestStoryEngine(
     "EcoCycle Africa"
   );
@@ -3672,7 +3669,7 @@ function testerStoryEngine() {
     "=== GÉNÉRATION DU PROJET A ==="
   );
 
-  var resultatA = genererBusinessPlan(
+  var resultatA = genererBusinessPlan_(
     projetA
   );
 
@@ -3688,7 +3685,7 @@ function testerStoryEngine() {
     "=== GÉNÉRATION DU PROJET B ==="
   );
 
-  var resultatB = genererBusinessPlan(
+  var resultatB = genererBusinessPlan_(
     projetB
   );
 
@@ -3971,7 +3968,7 @@ function ajouterSyntheseStrategique(body, data) {
    */
   body.appendPageBreak();
 }
-function testerGenerationStandardRapidePDF() {
+function testerGenerationStandardRapidePDF_() {
   var data = {
     projectName: "GreenStep Shoes",
     promoterName: "Client Test",
@@ -4043,7 +4040,7 @@ function testerGenerationStandardRapidePDF() {
 
   try {
 
-    var resultat = genererBusinessPlan(data);
+    var resultat = genererBusinessPlan_(data);
 
     Logger.log("=== RESULTAT GENERATION ===");
     Logger.log(

@@ -63,6 +63,7 @@ function installerPaiementManuelBancable_(urlWebAppExec) {
  */
 function creerSessionPaiementBancable(dossierId, emailClient, nomClient, telephoneClient) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertPaymentRequest_(id, emailClient);
   const standard = BPB_chargerReponsesStandard_(id);
   const emailFourni = BPB_PAY_normaliserEmail_(emailClient || '');
   const emailStandard = BPB_PAY_normaliserEmail_(standard.email || '');
@@ -174,6 +175,7 @@ function creerSessionPaiementBancable(dossierId, emailClient, nomClient, telepho
 function declarerPaiementBancable(paymentRef, dossierId, numeroCommandeSelar, emailClient) {
   const ref = BPB_PAY_normaliserReference_(paymentRef);
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertPaymentRequest_(id, emailClient || ref);
   const commande = BPB_PAY_normaliserCommande_(numeroCommandeSelar);
   const email = BPB_PAY_normaliserEmail_(emailClient || '');
   const session = BPB_PAY_lireSession_(ref);
@@ -224,6 +226,7 @@ function declarerPaiementBancable(paymentRef, dossierId, numeroCommandeSelar, em
 function obtenirStatutPaiementBancable(paymentRef, dossierId) {
   const ref = BPB_PAY_normaliserReference_(paymentRef);
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertPaymentRequest_(id, ref);
   const session = BPB_PAY_lireSession_(ref);
 
   if (!session || session.dossierId !== id) {
@@ -262,7 +265,7 @@ function obtenirStatutPaiementBancable(paymentRef, dossierId) {
  * Validation administrative après contrôle réel de la commande dans Selar.
  * Cette fonction peut être appelée par le lanceur activerPaiementClientBancable().
  */
-function validerPaiementBancableManuellement(paymentRef, numeroCommandeSelar) {
+function validerPaiementBancableManuellement_(paymentRef, numeroCommandeSelar) {
   const ref = BPB_PAY_normaliserReference_(paymentRef);
   const session = BPB_PAY_lireSession_(ref);
 
@@ -299,6 +302,10 @@ function validerPaiementBancableManuellement(paymentRef, numeroCommandeSelar) {
 
     session.orderId = commande;
     session.statut = 'PAIEMENT_VALIDE_MANUELLEMENT';
+    AG24_AUDIT_event_('PAYMENT_VALIDATED_MANUALLY', {
+      dossierId: session.dossierId,
+      paymentRef: session.paymentRef
+    });
     session.valideLe = new Date().toISOString();
     session.validePar = Session.getEffectiveUser().getEmail() || 'ADMIN_AFRIGREEN24';
     session.modifieLe = session.valideLe;
@@ -359,7 +366,7 @@ function validerPaiementBancableManuellement(paymentRef, numeroCommandeSelar) {
 }
 
 /** Marque une déclaration comme refusée après contrôle dans Selar. */
-function refuserPaiementBancableManuellement(paymentRef, motif) {
+function refuserPaiementBancableManuellement_(paymentRef, motif) {
   const ref = BPB_PAY_normaliserReference_(paymentRef);
   const session = BPB_PAY_lireSession_(ref);
   if (!session) throw new Error('Session de paiement introuvable.');
@@ -368,6 +375,10 @@ function refuserPaiementBancableManuellement(paymentRef, motif) {
   }
 
   session.statut = 'VERIFICATION_REFUSEE';
+  AG24_AUDIT_event_('PAYMENT_REJECTED_MANUALLY', {
+    dossierId: session.dossierId,
+    paymentRef: session.paymentRef
+  });
   session.erreur = String(motif || 'Commande Selar introuvable ou non confirmée.').trim();
   session.modifieLe = new Date().toISOString();
   BPB_PAY_ecrireSession_(session);

@@ -14,10 +14,10 @@
  * Le test utilise un petit logo de démonstration embarqué.
  *
  * À lancer :
- *   TEST_BUSINESS_PLAN_WHITE_LABEL_COMPLET()
+ *   TEST_BUSINESS_PLAN_WHITE_LABEL_COMPLET_()
  */
 
-function TEST_BUSINESS_PLAN_WHITE_LABEL_COMPLET() {
+function TEST_BUSINESS_PLAN_WHITE_LABEL_COMPLET_() {
   Logger.log("==========================================");
   Logger.log("TEST COMPLET — BUSINESS PLAN WHITE LABEL");
   Logger.log("==========================================");

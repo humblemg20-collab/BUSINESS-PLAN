@@ -2,17 +2,13 @@
 
 Repository canonique du module **Business Plan** d’AfriGreen24.
 
-## Architecture
+## Source de vérité
 
-- `apps-script/` — code Google Apps Script lisible et modifiable.
-- `hostinger/` — façade publique destinée au sous-domaine Hostinger.
-- `docs/` — provenance, empreintes SHA-256 et informations de déploiement.
-- `business plan.zip` — snapshot original de l’export Apps Script.
-- `.github/workflows/extract-business-plan.yml` — moteur automatique d’extraction, validation et synchronisation.
+`apps-script/` est la **source canonique**.
 
-## Source Apps Script
+`business plan.zip` est conservé uniquement comme **archive historique**. Une mise à jour du ZIP ne doit jamais écraser le code canonique.
 
-Script ID canonique :
+Script ID :
 
 `1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz`
 
@@ -20,16 +16,53 @@ Web App canonique :
 
 `https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec`
 
-Le code `doGet` autorise explicitement l’intégration en iframe avec `HtmlService.XFrameOptionsMode.ALLOWALL`.
+## Architecture
 
-## Synchronisation
+- `apps-script/` — application Apps Script canonique.
+- `hostinger/` — façade publique AfriGreen24.
+- `scripts/validate_apps_script.py` — garde statique sécurité/architecture.
+- `.github/workflows/extract-business-plan.yml` — validation continue du code canonique.
+- `.github/workflows/deploy-apps-script.yml` — déploiement production contrôlé via clasp.
+- `docs/SECURITY_RUNBOOK.md` — secrets, release et rollback.
 
-Toute mise à jour de `business plan.zip` déclenche automatiquement :
+## Sécurité
 
-`ZIP → extraction → validation Script ID/runtime/doGet → SHA-256 → commit du code extrait`
+Le Web App reste public pour permettre l’accès utilisateur, mais les opérations sensibles sont protégées côté serveur :
 
-La source de travail lisible est `apps-script/`. Le ZIP est conservé comme snapshot d’origine.
+- rate limiting ;
+- limites de payload ;
+- token obligatoire pour toutes les RPC Bancable sensibles ;
+- fonctions admin/test privées via suffixe `_` ;
+- aucun secret HumbleOS codé dans Git ;
+- PDF conservés privés dans Drive et délivrés via RPC contrôlée ;
+- brouillons locaux Bancable expirants ;
+- écriture CRM sérialisée et protection contre les formules Sheets.
+
+## Business Plan Bancable
+
+Le calcul financier reste déterministe :
+
+`données → contrôles → modèle financier → audit → document`
+
+Le moteur IA intervient uniquement pour l’extraction et la rédaction qualitative.
+
+Le moteur de dette est partagé entre l’audit et la génération documentaire, et les seuils bancaires sont configurables via `AFRIGREEN24_BANKING_RULES_JSON`.
+
+## Release
+
+```text
+GitHub apps-script/
+  -> validation sécurité
+  -> validation syntaxe
+  -> clasp push
+  -> mise à jour du deployment existant
+  -> health check
+  -> succès
+     ou rollback automatique vers la version précédente
+```
+
+Le déploiement nécessite les secrets GitHub décrits dans `docs/SECURITY_RUNBOOK.md`.
 
 ## Hostinger
 
-`hostinger/index.html` est la façade publique. Elle conserve Apps Script comme moteur afin de préserver `google.script.run` et transmet automatiquement tous les paramètres d’URL au Web App.
+`hostinger/index.html` conserve Apps Script comme moteur et transmet les paramètres d’URL nécessaires au parcours Bancable.
