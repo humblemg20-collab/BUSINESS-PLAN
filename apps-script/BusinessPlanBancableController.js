@@ -58,7 +58,7 @@ function enregistrerReponsesStandardPourBancable(dossierId, reponsesStandard) {
  */
 function ouvrirInterfaceBusinessPlanBancable(dossierId, jetonAcces) {
   const id = BPB_normaliserDossierId_(dossierId);
-  BPB_ACT_verifierAcces_(id, jetonAcces);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'open-interface');
   const template = HtmlService.createTemplateFromFile('BusinessPlanBancableUI');
   template.dossierId = id;
   template.jetonAcces = String(jetonAcces || '');
@@ -74,7 +74,7 @@ function ouvrirInterfaceBusinessPlanBancable(dossierId, jetonAcces) {
  */
 function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
   const id = BPB_normaliserDossierId_(dossierId);
-  BPB_ACT_verifierAcces_(id, jetonAcces);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'initialize');
   const standard = BPB_chargerReponsesStandard_(id);
   const brouillon = BPB_lireJsonChunked_(BPB_cle_(id, 'PREMIUM')) || {};
   const meta = BPB_lireJsonChunked_(BPB_cle_(id, 'META')) || {};
@@ -102,9 +102,15 @@ function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
 /**
  * Sauvegarde silencieuse appelée après chaque modification importante.
  */
-function enregistrerBrouillonBusinessPlanBancable(dossierId, reponsesPremium, progression) {
+function enregistrerBrouillonBusinessPlanBancable(dossierId, jetonAcces, reponsesPremium, progression) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'save-draft');
   BPB_exigerObjet_(reponsesPremium, 'reponsesPremium');
+  AG24_SEC_assertPayloadSize_(
+    reponsesPremium,
+    AG24_SECURITY.BANCABLE_MAX_PAYLOAD_BYTES,
+    'Brouillon Business Plan Bancable'
+  );
 
   const progressionSaine = BPB_normaliserProgression_(progression);
 
@@ -130,8 +136,9 @@ function enregistrerBrouillonBusinessPlanBancable(dossierId, reponsesPremium, pr
 /**
  * Valide une section avant de permettre le passage à la suivante.
  */
-function validerSectionBusinessPlanBancable(dossierId, sectionId, reponsesPremium, progression) {
+function validerSectionBusinessPlanBancable(dossierId, jetonAcces, sectionId, reponsesPremium, progression) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'validate-section');
   const idSection = String(sectionId || '').trim();
   BPB_exigerObjet_(reponsesPremium, 'reponsesPremium');
 
@@ -154,15 +161,16 @@ function validerSectionBusinessPlanBancable(dossierId, sectionId, reponsesPremiu
     progressionSaine.sectionsValidees.push(idSection);
   }
 
-  enregistrerBrouillonBusinessPlanBancable(id, reponsesPremium, progressionSaine);
+  enregistrerBrouillonBusinessPlanBancable(id, jetonAcces, reponsesPremium, progressionSaine);
   return { succes: true, progression: progressionSaine };
 }
 
 /**
  * Lance l'audit complet après validation de toutes les sections.
  */
-function auditerParcoursBusinessPlanBancable(dossierId, reponsesPremium) {
+function auditerParcoursBusinessPlanBancable(dossierId, jetonAcces, reponsesPremium) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'audit');
   const standard = BPB_chargerReponsesStandard_(id);
   BPB_exigerObjet_(reponsesPremium, 'reponsesPremium');
 
@@ -202,8 +210,9 @@ function auditerParcoursBusinessPlanBancable(dossierId, reponsesPremium) {
  * Verrouille les réponses après confirmation de l'utilisateur.
  * La génération Docs/PDF sera raccordée au Module 3.
  */
-function confirmerDossierBusinessPlanBancable(dossierId) {
+function confirmerDossierBusinessPlanBancable(dossierId, jetonAcces) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'confirm');
   const audit = BPB_lireJsonChunked_(BPB_cle_(id, 'AUDIT'));
 
   if (!audit) {
@@ -239,8 +248,9 @@ function confirmerDossierBusinessPlanBancable(dossierId) {
  * Enregistre la déclaration finale du porteur avant la génération financeur.
  * Cette validation est distincte de l'audit technique du dossier.
  */
-function enregistrerValidationFinaleBusinessPlanBancable(dossierId, declarations) {
+function enregistrerValidationFinaleBusinessPlanBancable(dossierId, jetonAcces, declarations) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'final-validation');
   BPB_exigerObjet_(declarations, 'declarations');
 
   if (declarations.informationsExactes !== true) {
@@ -283,8 +293,9 @@ function enregistrerValidationFinaleBusinessPlanBancable(dossierId, declarations
 }
 
 /** Retourne la validation finale enregistrée, sans la recréer. */
-function obtenirValidationFinaleBusinessPlanBancable(dossierId) {
+function obtenirValidationFinaleBusinessPlanBancable(dossierId, jetonAcces) {
   const id = BPB_normaliserDossierId_(dossierId);
+  AG24_SEC_assertBancableAccess_(id, jetonAcces, 'read-final-validation');
   const validation = BPB_lireJsonChunked_(BPB_cle_(id, 'VALIDATION_FINALE'));
   return validation
     ? { succes: true, validationFinale: validation }
@@ -294,7 +305,7 @@ function obtenirValidationFinaleBusinessPlanBancable(dossierId) {
 /**
  * Retourne le dossier unifié pour le futur moteur documentaire.
  */
-function obtenirDossierUnifieBusinessPlanBancable(dossierId) {
+function BPB_obtenirDossierUnifie_(dossierId) {
   const id = BPB_normaliserDossierId_(dossierId);
   const standard = BPB_chargerReponsesStandard_(id);
   const premium = BPB_lireJsonChunked_(BPB_cle_(id, 'PREMIUM')) || {};
@@ -313,7 +324,7 @@ function obtenirDossierUnifieBusinessPlanBancable(dossierId) {
 /**
  * Test autonome du contrôleur.
  */
-function testerControleurBusinessPlanBancable() {
+function testerControleurBusinessPlanBancable_() {
   const id = creerIdentifiantDossierBancable();
   const standard = {
     nomProjet: 'Projet test Bancable',
@@ -332,7 +343,7 @@ function testerControleurBusinessPlanBancable() {
   };
 
   enregistrerReponsesStandardPourBancable(id, standard);
-  const initialisation = initialiserParcoursBusinessPlanBancable(id);
+  const initialisation = BPB_obtenirDossierUnifie_(id);
   Logger.log(JSON.stringify(initialisation, null, 2));
   return initialisation;
 }
