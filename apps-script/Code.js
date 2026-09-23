@@ -66,21 +66,6 @@ function doGet(e) {
       : '';
 
 
-  if (page === 'bancable') {
-
-    const sortie =
-      ouvrirInterfaceBusinessPlanBancable(
-        e.parameter.dossierId || ''
-      );
-
-    return sortie
-      .setXFrameOptionsMode(
-        HtmlService.XFrameOptionsMode.ALLOWALL
-      );
-
-  }
-
-
   return HtmlService
     .createTemplateFromFile('Index')
     .evaluate()
@@ -115,9 +100,9 @@ function include(nomFichier) {
  * @param {Object} data Réponses du questionnaire.
  * @return {Object} Résultat de la génération.
  */
-function genererBusinessPlan(data) {
+function genererBusinessPlan_(data) {
   try {
-    verifierDonneesGeneration(data);
+    verifierDonneesGeneration_(data);
 
     /*
      * Pack 5.2 — HumbleOS :
@@ -408,7 +393,24 @@ actualiserDashboardCommercial();
  */
 function genererBusinessPlanWeb(data) {
   try {
-    return JSON.stringify(genererBusinessPlan(data));
+    AG24_SEC_assertStandardRequest_(data);
+    AG24_AUDIT_event_('STANDARD_GENERATION_REQUESTED', {
+      projectName: data && data.projectName ? String(data.projectName).slice(0, 120) : ''
+    });
+
+    var resultat = genererBusinessPlan_(data);
+
+    AG24_AUDIT_event_(
+      resultat && resultat.success
+        ? 'STANDARD_GENERATION_SUCCEEDED'
+        : 'STANDARD_GENERATION_FAILED',
+      {
+        projectName: data && data.projectName ? String(data.projectName).slice(0, 120) : '',
+        pdfId: resultat && resultat.pdfId ? String(resultat.pdfId) : ''
+      }
+    );
+
+    return JSON.stringify(resultat);
   } catch (erreur) {
     return JSON.stringify({
       success: false,
@@ -423,7 +425,7 @@ function genererBusinessPlanWeb(data) {
 /**
  * Vérifie que les données reçues sont exploitables.
  */
-function verifierDonneesGeneration(data) {
+function verifierDonneesGeneration_(data) {
   if (!data || typeof data !== "object") {
     throw new Error(
       "Aucune donnée valide n'a été reçue depuis le questionnaire."
@@ -3632,7 +3634,7 @@ function testerGenerationBusinessPlan() {
       "La variation du prix des matières recyclées et la difficulté à sécuriser un volume régulier de déchets."
   };
 
-  var resultat = genererBusinessPlan(
+  var resultat = genererBusinessPlan_(
     donneesTest
   );
 
@@ -3672,7 +3674,7 @@ function testerStoryEngine() {
     "=== GÉNÉRATION DU PROJET A ==="
   );
 
-  var resultatA = genererBusinessPlan(
+  var resultatA = genererBusinessPlan_(
     projetA
   );
 
@@ -3688,7 +3690,7 @@ function testerStoryEngine() {
     "=== GÉNÉRATION DU PROJET B ==="
   );
 
-  var resultatB = genererBusinessPlan(
+  var resultatB = genererBusinessPlan_(
     projetB
   );
 
@@ -4043,7 +4045,7 @@ function testerGenerationStandardRapidePDF() {
 
   try {
 
-    var resultat = genererBusinessPlan(data);
+    var resultat = genererBusinessPlan_(data);
 
     Logger.log("=== RESULTAT GENERATION ===");
     Logger.log(
