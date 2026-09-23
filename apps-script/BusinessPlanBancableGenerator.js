@@ -402,11 +402,11 @@ function BPB5_obtenirNarratifIA_(dossier, modele) {
   }
 
   try {
-    if (typeof genererNarratifBusinessPlanAvecHumbleOS !== 'function') {
+    if (typeof genererNarratifBusinessPlanAvecHumbleOS_ !== 'function') {
       throw new Error('HumbleOSBridge.gs n’est pas installé.');
     }
 
-    const narratif = genererNarratifBusinessPlanAvecHumbleOS(
+    const narratif = genererNarratifBusinessPlanAvecHumbleOS_(
       BPB5_donneesBrutesIA_(dossier),
       BPB5_donneesCalculeesIA_(dossier, modele),
       'Rédige comme un consultant en financement d’entreprise. Préserve une tonalité humaine, précise et sobre. N’invente rien. Les sections doivent se compléter sans répétitions.'
