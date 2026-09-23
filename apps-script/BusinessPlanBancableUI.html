@@ -1630,6 +1630,9 @@
     const JETON_ACCES =
       <?!= JSON.stringify(jetonAcces) ?>;
 
+    const LOCAL_DRAFT_TTL_MS =
+      72 * 60 * 60 * 1000;
+
 
     /**
      * Bridge temporaire créé par le Dashboard.
@@ -3542,6 +3545,8 @@
 
           DOSSIER_ID,
 
+          JETON_ACCES,
+
           section.id,
 
           state.responses,
@@ -3689,6 +3694,7 @@
 
         .auditerParcoursBusinessPlanBancable(
           DOSSIER_ID,
+          JETON_ACCES,
           state.responses
         );
 
@@ -4396,7 +4402,8 @@
         )
 
         .confirmerDossierBusinessPlanBancable(
-          DOSSIER_ID
+          DOSSIER_ID,
+          JETON_ACCES
         );
 
     }
@@ -4627,7 +4634,8 @@
         )
 
         .genererRapportPreparationBancaireDepuisInterface(
-          DOSSIER_ID
+          DOSSIER_ID,
+          JETON_ACCES
         );
 
     }
@@ -4674,7 +4682,8 @@
         )
 
         .obtenirResultatRapportPreparationBancaire(
-          DOSSIER_ID
+          DOSSIER_ID,
+          JETON_ACCES
         );
 
     }
@@ -5206,6 +5215,8 @@
 
           DOSSIER_ID,
 
+          JETON_ACCES,
+
           {
 
             informationsExactes:
@@ -5302,7 +5313,8 @@
         )
 
         .genererBusinessPlanFinanceurDepuisInterface(
-          DOSSIER_ID
+          DOSSIER_ID,
+          JETON_ACCES
         );
 
     }
@@ -5336,7 +5348,8 @@
         )
 
         .obtenirResultatBusinessPlanFinanceur(
-          DOSSIER_ID
+          DOSSIER_ID,
+          JETON_ACCES
         );
 
     }
@@ -5435,7 +5448,11 @@
           }
         )
 
-        .synchroniserBusinessPlanVersDashboard(
+        .synchroniserBusinessPlanVersDashboardDepuisInterface(
+
+          DOSSIER_ID,
+
+          JETON_ACCES,
 
           AFRIGREEN_DOCUMENT_BRIDGE,
 
@@ -6159,6 +6176,8 @@
 
           DOSSIER_ID,
 
+          JETON_ACCES,
+
           responsesSnapshot,
 
           progressionSnapshot
@@ -6203,6 +6222,13 @@
 
               savedAt:
                 new Date()
+                  .toISOString(),
+
+              expiresAt:
+                new Date(
+                  Date.now() +
+                  LOCAL_DRAFT_TTL_MS
+                )
                   .toISOString()
 
             }
@@ -6253,6 +6279,19 @@
           JSON.parse(
             raw
           );
+
+        const localExpireLe =
+          local.expiresAt
+            ? Date.parse(local.expiresAt)
+            : 0;
+
+        if(
+          !localExpireLe ||
+          Date.now() > localExpireLe
+        ){
+          supprimerSauvegardeLocale();
+          return;
+        }
 
 
         const serveurModifieLe =
