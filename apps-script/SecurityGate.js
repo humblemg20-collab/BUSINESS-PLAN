@@ -7,6 +7,7 @@
 const AG24_SECURITY = Object.freeze({
   STANDARD_MAX_PAYLOAD_BYTES: 350000,
   BANCABLE_MAX_PAYLOAD_BYTES: 650000,
+  IMPORT_MAX_PAYLOAD_BYTES: 22000000,
   STANDARD_RATE_LIMIT: 4,
   STANDARD_RATE_WINDOW_SECONDS: 900,
   IMPORT_RATE_LIMIT: 6,
@@ -132,6 +133,12 @@ function AG24_SEC_assertStandardRequest_(data) {
 }
 
 function AG24_SEC_assertImportRequest_(payload) {
+  AG24_SEC_assertPayloadSize_(
+    payload,
+    AG24_SECURITY.IMPORT_MAX_PAYLOAD_BYTES,
+    'Document Business Plan'
+  );
+
   AG24_SEC_assertRateLimit_(
     'business-plan-import',
     payload && payload.fileName ? payload.fileName : '',
