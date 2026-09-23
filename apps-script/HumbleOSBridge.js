@@ -20,38 +20,46 @@ const HUMBLEOS_AI_50 = Object.freeze({
   STANDARD_JOB_MAX_TRANSIT_ERRORS: 3
 });
 
-function configurerHumbleOSAfriGreen24() {
+function configurerHumbleOSAfriGreen24_() {
   const url =
     'https://humbleos-afrigreen24.humblemg2-0.workers.dev';
 
-  const secret =
-    'Hmichel1s@';
+  const properties =
+    PropertiesService.getScriptProperties();
 
-  PropertiesService
-    .getScriptProperties()
-    .setProperties({
-      [HUMBLEOS_AI_50.URL_PROPERTY]:
-        url.replace(/\/+$/, ''),
-
-      [HUMBLEOS_AI_50.SECRET_PROPERTY]:
-        secret
-    }, false);
-
-  Logger.log(
-    'HumbleOS configuré : ' +
+  properties.setProperty(
+    HUMBLEOS_AI_50.URL_PROPERTY,
     url.replace(/\/+$/, '')
   );
 
-  Logger.log(
-    'Secret HumbleOS enregistré dans Script Properties.'
-  );
+  if (
+    !String(
+      properties.getProperty(
+        HUMBLEOS_AI_50.SECRET_PROPERTY
+      ) || ''
+    ).trim()
+  ) {
+    throw new Error(
+      'Secret HumbleOS absent. Configurez HUMBLEOS_GATEWAY_SECRET directement dans Script Properties avant tout appel.'
+    );
+  }
+
+  AG24_AUDIT_event_('HUMBLEOS_CONFIGURATION_VERIFIED', {
+    url: url.replace(/\/+$/, '')
+  });
+
+  return {
+    succes: true,
+    url: url.replace(/\/+$/, ''),
+    secretPresent: true
+  };
 }
 
 /**
  * Déclenche l'autorisation OAuth requise pour les appels UrlFetchApp.
  * À exécuter une seule fois manuellement depuis l'éditeur Apps Script.
  */
-function autoriserUrlFetchApp() {
+function autoriserUrlFetchApp_() {
   const response = UrlFetchApp.fetch('https://www.google.com/generate_204', {
     method: 'get',
     muteHttpExceptions: true
@@ -132,13 +140,13 @@ function appelerHumbleOS_(endpoint, method, payload) {
   return json;
 }
 
-function verifierConnexionHumbleOS() {
+function verifierConnexionHumbleOS_() {
   const result = appelerHumbleOS_('/health', 'get');
   Logger.log(JSON.stringify(result, null, 2));
   return result;
 }
 
-function redigerSectionBusinessPlanAvecHumbleOS(section, rawData, calculatedData, instructions) {
+function redigerSectionBusinessPlanAvecHumbleOS_(section, rawData, calculatedData, instructions) {
   const result = appelerHumbleOS_('/generate-section', 'post', {
     section: section,
     rawData: rawData || {},
@@ -148,8 +156,8 @@ function redigerSectionBusinessPlanAvecHumbleOS(section, rawData, calculatedData
   return String(result.content || '').trim();
 }
 
-function testerRedactionBusinessPlanAvecHumbleOS() {
-  const texte = redigerSectionBusinessPlanAvecHumbleOS(
+function testerRedactionBusinessPlanAvecHumbleOS_() {
+  const texte = redigerSectionBusinessPlanAvecHumbleOS_(
     'Problème, solution et proposition de valeur',
     {
       probleme: 'beaucoup de mangues se perdent apres recolte et producteurs vendent moins cher',
@@ -170,7 +178,7 @@ function testerRedactionBusinessPlanAvecHumbleOS() {
  * Génère en un seul appel les blocs rédactionnels professionnels
  * utilisés par le Business Plan Bancable.
  */
-function genererNarratifBusinessPlanAvecHumbleOS(rawData, calculatedData, instructions) {
+function genererNarratifBusinessPlanAvecHumbleOS_(rawData, calculatedData, instructions) {
   const result = appelerHumbleOS_('/generate-bundle', 'post', {
     rawData: rawData || {},
     calculatedData: calculatedData || {},
@@ -184,8 +192,8 @@ function genererNarratifBusinessPlanAvecHumbleOS(rawData, calculatedData, instru
   return result.content;
 }
 
-function testerNarratifBusinessPlanAvecHumbleOS() {
-  const narratif = genererNarratifBusinessPlanAvecHumbleOS(
+function testerNarratifBusinessPlanAvecHumbleOS_() {
+  const narratif = genererNarratifBusinessPlanAvecHumbleOS_(
     {
       nomProjet: 'Unité de transformation de mangues',
       nomPromoteur: 'Awa Diallo',
@@ -222,7 +230,7 @@ function testerNarratifBusinessPlanAvecHumbleOS() {
  * ============================================================
  */
 
-function normaliserDonneesBusinessPlanStandardAvecHumbleOS(rawData) {
+function normaliserDonneesBusinessPlanStandardAvecHumbleOS_(rawData) {
   const result = appelerHumbleOS_('/normalize-standard', 'post', {
     rawData: rawData || {}
   });
@@ -234,7 +242,7 @@ function normaliserDonneesBusinessPlanStandardAvecHumbleOS(rawData) {
   return result.content;
 }
 
-function genererNarratifStandardAvecHumbleOS(rawData, instructions) {
+function genererNarratifStandardAvecHumbleOS_(rawData, instructions) {
   const result = appelerHumbleOS_('/generate-standard-bundle', 'post', {
     rawData: rawData || {},
     instructions: instructions || ''
@@ -247,7 +255,7 @@ function genererNarratifStandardAvecHumbleOS(rawData, instructions) {
   return result.content;
 }
 
-function testerBusinessPlanStandardAvecHumbleOS() {
+function testerBusinessPlanStandardAvecHumbleOS_() {
   const brut = {
     projectName: 'humble OS',
     promoterName: 'humble mg',
@@ -275,8 +283,8 @@ function testerBusinessPlanStandardAvecHumbleOS() {
     risks: 'LE FAIT DE NE PAS REUSSIR A HEBERGER MON IA SUR GOOGLE'
   };
 
-  const propre = normaliserDonneesBusinessPlanStandardAvecHumbleOS(brut);
-  const narratif = genererNarratifStandardAvecHumbleOS(
+  const propre = normaliserDonneesBusinessPlanStandardAvecHumbleOS_(brut);
+  const narratif = genererNarratifStandardAvecHumbleOS_(
     propre,
     'Rédaction sobre, concrète, sans répétitions et sans invention.'
   );
@@ -295,7 +303,7 @@ function testerBusinessPlanStandardAvecHumbleOS() {
  * BUSINESS PLAN STANDARD — HUMBLEOS 5.3 — APPEL UNIQUE
  * ============================================================
  */
-function genererBusinessPlanStandardCompletAvecHumbleOS(rawData, instructions) {
+function genererBusinessPlanStandardCompletAvecHumbleOS_(rawData, instructions) {
   const result = appelerHumbleOS_('/generate-standard-full', 'post', {
     rawData: rawData || {},
     instructions: instructions || ''
@@ -320,7 +328,7 @@ function genererBusinessPlanStandardCompletAvecHumbleOS(rawData, instructions) {
   };
 }
 
-function testerBusinessPlanStandardOptimiseAvecHumbleOS() {
+function testerBusinessPlanStandardOptimiseAvecHumbleOS_() {
   const brut = {
     projectName: 'humble OS',
     promoterName: 'humble mg',
@@ -348,7 +356,7 @@ function testerBusinessPlanStandardOptimiseAvecHumbleOS() {
     risks: 'LE FAIT DE NE PAS REUSSIR A HEBERGER MON IA SUR GOOGLE'
   };
 
-  const resultat = genererBusinessPlanStandardCompletAvecHumbleOS(
+  const resultat = genererBusinessPlanStandardCompletAvecHumbleOS_(
     brut,
     'Rédaction sobre, concrète, professionnelle, sans répétitions ni invention.'
   );
@@ -367,7 +375,7 @@ function testerBusinessPlanStandardOptimiseAvecHumbleOS() {
  * Deux appels courts au lieu d'un gros appel.
  * ============================================================
  */
-function genererBusinessPlanStandardPartieAvecHumbleOS(
+function genererBusinessPlanStandardPartieAvecHumbleOS_(
   rawData,
   part,
   instructions
@@ -398,7 +406,7 @@ function genererBusinessPlanStandardPartieAvecHumbleOS(
   };
 }
 
-function testerBusinessPlanStandardAntiTimeoutAvecHumbleOS() {
+function testerBusinessPlanStandardAntiTimeoutAvecHumbleOS_() {
   const brut = {
     projectName: 'humble OS',
     promoterName: 'humble mg',
@@ -426,7 +434,7 @@ function testerBusinessPlanStandardAntiTimeoutAvecHumbleOS() {
     risks: 'LE FAIT DE NE PAS REUSSIR A HEBERGER MON IA SUR GOOGLE'
   };
 
-  const p1 = genererBusinessPlanStandardPartieAvecHumbleOS(
+  const p1 = genererBusinessPlanStandardPartieAvecHumbleOS_(
     brut,
     1,
     'Rédaction professionnelle, sans répétition ni invention.'
@@ -434,7 +442,7 @@ function testerBusinessPlanStandardAntiTimeoutAvecHumbleOS() {
 
   Logger.log('Partie 1 terminée en ' + p1.durationSeconds + ' s');
 
-  const p2 = genererBusinessPlanStandardPartieAvecHumbleOS(
+  const p2 = genererBusinessPlanStandardPartieAvecHumbleOS_(
     p1.donnees || brut,
     2,
     'Rédaction professionnelle, sans répétition ni invention.'
@@ -641,7 +649,7 @@ function attendreJobStandardHumbleOS57_(
 }
 
 
-function genererBusinessPlanStandardPartieAsyncAvecHumbleOS(
+function genererBusinessPlanStandardPartieAsyncAvecHumbleOS_(
   rawData,
   part,
   instructions
@@ -704,7 +712,7 @@ function genererBusinessPlanStandardPartieAsyncAvecHumbleOS(
 }
 
 
-function testerBusinessPlanStandardAsyncAvecHumbleOS() {
+function testerBusinessPlanStandardAsyncAvecHumbleOS_() {
   var brut = {
     projectName: 'GreenStep Shoes',
     promoterName: 'Client Test',
@@ -753,14 +761,14 @@ function testerBusinessPlanStandardAsyncAvecHumbleOS() {
   };
 
   var p1 =
-    genererBusinessPlanStandardPartieAsyncAvecHumbleOS(
+    genererBusinessPlanStandardPartieAsyncAvecHumbleOS_(
       brut,
       1,
       'Rédaction professionnelle, sans répétition ni invention.'
     );
 
   var p2 =
-    genererBusinessPlanStandardPartieAsyncAvecHumbleOS(
+    genererBusinessPlanStandardPartieAsyncAvecHumbleOS_(
       p1.donnees || brut,
       2,
       'Rédaction professionnelle, sans répétition ni invention.'
@@ -800,7 +808,7 @@ function testerBusinessPlanStandardAsyncAvecHumbleOS() {
 
   return resultat;
 }
-function TEST_BP_GENERATION_ROUTE_INTERNE() {
+function TEST_BP_GENERATION_ROUTE_INTERNE_() {
   var brut = {
     projectName: "TEST ROUTE HUMBLEOS",
     promoterName: "Michel Test",
@@ -842,7 +850,7 @@ function TEST_BP_GENERATION_ROUTE_INTERNE() {
 
   try {
     var full =
-      genererBusinessPlanStandardCompletAvecHumbleOS(
+      genererBusinessPlanStandardCompletAvecHumbleOS_(
         brut,
         "Rédaction strictement descriptive. Aucun conseil, aucune recommandation, aucune prochaine étape."
       );
@@ -907,7 +915,7 @@ function TEST_BP_GENERATION_ROUTE_INTERNE() {
 
   try {
     var bundle =
-      genererNarratifStandardAvecHumbleOS(
+      genererNarratifStandardAvecHumbleOS_(
         brut,
         "Rédaction strictement descriptive. Aucun conseil, aucune recommandation, aucune prochaine étape."
       );
