@@ -25,6 +25,7 @@ required = [
     APP / "DocumentAccess.js",
     APP / "FinancialModelEngine.js",
     APP / "BankingRules.js",
+    APP / "ImportBusinessPlanV5.html",
 ]
 
 for path in required:
@@ -168,3 +169,23 @@ print(f"JS_FILES={len(js_files)}")
 print(f"HTML_FILES={len(html_files)}")
 print(f"PUBLIC_FUNCTIONS={sum(1 for name in functions if not name.endswith('_'))}")
 print(f"VALIDATION=PASS warnings={len(warnings)}")
+
+
+# Import Engine V5 contract
+index_path = APP / "Index.html"
+if index_path.exists():
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+    if "include('ImportBusinessPlanV5')" not in index_text:
+        fail("Index.html must include ImportBusinessPlanV5")
+
+import_backend = APP / "BusinessPlanImport.js"
+if import_backend.exists():
+    import_text = import_backend.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "verifierSignatureFichierBusinessPlan_",
+        "evaluerQualiteImportBusinessPlan_",
+        "BUSINESS_PLAN_IMPORT_COMPLETED",
+        "afrigreen24_bp_import_v5",
+    ]:
+        if marker not in import_text:
+            fail(f"Import V5 backend marker missing: {marker}")
