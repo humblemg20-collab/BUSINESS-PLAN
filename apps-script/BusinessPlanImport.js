@@ -18,8 +18,12 @@
  */
 
 const BP_IMPORT_HOS_CONFIG = Object.freeze({
+  VERSION: "5.0.0",
+  SCHEMA_VERSION: "afrigreen24_bp_import_v5",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
+  MIN_TEXT_CHARS: 80,
+  PREVIEW_CHARS: 1800,
   FOUND_CONFIDENCE: 0.82,
 
   ALLOWED_MIME_TYPES: Object.freeze([
@@ -113,10 +117,23 @@ function recevoirFichierBusinessPlan(payload) {
       );
     }
 
+    var originalTextLength =
+      texte.length;
+
     if (
-      texte.length >
-      BP_IMPORT_HOS_CONFIG.MAX_TEXT_CHARS
+      originalTextLength <
+      BP_IMPORT_HOS_CONFIG.MIN_TEXT_CHARS
     ) {
+      throw new Error(
+        "Le document contient trop peu de texte exploitable. Vérifiez qu’il n’est pas vide, protégé ou illisible."
+      );
+    }
+
+    var texteTronque =
+      originalTextLength >
+      BP_IMPORT_HOS_CONFIG.MAX_TEXT_CHARS;
+
+    if (texteTronque) {
       texte =
         texte.substring(
           0,
@@ -128,6 +145,74 @@ function recevoirFichierBusinessPlan(payload) {
       analyserBusinessPlanAvecHumbleOS_(
         texte
       );
+
+    var wordCount =
+      compterMotsBusinessPlan_(
+        texte
+      );
+
+    var importMeta = {
+      version:
+        BP_IMPORT_HOS_CONFIG.VERSION,
+
+      schemaVersion:
+        BP_IMPORT_HOS_CONFIG.SCHEMA_VERSION,
+
+      fingerprint:
+        String(
+          fichier.sha256 || ""
+        ).slice(0, 24),
+
+      extractionMethod:
+        extraction.method,
+
+      textLength:
+        texte.length,
+
+      originalTextLength:
+        originalTextLength,
+
+      truncated:
+        texteTronque,
+
+      wordCount:
+        wordCount,
+
+      analyzedAt:
+        new Date().toISOString()
+    };
+
+    AG24_AUDIT_event_(
+      "BUSINESS_PLAN_IMPORT_COMPLETED",
+      {
+        fingerprint:
+          importMeta.fingerprint,
+
+        extractionMethod:
+          extraction.method,
+
+        wordCount:
+          wordCount,
+
+        truncated:
+          texteTronque,
+
+        found:
+          analysisResult.analysis
+            ? analysisResult.analysis.found
+            : 0,
+
+        toConfirm:
+          analysisResult.analysis
+            ? analysisResult.analysis.toConfirm
+            : 0,
+
+        missing:
+          analysisResult.analysis
+            ? analysisResult.analysis.missing
+            : 0
+      }
+    );
 
     return {
       success: true,
@@ -150,8 +235,11 @@ function recevoirFichierBusinessPlan(payload) {
       preview:
         creerApercuTexteBusinessPlan_(
           texte,
-          1000
+          BP_IMPORT_HOS_CONFIG.PREVIEW_CHARS
         ),
+
+      importMeta:
+        importMeta,
 
       analysisResult:
         analysisResult
@@ -273,9 +361,15 @@ function normaliserResultatHumbleOSBusinessPlan_(
       fields
     );
 
+  var quality =
+    evaluerQualiteImportBusinessPlan_(
+      fields,
+      analysis
+    );
+
   return {
     schemaVersion:
-      "afrigreen24_bp_import_humbleos_v1",
+      BP_IMPORT_HOS_CONFIG.SCHEMA_VERSION,
 
     model:
       String(
@@ -286,7 +380,10 @@ function normaliserResultatHumbleOSBusinessPlan_(
       fields,
 
     analysis:
-      analysis
+      analysis,
+
+    quality:
+      quality
   };
 }
 
@@ -449,6 +546,118 @@ function analyserCompletudeBusinessPlan_(
 
     missingFields:
       missingFields
+  };
+}
+
+
+function evaluerQualiteImportBusinessPlan_(
+  fields,
+  analysis
+) {
+  var confidences = [];
+  var verifiedEvidence = 0;
+  var proposedValues = 0;
+
+  BP_IMPORT_FIELDS.forEach(
+    function(field) {
+      var info =
+        fields[field] || {};
+
+      if (
+        String(
+          info.value || ""
+        ).trim()
+      ) {
+        proposedValues++;
+      }
+
+      if (
+        Number.isFinite(
+          Number(
+            info.confidence
+          )
+        ) &&
+        Number(
+          info.confidence
+        ) > 0
+      ) {
+        confidences.push(
+          Number(
+            info.confidence
+          )
+        );
+      }
+
+      if (
+        info.evidenceVerified ===
+        true
+      ) {
+        verifiedEvidence++;
+      }
+    }
+  );
+
+  var averageConfidence =
+    confidences.length
+      ? confidences.reduce(
+          function(total, value) {
+            return total + value;
+          },
+          0
+        ) / confidences.length
+      : 0;
+
+  var evidenceCoverage =
+    proposedValues > 0
+      ? verifiedEvidence /
+        proposedValues
+      : 0;
+
+  var validatedCoverage =
+    analysis &&
+    analysis.total
+      ? Number(
+          analysis.found || 0
+        ) /
+        Number(
+          analysis.total
+        )
+      : 0;
+
+  var reliability =
+    (
+      averageConfidence * 0.45 +
+      evidenceCoverage * 0.35 +
+      validatedCoverage * 0.20
+    ) * 100;
+
+  return {
+    averageConfidence:
+      Number(
+        averageConfidence.toFixed(2)
+      ),
+
+    verifiedEvidence:
+      verifiedEvidence,
+
+    proposedValues:
+      proposedValues,
+
+    evidenceCoveragePct:
+      Math.round(
+        evidenceCoverage * 100
+      ),
+
+    reliabilityPct:
+      Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            reliability
+          )
+        )
+      )
   };
 }
 
@@ -677,6 +886,16 @@ function validerEtConstruireBlobBusinessPlan_(
     );
   }
 
+  verifierSignatureFichierBusinessPlan_(
+    bytes,
+    extension
+  );
+
+  var sha256 =
+    calculerEmpreinteFichierBusinessPlan_(
+      bytes
+    );
+
   return {
     fileName:
       fileName,
@@ -687,6 +906,12 @@ function validerEtConstruireBlobBusinessPlan_(
     size:
       size,
 
+    extension:
+      extension,
+
+    sha256:
+      sha256,
+
     blob:
       Utilities.newBlob(
         bytes,
@@ -694,6 +919,141 @@ function validerEtConstruireBlobBusinessPlan_(
         fileName
       )
   };
+}
+
+
+function verifierSignatureFichierBusinessPlan_(
+  bytes,
+  extension
+) {
+  var ext =
+    String(
+      extension || ""
+    ).toLowerCase();
+
+  var isPdf =
+    bytesCommencentParBusinessPlan_(
+      bytes,
+      [0x25, 0x50, 0x44, 0x46, 0x2D]
+    );
+
+  var isDoc =
+    bytesCommencentParBusinessPlan_(
+      bytes,
+      [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
+    );
+
+  var isZip =
+    bytesCommencentParBusinessPlan_(
+      bytes,
+      [0x50, 0x4B, 0x03, 0x04]
+    ) ||
+    bytesCommencentParBusinessPlan_(
+      bytes,
+      [0x50, 0x4B, 0x05, 0x06]
+    ) ||
+    bytesCommencentParBusinessPlan_(
+      bytes,
+      [0x50, 0x4B, 0x07, 0x08]
+    );
+
+  var valide =
+    ext === "pdf"
+      ? isPdf
+      : ext === "doc"
+        ? isDoc
+        : ext === "docx"
+          ? isZip
+          : false;
+
+  if (!valide) {
+    throw new Error(
+      "Le contenu réel du fichier ne correspond pas au format annoncé. Exportez à nouveau le document en PDF ou Word puis réessayez."
+    );
+  }
+}
+
+
+function bytesCommencentParBusinessPlan_(
+  bytes,
+  signature
+) {
+  if (
+    !bytes ||
+    bytes.length <
+      signature.length
+  ) {
+    return false;
+  }
+
+  for (
+    var index = 0;
+    index <
+      signature.length;
+    index++
+  ) {
+    var actual =
+      Number(
+        bytes[index]
+      );
+
+    if (actual < 0) {
+      actual += 256;
+    }
+
+    if (
+      actual !==
+      signature[index]
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+function calculerEmpreinteFichierBusinessPlan_(
+  bytes
+) {
+  var digest =
+    Utilities.computeDigest(
+      Utilities.DigestAlgorithm.SHA_256,
+      bytes
+    );
+
+  return digest.map(
+    function(value) {
+      var n =
+        value < 0
+          ? value + 256
+          : value;
+
+      return (
+        "0" +
+        n.toString(16)
+      ).slice(-2);
+    }
+  ).join("");
+}
+
+
+function compterMotsBusinessPlan_(
+  texte
+) {
+  var propre =
+    String(
+      texte || ""
+    )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+  return propre
+    ? propre.split(" ").length
+    : 0;
 }
 
 
