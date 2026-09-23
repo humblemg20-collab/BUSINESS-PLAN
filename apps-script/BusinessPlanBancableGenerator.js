@@ -29,7 +29,7 @@ const BPB3_CONFIG = Object.freeze({
 /**
  * Configure le dossier Drive dans lequel les Google Docs et PDF seront créés.
  */
-function configurerDossierSortieBusinessPlanBancable(folderId) {
+function configurerDossierSortieBusinessPlanBancable_(folderId) {
   const id = String(folderId || '').trim();
   if (!id) throw new Error('Identifiant du dossier Drive obligatoire.');
   const folder = DriveApp.getFolderById(id);
@@ -40,7 +40,7 @@ function configurerDossierSortieBusinessPlanBancable(folderId) {
 /**
  * Configure un logo facultatif stocké dans Google Drive.
  */
-function configurerLogoBusinessPlanBancable(fileId) {
+function configurerLogoBusinessPlanBancable_(fileId) {
   const id = String(fileId || '').trim();
   if (!id) throw new Error('Identifiant du fichier logo obligatoire.');
   const file = DriveApp.getFileById(id);
@@ -51,22 +51,24 @@ function configurerLogoBusinessPlanBancable(fileId) {
 /**
  * Point d’entrée appelé par l’interface HTML.
  */
-function genererBusinessPlanBancableDepuisInterface(dossierId) {
-  return genererRapportPreparationBancaireDepuisInterface(dossierId);
+function genererBusinessPlanBancableDepuisInterface(dossierId, jetonAcces) {
+  return genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces);
 }
 
-function genererRapportPreparationBancaireDepuisInterface(dossierId) {
-  return genererRapportPreparationBancaire(dossierId, { forcer: false });
+function genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-preparation-report');
+  return genererRapportPreparationBancaire_(id, { forcer: false });
 }
 
-function genererBusinessPlanFinanceurDepuisInterface(dossierId) {
-  return genererBusinessPlanFinanceur(dossierId, { forcer: false });
+function genererBusinessPlanFinanceurDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-financier-plan');
+  return genererBusinessPlanFinanceur_(id, { forcer: false });
 }
 
 /**
  * Génère le Google Docs et son PDF.
  */
-function genererRapportPreparationBancaire(dossierId, options) {
+function genererRapportPreparationBancaire_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
 
@@ -76,7 +78,7 @@ function genererRapportPreparationBancaire(dossierId, options) {
   }
 
   try {
-    const source = obtenirDossierUnifieBusinessPlanBancable(id);
+    const source = BPB_obtenirDossierUnifie_(id);
     const analyse = analyserBusinessPlanBancable(source.standard, source.bancable);
 
     if (!analyse.audit || !analyse.audit.pretPourGeneration) {
@@ -126,12 +128,12 @@ function genererRapportPreparationBancaire(dossierId, options) {
 /**
  * Retourne le dernier résultat de génération du dossier.
  */
-function obtenirResultatGenerationBusinessPlanBancable(dossierId) {
-  return obtenirResultatRapportPreparationBancaire(dossierId);
+function obtenirResultatGenerationBusinessPlanBancable(dossierId, jetonAcces) {
+  return obtenirResultatRapportPreparationBancaire(dossierId, jetonAcces);
 }
 
-function obtenirResultatRapportPreparationBancaire(dossierId) {
-  const id = BPB3_normaliserDossierId_(dossierId);
+function obtenirResultatRapportPreparationBancaire(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'read-preparation-result');
   const generation = BPB_lireJsonChunked_(BPB_cle_(id, 'GENERATION_RAPPORT'));
   if (!generation || generation.statut !== 'RAPPORT_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
@@ -139,8 +141,8 @@ function obtenirResultatRapportPreparationBancaire(dossierId) {
   return Object.assign({ succes: true }, generation);
 }
 
-function obtenirResultatBusinessPlanFinanceur(dossierId) {
-  const id = BPB3_normaliserDossierId_(dossierId);
+function obtenirResultatBusinessPlanFinanceur(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'read-financier-result');
   const generation = BPB_lireJsonChunked_(BPB_cle_(id, 'GENERATION_FINANCEUR'));
   if (!generation || generation.statut !== 'FINANCEUR_GENERE') {
     return { succes: false, dossierId: id, statut: generation ? generation.statut : 'NON_GENERE' };
@@ -151,15 +153,15 @@ function obtenirResultatBusinessPlanFinanceur(dossierId) {
 /**
  * Génère à nouveau les fichiers en ignorant un résultat antérieur.
  */
-function regenererBusinessPlanBancable(dossierId) {
-  return genererRapportPreparationBancaire(dossierId, { forcer: true });
+function regenererBusinessPlanBancable_(dossierId) {
+  return genererRapportPreparationBancaire_(dossierId, { forcer: true });
 }
 
 /**
  * Test complet autonome du Module 3.
  * Crée un dossier d’exemple, l’audite, le confirme et génère Docs + PDF.
  */
-function testerGenerationBusinessPlanBancable() {
+function testerGenerationBusinessPlanBancable_() {
   const id = creerIdentifiantDossierBancable();
   const standard = {
     nomProjet: 'Unité de transformation de mangues',
@@ -258,7 +260,7 @@ function testerGenerationBusinessPlanBancable() {
     throw new Error('Le dossier de test n’est pas prêt : ' + JSON.stringify(auditResult));
   }
   confirmerDossierBusinessPlanBancable(id);
-  const resultat = genererRapportPreparationBancaire(id, { forcer: true });
+  const resultat = genererRapportPreparationBancaire_(id, { forcer: true });
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
@@ -1158,7 +1160,7 @@ function BPB3_creerDocumentFinanceur_(dossier, modele, folder) {
   };
 }
 
-function genererBusinessPlanFinanceur(dossierId, options) {
+function genererBusinessPlanFinanceur_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
   const preparation = BPB3_preparerGeneration_(id, Boolean(opts.forcer), 'FINANCEUR');
@@ -1167,7 +1169,7 @@ function genererBusinessPlanFinanceur(dossierId, options) {
   }
 
   try {
-    const source = obtenirDossierUnifieBusinessPlanBancable(id);
+    const source = BPB_obtenirDossierUnifie_(id);
     const validationFinale = BPB_lireJsonChunked_(BPB_cle_(id, 'VALIDATION_FINALE'));
     if (!validationFinale || validationFinale.informationsExactes !== true || validationFinale.decisionFinanceur !== true) {
       throw new Error('La validation finale du porteur doit être enregistrée avant la génération de la version financeur.');
@@ -1628,14 +1630,14 @@ function BPB3_nettoyerNomFichier_(nom) {
  * Test de livraison V4 : génère le rapport de préparation puis la version financeur
  * à partir du même dossier de démonstration.
  */
-function testerWorkflowCompletBusinessPlanBancableV4() {
-  const rapport = testerGenerationBusinessPlanBancable();
-  const financeur = genererBusinessPlanFinanceur(rapport.dossierId, { forcer: true });
+function testerWorkflowCompletBusinessPlanBancableV4_() {
+  const rapport = testerGenerationBusinessPlanBancable_();
+  const financeur = genererBusinessPlanFinanceur_(rapport.dossierId, { forcer: true });
   const resultat = { succes: true, dossierId: rapport.dossierId, rapport: rapport, financeur: financeur };
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
-function TEST_BPB_LOGO_CLIENT() {
+function TEST_BPB_LOGO_CLIENT_() {
   const properties = PropertiesService.getScriptProperties();
 
   const propertyKey = BPB3_CONFIG.CLE_LOGO;
@@ -1694,8 +1696,8 @@ function TEST_BPB_LOGO_CLIENT() {
     };
   }
 }
-function CONFIGURER_LOGO_TEST_BPB() {
-  return configurerLogoBusinessPlanBancable(
+function CONFIGURER_LOGO_TEST_BPB_() {
+  return configurerLogoBusinessPlanBancable_(
     "1UX-WStJvJ_cVbBfAQAcOG9vwqud8WRIE"
   );
 }
