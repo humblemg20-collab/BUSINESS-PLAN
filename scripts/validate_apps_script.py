@@ -156,20 +156,6 @@ if code.exists():
     if "AG24_DOC_issueCapability_" not in text:
         fail("Standard PDF capability issuance is missing")
 
-for message in warnings:
-    print(f"WARNING: {message}")
-
-if errors:
-    for message in errors:
-        print(f"ERROR: {message}", file=sys.stderr)
-    print(f"VALIDATION=FAIL errors={len(errors)} warnings={len(warnings)}", file=sys.stderr)
-    raise SystemExit(1)
-
-print(f"JS_FILES={len(js_files)}")
-print(f"HTML_FILES={len(html_files)}")
-print(f"PUBLIC_FUNCTIONS={sum(1 for name in functions if not name.endswith('_'))}")
-print(f"VALIDATION=PASS warnings={len(warnings)}")
-
 
 # Import Engine V5 contract
 index_path = APP / "Index.html"
@@ -189,3 +175,17 @@ if import_backend.exists():
     ]:
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
+
+for message in warnings:
+    print(f"WARNING: {message}")
+
+if errors:
+    for message in errors:
+        print(f"ERROR: {message}", file=sys.stderr)
+    print(f"VALIDATION=FAIL errors={len(errors)} warnings={len(warnings)}", file=sys.stderr)
+    raise SystemExit(1)
+
+print(f"JS_FILES={len(js_files)}")
+print(f"HTML_FILES={len(html_files)}")
+print(f"PUBLIC_FUNCTIONS={sum(1 for name in functions if not name.endswith('_'))}")
+print(f"VALIDATION=PASS warnings={len(warnings)}")
