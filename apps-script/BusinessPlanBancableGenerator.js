@@ -1334,65 +1334,9 @@ function BPB3_construireModeleFinancier_(dossier) {
 }
 
 function BPB3_construireEcheancier_(premium) {
-  const capitalInitial = Math.max(0, BPB3_nombre_(premium.montantDemande));
-  const duree = Math.max(1, Math.min(BPB3_CONFIG.MAX_MOIS_ECHEANCIER, BPB3_nombre_(premium.dureeRemboursementMois) || 1));
-  const differe = Math.max(0, Math.min(duree - 1, BPB3_nombre_(premium.differeMois)));
-  const tauxMensuel = Math.max(0, BPB3_nombre_(premium.tauxInteretAnnuel)) / 100 / 12;
-  const moisAmortissement = Math.max(1, duree - differe);
-  const mensualiteApresDiffere = capitalInitial <= 0
-    ? 0
-    : tauxMensuel > 0
-      ? capitalInitial * tauxMensuel / (1 - Math.pow(1 + tauxMensuel, -moisAmortissement))
-      : capitalInitial / moisAmortissement;
-
-  let solde = capitalInitial;
-  const mensuel = [];
-  for (let mois = 1; mois <= duree; mois += 1) {
-    const soldeInitial = solde;
-    const interets = soldeInitial * tauxMensuel;
-    let paiement;
-    let capital;
-
-    if (mois <= differe) {
-      paiement = interets;
-      capital = 0;
-    } else {
-      paiement = Math.min(soldeInitial + interets, mensualiteApresDiffere);
-      capital = Math.max(0, paiement - interets);
-    }
-
-    solde = Math.max(0, soldeInitial - capital);
-    mensuel.push({
-      mois: mois,
-      soldeInitial: BPB3_arrondir_(soldeInitial),
-      paiement: BPB3_arrondir_(paiement),
-      interets: BPB3_arrondir_(interets),
-      capital: BPB3_arrondir_(capital),
-      soldeFinal: BPB3_arrondir_(solde)
-    });
-  }
-
-  const annuel = [];
-  const nbAnnees = Math.ceil(duree / 12);
-  for (let annee = 1; annee <= nbAnnees; annee += 1) {
-    const lignes = mensuel.slice((annee - 1) * 12, annee * 12);
-    annuel.push({
-      annee: annee,
-      paiements: BPB3_arrondir_(BPB3_somme_(lignes, 'paiement')),
-      interets: BPB3_arrondir_(BPB3_somme_(lignes, 'interets')),
-      capitalRembourse: BPB3_arrondir_(BPB3_somme_(lignes, 'capital')),
-      soldeFin: lignes.length ? lignes[lignes.length - 1].soldeFinal : 0
-    });
-  }
-
-  return {
-    capitalInitial: BPB3_arrondir_(capitalInitial),
-    dureeMois: duree,
-    differeMois: differe,
-    mensualiteApresDiffere: BPB3_arrondir_(mensualiteApresDiffere),
-    mensuel: mensuel,
-    annuel: annuel
-  };
+  return AG24_FIN_calculerEcheancier_(
+    premium || {}
+  );
 }
 
 /* =====================================================

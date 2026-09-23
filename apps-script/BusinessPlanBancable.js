@@ -24,6 +24,9 @@ const BusinessPlanBancable = (() => {
    */
   const STANDARD_FIELD_ALIASES = {
     nomProjet: ['nomProjet', 'projet.nom', 'projectName'],
+    pays: ['pays', 'country', 'projectCountry'],
+    secteur: ['secteur', 'sector', 'activitySector'],
+    stade: ['stade', 'stage', 'projectStage'],
     nomPromoteur: ['nomPromoteur', 'promoteur.nomComplet', 'fullName'],
     fonctionPromoteur: ['fonctionPromoteur', 'promoteur.fonction', 'rolePromoteur'],
     experiencePromoteur: ['experiencePromoteur', 'promoteur.experience', 'experience'],
@@ -390,14 +393,12 @@ const BusinessPlanBancable = (() => {
   }
 
   function calculerMensualite(capital, tauxAnnuelPct, dureeMois) {
-    const principal = nombre(capital, 0);
-    const mois = Math.max(1, nombre(dureeMois, 1));
-    const tauxMensuel = nombre(tauxAnnuelPct, 0) / 100 / 12;
-
-    if (principal <= 0) return 0;
-    if (tauxMensuel <= 0) return principal / mois;
-
-    return principal * tauxMensuel / (1 - Math.pow(1 + tauxMensuel, -mois));
+    return AG24_FIN_calculerEcheancier_({
+      montantDemande: capital,
+      tauxInteretAnnuel: tauxAnnuelPct,
+      dureeRemboursementMois: dureeMois,
+      differeMois: 0
+    }).mensualiteApresDiffere;
   }
 
   function calculerIndicateurs(dossier) {
@@ -443,11 +444,13 @@ const BusinessPlanBancable = (() => {
     const dettesFournisseurs = coutsVariablesMensuels * nombre(p.delaiPaiementFournisseursJours, 0) / 30;
     const bfrCalcule = Math.max(0, creancesClients + stockMoyen - dettesFournisseurs);
 
-    const mensualiteEstimee = calculerMensualite(
-      montantDemande,
-      p.tauxInteretAnnuel,
-      p.dureeRemboursementMois
-    );
+    const echeancierDette =
+      AG24_FIN_calculerEcheancier_(
+        p
+      );
+
+    const mensualiteEstimee =
+      echeancierDette.mensualiteApresDiffere;
 
     const mensualitesDettesExistantes = nombre(p.mensualitesDettesExistantes, 0);
     const capaciteDisponibleAvantNouvelleDette = excedentOperationnelMensuelSimplifie - mensualitesDettesExistantes;
@@ -489,6 +492,13 @@ const BusinessPlanBancable = (() => {
       bfrDeclare: arrondir(bfrDeclare, 0),
       bfrCalcule: arrondir(bfrCalcule, 0),
       mensualiteEstimee: arrondir(mensualiteEstimee, 0),
+      differeMoisSimule: echeancierDette.differeMois,
+      paiementPendantDiffere: arrondir(echeancierDette.paiementPendantDiffere, 0),
+      serviceNouvelleDetteAn1:
+        echeancierDette.annuel &&
+        echeancierDette.annuel[0]
+          ? arrondir(echeancierDette.annuel[0].paiements, 0)
+          : 0,
       couvertureMensuelleSimplifiee: couvertureMensuelleSimplifiee === null
         ? null
         : arrondir(couvertureMensuelleSimplifiee, 2),
@@ -515,6 +525,12 @@ const BusinessPlanBancable = (() => {
     const s = dossier.standard || {};
     const alertes = [];
     const pointsForts = [];
+
+    const rules =
+      AG24_BANK_getRules_({
+        pays: s.pays || '',
+        secteur: s.secteur || ''
+      });
 
     if (Math.abs(indicateurs.ecartFinancement) > TOLERANCE_EQUILIBRE) {
       ajouterAlerte(
@@ -625,7 +641,7 @@ const BusinessPlanBancable = (() => {
         'Les coûts variables sont supérieurs ou égaux au chiffre d’affaires.',
         'Réviser les prix, les coûts unitaires ou le mix de produits.'
       );
-    } else if (indicateurs.tauxMargeBrutePct < 20) {
+    } else if (indicateurs.tauxMargeBrutePct < rules.lowGrossMarginPct) {
       ajouterAlerte(
         alertes,
         'MARGE_BRUTE_FAIBLE',
@@ -718,7 +734,7 @@ const BusinessPlanBancable = (() => {
     }
 
     if (indicateurs.couvertureMensuelleSimplifiee !== null) {
-      if (indicateurs.couvertureMensuelleSimplifiee < 1) {
+      if (indicateurs.couvertureMensuelleSimplifiee < rules.minCoverageCritical) {
         ajouterAlerte(
           alertes,
           'REMBOURSEMENT_NON_COUVERT',
@@ -727,7 +743,7 @@ const BusinessPlanBancable = (() => {
           `L’excédent opérationnel simplifié couvre ${indicateurs.couvertureMensuelleSimplifiee} fois la mensualité estimée.`,
           'Réduire le financement, allonger la durée, augmenter la marge ou renforcer les ventes.'
         );
-      } else if (indicateurs.couvertureMensuelleSimplifiee < 1.2) {
+      } else if (indicateurs.couvertureMensuelleSimplifiee < rules.minCoverageWarning) {
         ajouterAlerte(
           alertes,
           'MARGE_REMBOURSEMENT_FAIBLE',
@@ -742,7 +758,7 @@ const BusinessPlanBancable = (() => {
     }
 
     if (indicateurs.scenarioPrudent.couvertureMensuelleSimplifiee !== null &&
-        indicateurs.scenarioPrudent.couvertureMensuelleSimplifiee < 1) {
+        indicateurs.scenarioPrudent.couvertureMensuelleSimplifiee < rules.minCoverageCritical) {
       ajouterAlerte(
         alertes,
         'SCENARIO_PRUDENT_FRAGILE',
@@ -762,7 +778,7 @@ const BusinessPlanBancable = (() => {
         'Le projet ne présente aucun engagement financier déclaré du promoteur ou des associés.',
         'Indiquer l’apport réellement disponible. Les exigences minimales varient selon le financeur.'
       );
-    } else if (indicateurs.tauxApportPct < 10) {
+    } else if (indicateurs.tauxApportPct < rules.lowEquityContributionPct) {
       ajouterAlerte(
         alertes,
         'APPORT_FAIBLE',
@@ -777,7 +793,7 @@ const BusinessPlanBancable = (() => {
 
     if (indicateurs.bfrCalcule > 0) {
       const ecartBfrPct = Math.abs(indicateurs.bfrDeclare - indicateurs.bfrCalcule) / indicateurs.bfrCalcule;
-      if (ecartBfrPct > 0.25) {
+      if (ecartBfrPct > rules.bfrVariancePct / 100) {
         ajouterAlerte(
           alertes,
           'BFR_INCOHERENT',
@@ -790,7 +806,7 @@ const BusinessPlanBancable = (() => {
     }
 
     const croissance = nombre(p.croissanceAnnuellePct, 0);
-    if (croissance > 50 && !estRenseigne(p.justificationCroissance)) {
+    if (croissance > rules.highGrowthPct && !estRenseigne(p.justificationCroissance)) {
       ajouterAlerte(
         alertes,
         'CROISSANCE_NON_JUSTIFIEE',
@@ -860,6 +876,15 @@ const BusinessPlanBancable = (() => {
     const audit = {
       version: VERSION,
       genereLe: new Date().toISOString(),
+      rulesetId: rules.rulesetId,
+      regles: {
+        lowGrossMarginPct: rules.lowGrossMarginPct,
+        minCoverageCritical: rules.minCoverageCritical,
+        minCoverageWarning: rules.minCoverageWarning,
+        lowEquityContributionPct: rules.lowEquityContributionPct,
+        highGrowthPct: rules.highGrowthPct,
+        bfrVariancePct: rules.bfrVariancePct
+      },
       score,
       niveau: niveauScore(score.total),
       indicateurs,
