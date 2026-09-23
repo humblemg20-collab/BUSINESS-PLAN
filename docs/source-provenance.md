@@ -1,11 +1,25 @@
 # Provenance de la source
 
 - Projet : AfriGreen24 — Business Plan
+- Source canonique : `apps-script/`
 - Script ID : `1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz`
-- Source d’import : `business plan.zip`
-- Mode : extraction et validation automatiques par GitHub Actions
-- Runtime attendu : V8
+- Runtime : V8
 - Web App canonique : `https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec`
-- Intégration iframe : autorisée par `HtmlService.XFrameOptionsMode.ALLOWALL` dans `apps-script/Code.js`
+- Façade publique : `hostinger/index.html`
+- Archive historique : `business plan.zip`
 
-Le ZIP racine est conservé comme snapshot. Le dossier `apps-script/` est la source lisible et modifiable dans GitHub. La façade publique Hostinger est versionnée sous `hostinger/index.html`.
+## Règle canonique
+
+`apps-script/` est modifié directement puis validé et déployé.
+
+Le ZIP ne constitue plus une source de synchronisation et ne doit jamais écraser `apps-script/`.
+
+L’identité d’une release est portée par le commit Git et le déploiement Apps Script correspondant.
+
+## Sécurité
+
+- secrets runtime dans Script Properties uniquement ;
+- fonctions admin/test non exposées à `google.script.run` ;
+- contrôles statiques via `scripts/validate_apps_script.py` ;
+- PDF privés avec livraison contrôlée ;
+- déploiement avec health check et rollback.

@@ -45,6 +45,27 @@ jobs:
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
 
+      - name: Capture current production version
+        working-directory: apps-script
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOYMENT_ID"
+          clasp list-deployments | tee /tmp/deployments-before.txt
+          PREVIOUS_VERSION="$(
+            grep -F "$DEPLOYMENT_ID" /tmp/deployments-before.txt |
+            sed -nE 's/.*@([0-9]+).*/\1/p' |
+            head -n 1
+          )"
+          if [[ -z "$PREVIOUS_VERSION" ]]; then
+            echo "PREVIOUS_VERSION_NOT_FOUND"
+            exit 1
+          fi
+          echo "PREVIOUS_VERSION=$PREVIOUS_VERSION" >> "$GITHUB_ENV"
+          echo "PREVIOUS_VERSION=$PREVIOUS_VERSION"
+
       - name: Push canonical source
         working-directory: apps-script
         shell: bash
@@ -66,6 +87,7 @@ jobs:
             --deploymentId "$DEPLOYMENT_ID" \
             --description "$RELEASE_DESCRIPTION | ${GITHUB_SHA}"
           clasp list-deployments
+          echo "PRODUCTION_UPDATED=1" >> "$GITHUB_ENV"
 
       - name: Production health check
         shell: bash
@@ -79,3 +101,25 @@ jobs:
           test "$CODE" = "200"
           grep -qi "Business Plan" /tmp/business-plan.html
           echo "PRODUCTION_HEALTH=PASS"
+
+
+      - name: Automatic rollback on failed production health
+        if: failure() && env.PRODUCTION_UPDATED == '1' && env.PREVIOUS_VERSION != ''
+        working-directory: apps-script
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          WEB_APP_URL: ${{ vars.BUSINESS_PLAN_WEB_APP_URL }}
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_TO_VERSION=$PREVIOUS_VERSION"
+          clasp create-deployment \
+            --deploymentId "$DEPLOYMENT_ID" \
+            --versionNumber "$PREVIOUS_VERSION" \
+            --description "AUTO ROLLBACK | ${GITHUB_SHA}"
+          URL="${WEB_APP_URL:-https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec}"
+          CODE="$(curl -L --silent --show-error --output /tmp/business-plan-rollback.html --write-out '%{http_code}' "$URL")"
+          echo "ROLLBACK_HTTP_STATUS=$CODE"
+          test "$CODE" = "200"
+          grep -qi "Business Plan" /tmp/business-plan-rollback.html
+          echo "ROLLBACK_HEALTH=PASS"

@@ -892,6 +892,15 @@ function nettoyerFichiersTemporairesBusinessPlan_(
   (ids || []).forEach(
     function(id) {
       try {
+        if (
+          typeof Drive !== "undefined" &&
+          Drive.Files &&
+          typeof Drive.Files.remove === "function"
+        ) {
+          Drive.Files.remove(id);
+          return;
+        }
+
         DriveApp
           .getFileById(id)
           .setTrashed(true);
