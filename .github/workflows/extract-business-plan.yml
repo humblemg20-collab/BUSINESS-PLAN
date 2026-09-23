@@ -49,7 +49,6 @@ jobs:
           fi
 
           SRC="$(dirname "$CLASP_FILE")"
-
           echo "SOURCE_ROOT=$SRC"
 
           rm -rf apps-script
@@ -61,6 +60,7 @@ jobs:
           test -f apps-script/appsscript.json
           test -f apps-script/Api.js
           test -f apps-script/Index.html
+          test -f apps-script/app.html
 
           SCRIPT_ID="$(python - <<'PY'
           import json
@@ -69,7 +69,9 @@ jobs:
           PY
           )"
 
-          if [[ "$SCRIPT_ID" != "1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS" ]]; then
+          EXPECTED_SCRIPT_ID="1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS"
+
+          if [[ "$SCRIPT_ID" != "$EXPECTED_SCRIPT_ID" ]]; then
             echo "SCRIPT_ID_MISMATCH=$SCRIPT_ID"
             exit 1
           fi
@@ -78,17 +80,17 @@ jobs:
             echo "# Provenance de la source"
             echo
             echo "- Projet : AfriGreen24 — Business Model Finançable"
-            echo "- Script ID : `$SCRIPT_ID`"
-            echo "- Source : `business plan.zip`"
+            echo "- Script ID : $SCRIPT_ID"
+            echo "- Source : business plan.zip"
             echo "- Extraction : GitHub Actions déterministe"
-            echo "- Web App canonique : `https://script.google.com/macros/s/AKfycbzuuT3vesWHRoTmG7lkiRiG8ITwBQbTzdqbEcW-72bRZyCzUBpSGDBeyIaV9pK5Y476/exec`"
+            echo "- Web App canonique : https://script.google.com/macros/s/AKfycbzuuT3vesWHRoTmG7lkiRiG8ITwBQbTzdqbEcW-72bRZyCzUBpSGDBeyIaV9pK5Y476/exec"
             echo
-            echo "Les fichiers sous `apps-script/` sont régénérés automatiquement depuis l'archive canonique."
+            echo "Les fichiers sous apps-script/ sont régénérés automatiquement depuis l'archive canonique."
           } > docs/source-provenance.md
 
           (
             cd apps-script
-            find . -type f -print0               | sort -z               | xargs -0 sha256sum
+            find . -type f -print0 | sort -z | xargs -0 sha256sum
           ) > docs/apps-script-sha256.txt
 
           FILE_COUNT="$(find apps-script -maxdepth 1 -type f | wc -l | tr -d ' ')"
@@ -132,7 +134,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add apps-script docs/source-provenance.md docs/apps-script-sha256.txt
-          git commit -m "sync: extract canonical Apps Script source [skip extract]"
+          git commit -m "sync: extract canonical Apps Script source"
           git push origin HEAD:main
 
           echo "SOURCE_SYNC=PASS"
