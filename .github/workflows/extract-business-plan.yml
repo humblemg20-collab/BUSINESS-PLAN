@@ -53,8 +53,7 @@ jobs:
           echo "SOURCE_ROOT=$SRC"
 
           echo "SOURCE_FILE_LIST=START"
-          find "$SRC" -type f -printf '%P
-' | sort
+          find "$SRC" -type f -print | sort
           echo "SOURCE_FILE_LIST=END"
 
           rm -rf apps-script
