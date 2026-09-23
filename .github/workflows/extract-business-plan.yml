@@ -1,0 +1,138 @@
+name: Extract canonical Apps Script source
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "business plan.zip"
+      - ".github/workflows/extract-business-plan.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: business-plan-source-sync
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Apps Script source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZIP="business plan.zip"
+
+          if [[ ! -f "$ZIP" ]]; then
+            echo "SOURCE_ZIP_NOT_FOUND=$ZIP"
+            exit 1
+          fi
+
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+
+          unzip -q "$ZIP" -d "$TMP"
+
+          CLASP_FILE="$(find "$TMP" -type f -name '.clasp.json' -print -quit)"
+
+          if [[ -z "$CLASP_FILE" ]]; then
+            echo "CLASP_FILE_NOT_FOUND_IN_ARCHIVE"
+            exit 1
+          fi
+
+          SRC="$(dirname "$CLASP_FILE")"
+
+          echo "SOURCE_ROOT=$SRC"
+
+          rm -rf apps-script
+          mkdir -p apps-script docs
+
+          find "$SRC" -maxdepth 1 -type f \(             -name '*.js' -o             -name '*.gs' -o             -name '*.html' -o             -name 'appsscript.json' -o             -name '.clasp.json'           \) -exec cp {} apps-script/ \;
+
+          test -f apps-script/.clasp.json
+          test -f apps-script/appsscript.json
+          test -f apps-script/Api.js
+          test -f apps-script/Index.html
+
+          SCRIPT_ID="$(python - <<'PY'
+          import json
+          with open("apps-script/.clasp.json", encoding="utf-8") as f:
+              print(json.load(f)["scriptId"])
+          PY
+          )"
+
+          if [[ "$SCRIPT_ID" != "1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS" ]]; then
+            echo "SCRIPT_ID_MISMATCH=$SCRIPT_ID"
+            exit 1
+          fi
+
+          {
+            echo "# Provenance de la source"
+            echo
+            echo "- Projet : AfriGreen24 — Business Model Finançable"
+            echo "- Script ID : `$SCRIPT_ID`"
+            echo "- Source : `business plan.zip`"
+            echo "- Extraction : GitHub Actions déterministe"
+            echo "- Web App canonique : `https://script.google.com/macros/s/AKfycbzuuT3vesWHRoTmG7lkiRiG8ITwBQbTzdqbEcW-72bRZyCzUBpSGDBeyIaV9pK5Y476/exec`"
+            echo
+            echo "Les fichiers sous `apps-script/` sont régénérés automatiquement depuis l'archive canonique."
+          } > docs/source-provenance.md
+
+          (
+            cd apps-script
+            find . -type f -print0               | sort -z               | xargs -0 sha256sum
+          ) > docs/apps-script-sha256.txt
+
+          FILE_COUNT="$(find apps-script -maxdepth 1 -type f | wc -l | tr -d ' ')"
+
+          echo "APPS_SCRIPT_FILES=$FILE_COUNT"
+          echo "SCRIPT_ID=$SCRIPT_ID"
+
+      - name: Validate extracted source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("apps-script")
+          manifest = json.loads((root / "appsscript.json").read_text(encoding="utf-8"))
+          clasp = json.loads((root / ".clasp.json").read_text(encoding="utf-8"))
+
+          assert clasp["scriptId"] == "1eTXksbCQgmVc-Og4gblOmdt1mccMaKXPek7LbOJiLS5ftPf1tr8wSMfS"
+          assert manifest.get("runtimeVersion") == "V8"
+          assert (root / "Api.js").stat().st_size > 0
+          assert (root / "Index.html").stat().st_size > 0
+          assert (root / "app.html").stat().st_size > 0
+
+          print("SOURCE_VALIDATION=PASS")
+          PY
+
+      - name: Commit synchronized source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- apps-script docs/source-provenance.md docs/apps-script-sha256.txt; then
+            echo "SOURCE_SYNC=NO_CHANGES"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add apps-script docs/source-provenance.md docs/apps-script-sha256.txt
+          git commit -m "sync: extract canonical Apps Script source [skip extract]"
+          git push origin HEAD:main
+
+          echo "SOURCE_SYNC=PASS"
