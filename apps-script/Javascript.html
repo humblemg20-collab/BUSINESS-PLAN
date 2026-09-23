@@ -1,0 +1,984 @@
+<script>
+  "use strict";
+
+  let etapeActuelle = 1;
+  const nombreEtapes = 6;
+  let generationEnCours = false;
+
+  const coachMessages = {
+    1: {
+      message: "Avant de parler de chiffres, commençons par comprendre votre vision.",
+      progression: "Votre idée prend forme."
+    },
+    2: {
+      message: "Les projets les plus utiles commencent toujours par un problème réel.",
+      progression: "Vous définissez la raison d’être de votre projet."
+    },
+    3: {
+      message: "Montrons maintenant comment votre solution peut changer la situation.",
+      progression: "Votre entreprise commence à devenir concrète."
+    },
+    4: {
+      message: "Identifions précisément les personnes que votre projet veut servir.",
+      progression: "Vos futurs clients deviennent plus clairs."
+    },
+    5: {
+      message: "Construisons maintenant un modèle économique capable de durer.",
+      progression: "Votre modèle économique se structure."
+    },
+    6: {
+      message: "Dernière étape : définissons les moyens nécessaires pour passer à l’action.",
+      progression: "Votre projet est prêt à franchir un nouveau cap."
+    }
+  };
+
+  const champsObligatoires = {
+    1: ["projectName", "promoterName", "email", "country", "stage"],
+    2: ["problem", "affectedPeople", "urgency"],
+    3: ["solution", "valueProposition", "benefit"],
+    4: ["targetCustomers", "marketArea", "salesChannels", "competitors"],
+    5: ["revenueModel", "pricing", "sector", "mainCosts", "team"],
+    6: ["fundingType", "fundingNeed", "useOfFunds", "impact", "risks"]
+  };
+
+  const confirmations = {
+    1: {
+      titre: "Excellent.",
+      texte: "Votre projet possède maintenant une identité claire."
+    },
+    2: {
+      titre: "Très bien.",
+      texte: "Vous venez de définir la raison d’être de votre projet."
+    },
+    3: {
+      titre: "Votre solution est claire.",
+      texte: "Votre proposition de valeur est désormais structurée."
+    },
+    4: {
+      titre: "Votre marché prend forme.",
+      texte: "Nous comprenons maintenant qui sont vos futurs clients."
+    },
+    5: {
+      titre: "Votre modèle devient concret.",
+      texte: "Votre projet possède maintenant une logique économique."
+    }
+  };
+
+  const etapesGeneration = [
+    {
+      titre: "Analyse de votre projet...",
+      texte: "Nous relisons votre vision et vos objectifs."
+    },
+    {
+      titre: "Construction de la stratégie...",
+      texte: "Nous organisons votre proposition de valeur et votre marché."
+    },
+    {
+      titre: "Rédaction du Business Plan...",
+      texte: "Nous transformons vos réponses en un document structuré."
+    },
+    {
+      titre: "Création du document...",
+      texte: "Nous préparons votre Business Plan professionnel."
+    }
+  ];
+
+  function obtenirElement(id) {
+    return document.getElementById(id);
+  }
+
+  function afficherPage(idPage) {
+    const pages = [
+      "homePage",
+      "introPage",
+      "questionnairePage",
+      "generationPage",
+      "resultPage"
+    ];
+
+    pages.forEach(function(id) {
+      const page = obtenirElement(id);
+      if (page) {
+        page.classList.add("hidden");
+      }
+    });
+
+    const pageDemandee = obtenirElement(idPage);
+    if (pageDemandee) {
+      pageDemandee.classList.remove("hidden");
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: respecterMouvementReduit() ? "auto" : "smooth"
+    });
+  }
+
+  function ouvrirIntroduction() {
+    masquerErreur();
+    afficherPage("introPage");
+  }
+
+  function retourAccueil() {
+    masquerErreur();
+    afficherPage("homePage");
+  }
+
+  function retourAccueilComplet() {
+    etapeActuelle = 1;
+    generationEnCours = false;
+    reinitialiserAnimation();
+    mettreAJourEtape(false);
+    afficherPage("homePage");
+  }
+
+  function demarrerQuestionnaire() {
+    etapeActuelle = 1;
+    masquerErreur();
+    mettreAJourEtape(false);
+    afficherPage("questionnairePage");
+  }
+
+  function etapeSuivante() {
+    masquerErreur();
+
+    if (!validerEtapeActuelle()) {
+      if (!obtenirElement("formError").textContent) {
+        afficherErreur(
+          "Complétez les informations indiquées avant de continuer."
+        );
+      }
+      return;
+    }
+
+    if (etapeActuelle < nombreEtapes) {
+      afficherConfirmationEtape();
+      return;
+    }
+
+    lancerGeneration();
+  }
+
+  function etapePrecedente() {
+    masquerErreur();
+
+    if (etapeActuelle > 1) {
+      etapeActuelle -= 1;
+      mettreAJourEtape();
+      return;
+    }
+
+    afficherPage("introPage");
+  }
+
+  function mettreAJourEtape(defilementActif) {
+    const doitDefiler = defilementActif !== false;
+    const etapes = document.querySelectorAll(".form-step");
+
+    etapes.forEach(function(etape) {
+      const numero = Number(etape.dataset.step);
+      etape.classList.toggle("active-step", numero === etapeActuelle);
+      etape.setAttribute("aria-hidden", numero === etapeActuelle ? "false" : "true");
+    });
+
+    const progression = (etapeActuelle / nombreEtapes) * 100;
+    const barre = obtenirElement("progressBar");
+    const compteur = obtenirElement("stepCounter");
+    const messageCoach = obtenirElement("coachMessage");
+    const messageProgression = obtenirElement("progressEmotion");
+
+    if (barre) {
+      barre.style.width = progression + "%";
+      barre.setAttribute("aria-valuenow", String(etapeActuelle));
+      barre.setAttribute("aria-valuemin", "1");
+      barre.setAttribute("aria-valuemax", String(nombreEtapes));
+      barre.setAttribute("role", "progressbar");
+      barre.setAttribute(
+        "aria-label",
+        "Progression du questionnaire : étape " + etapeActuelle + " sur " + nombreEtapes
+      );
+    }
+
+    if (compteur) {
+      compteur.textContent = "Étape " + etapeActuelle + " sur " + nombreEtapes;
+    }
+
+    if (messageCoach) {
+      messageCoach.textContent = coachMessages[etapeActuelle].message;
+    }
+
+    if (messageProgression) {
+      messageProgression.textContent = coachMessages[etapeActuelle].progression;
+    }
+
+    const boutonPrecedent = obtenirElement("previousButton");
+    if (boutonPrecedent) {
+      boutonPrecedent.style.visibility = etapeActuelle === 1 ? "hidden" : "visible";
+      boutonPrecedent.disabled = etapeActuelle === 1;
+    }
+
+    const boutonSuivant = obtenirElement("nextButton");
+    if (boutonSuivant) {
+      const libelle = boutonSuivant.querySelector("span");
+      if (libelle) {
+        libelle.textContent =
+          etapeActuelle === nombreEtapes
+            ? "Générer mon Business Plan"
+            : "Continuer";
+      }
+      boutonSuivant.setAttribute(
+        "aria-label",
+        etapeActuelle === nombreEtapes
+          ? "Générer mon Business Plan"
+          : "Continuer vers l’étape suivante"
+      );
+    }
+
+    if (doitDefiler) {
+      window.scrollTo({
+        top: 0,
+        behavior: respecterMouvementReduit() ? "auto" : "smooth"
+      });
+    }
+  }
+
+  function validerEtapeActuelle() {
+    const ids = champsObligatoires[etapeActuelle] || [];
+    let premierChampInvalide = null;
+
+    ids.forEach(function(id) {
+      const champ = obtenirElement(id);
+      if (!champ) {
+        return;
+      }
+
+      nettoyerEtatChamp(champ);
+
+      if (!String(champ.value || "").trim()) {
+        marquerChampInvalide(champ);
+        if (!premierChampInvalide) {
+          premierChampInvalide = champ;
+        }
+      }
+    });
+
+    if (premierChampInvalide) {
+      afficherErreur("Tous les champs de cette étape sont nécessaires.");
+      premierChampInvalide.focus();
+      premierChampInvalide.scrollIntoView({
+        behavior: respecterMouvementReduit() ? "auto" : "smooth",
+        block: "center"
+      });
+      return false;
+    }
+
+    if (etapeActuelle === 1) {
+      const champEmail = obtenirElement("email");
+      const email = champEmail ? champEmail.value.trim() : "";
+      const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      if (!emailValide) {
+        marquerChampInvalide(champEmail);
+        afficherErreur("Saisissez une adresse e-mail valide.");
+        champEmail.focus();
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function marquerChampInvalide(champ) {
+    if (!champ) {
+      return;
+    }
+
+    champ.setAttribute("aria-invalid", "true");
+    champ.style.borderColor = "#b42318";
+    champ.style.boxShadow = "0 0 0 4px rgba(180, 35, 24, 0.08)";
+  }
+
+  function nettoyerEtatChamp(champ) {
+    if (!champ) {
+      return;
+    }
+
+    champ.removeAttribute("aria-invalid");
+    champ.style.borderColor = "";
+    champ.style.boxShadow = "";
+  }
+
+  function afficherConfirmationEtape() {
+    const confirmation = confirmations[etapeActuelle];
+
+    if (!confirmation) {
+      etapeActuelle += 1;
+      mettreAJourEtape();
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "ag-step-confirmation-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", confirmation.titre);
+
+    overlay.innerHTML =
+      '<div class="ag-step-confirmation">' +
+        '<div class="success-circle" aria-hidden="true">' +
+          '<svg><use href="#icon-check"></use></svg>' +
+        '</div>' +
+        '<h2></h2>' +
+        '<p></p>' +
+        '<div class="ag-mini-loading-line">Préparation de la prochaine étape...</div>' +
+      '</div>';
+
+    overlay.querySelector("h2").textContent = confirmation.titre;
+    overlay.querySelector("p").textContent = confirmation.texte;
+    document.body.appendChild(overlay);
+
+    const delai = respecterMouvementReduit() ? 300 : 1050;
+
+    window.setTimeout(function() {
+      overlay.classList.add("is-leaving");
+
+      window.setTimeout(function() {
+        overlay.remove();
+        etapeActuelle += 1;
+        mettreAJourEtape();
+      }, respecterMouvementReduit() ? 10 : 180);
+    }, delai);
+  }
+
+  function afficherErreur(message) {
+    const erreur = obtenirElement("formError");
+    if (!erreur) {
+      return;
+    }
+
+    erreur.textContent = message;
+    erreur.style.display = "block";
+  }
+
+  function masquerErreur() {
+    const erreur = obtenirElement("formError");
+    if (!erreur) {
+      return;
+    }
+
+    erreur.textContent = "";
+    erreur.style.display = "none";
+  }
+
+  function lancerGeneration() {
+    if (generationEnCours) {
+      return;
+    }
+
+    generationEnCours = true;
+    masquerErreur();
+    reinitialiserAnimation();
+    afficherPage("generationPage");
+
+    const donnees = collecterDonneesFormulaire();
+    const agBridge = String(
+      window.AFRIGREEN_DOCUMENT_BRIDGE || ""
+    ).trim();
+
+    if (agBridge) {
+      donnees.agBridge = agBridge;
+    }
+    const titre = obtenirElement("generationTitle");
+    const texte = obtenirElement("generationText");
+
+    let indexAnimation = 0;
+    let animationTerminee = false;
+    let appelServeurTermine = false;
+    let resultatServeur = null;
+    let intervalle = null;
+
+    afficherMessageGeneration(0);
+
+    intervalle = window.setInterval(function() {
+      if (indexAnimation < etapesGeneration.length - 1) {
+        indexAnimation += 1;
+        afficherMessageGeneration(indexAnimation);
+        return;
+      }
+
+      animationTerminee = true;
+      verifierFinGeneration();
+    }, 1500);
+
+    if (
+      typeof google === "undefined" ||
+      !google.script ||
+      !google.script.run
+    ) {
+      window.clearInterval(intervalle);
+      afficherEchecGeneration(
+        "Le service Google Apps Script est indisponible dans cet aperçu. Ouvrez l’application depuis son URL de déploiement."
+      );
+      return;
+    }
+
+    function lancerGenerationServeur_() {
+      google.script.run
+        .withSuccessHandler(function(resultat) {
+          appelServeurTermine = true;
+
+          try {
+            resultatServeur =
+              typeof resultat === "string"
+                ? JSON.parse(resultat)
+                : resultat;
+          } catch (erreurParsing) {
+            resultatServeur = {
+              success: false,
+              message: "La réponse du serveur est illisible.",
+              error: String(erreurParsing)
+            };
+          }
+
+          verifierFinGeneration();
+        })
+        .withFailureHandler(function(erreur) {
+          window.clearInterval(intervalle);
+          afficherEchecGeneration(
+            erreur && erreur.message
+              ? erreur.message
+              : "Impossible de générer le Business Plan."
+          );
+          console.error("Erreur de génération :", erreur);
+        })
+        .genererBusinessPlanWeb(donnees);
+    }
+
+    if (
+      google.script.url &&
+      typeof google.script.url.getLocation === "function"
+    ) {
+      google.script.url.getLocation(function(location) {
+        const params = location && location.parameter ? location.parameter : {};
+        const bridge = String(
+          params.agBridge || window.AFRIGREEN_DOCUMENT_BRIDGE || ""
+        ).trim();
+
+        if (bridge) {
+          donnees.agBridge = bridge;
+        }
+
+        lancerGenerationServeur_();
+      });
+    } else {
+      lancerGenerationServeur_();
+    }
+
+    function afficherMessageGeneration(position) {
+      const etape = etapesGeneration[position];
+      if (!etape) {
+        return;
+      }
+
+      if (titre) {
+        titre.textContent = etape.titre;
+      }
+
+      if (texte) {
+        texte.textContent = etape.texte;
+      }
+    }
+
+    function verifierFinGeneration() {
+      if (!animationTerminee || !appelServeurTermine) {
+        return;
+      }
+
+      window.clearInterval(intervalle);
+
+      const docUrl =
+        resultatServeur && (
+          resultatServeur.docUrl ||
+          resultatServeur.url ||
+          resultatServeur.documentUrl ||
+          resultatServeur.businessPlanLink ||
+          ""
+        );
+
+      const docId =
+        resultatServeur && (
+          resultatServeur.docId ||
+          resultatServeur.documentId ||
+          resultatServeur.id ||
+          ""
+        );
+
+      const pdfUrl =
+        resultatServeur && (
+          resultatServeur.pdfUrl ||
+          resultatServeur.pdfLink ||
+          resultatServeur.businessPlanPdfLink ||
+          ""
+        );
+
+      const pdfDownloadUrl =
+        resultatServeur && (
+          resultatServeur.pdfDownloadUrl ||
+          resultatServeur.downloadUrl ||
+          resultatServeur.businessPlanPdfDownload ||
+          pdfUrl ||
+          docUrl ||
+          ""
+        );
+
+      if (
+        !resultatServeur ||
+        resultatServeur.success !== true ||
+        !pdfDownloadUrl
+      ) {
+        afficherEchecGeneration(
+          resultatServeur && (resultatServeur.error || resultatServeur.message)
+            ? (resultatServeur.error || resultatServeur.message)
+            : "Le document ou son lien de téléchargement est indisponible."
+        );
+        console.error("Résultat reçu du serveur :", resultatServeur);
+        return;
+      }
+
+      window.businessPlanLink = docUrl;
+      window.businessPlanId = docId;
+      window.businessPlanPdfLink = pdfUrl;
+      window.businessPlanPdfDownload = pdfDownloadUrl;
+      window.businessPlanResult = resultatServeur;
+      window.resultatBusinessPlan = resultatServeur;
+
+      const animation = obtenirElement("generationAnimation");
+      const succes = obtenirElement("generationSuccess");
+
+      if (animation) {
+        animation.classList.add("hidden");
+      }
+
+      if (succes) {
+        succes.classList.remove("hidden");
+      }
+
+      generationEnCours = false;
+
+      window.setTimeout(function() {
+        if (typeof window.ouvrirResultatPremium === "function") {
+          window.ouvrirResultatPremium();
+        }
+
+        afficherStatutSynchronisationDashboard_(
+          resultatServeur.dashboardSync
+        );
+      }, respecterMouvementReduit() ? 180 : 900);
+    }
+  }
+
+  function afficherStatutSynchronisationDashboard_(dashboardSync) {
+    const element = document.getElementById("dashboardSyncStatus");
+
+    if (!element) {
+      return;
+    }
+
+    if (dashboardSync && dashboardSync.success === true) {
+      element.textContent =
+        "✓ Votre PDF a été ajouté à la bibliothèque Documents AfriGreen24.";
+      return;
+    }
+
+    if (dashboardSync && dashboardSync.error) {
+      element.textContent =
+        "⚠ PDF créé, mais synchronisation Dashboard impossible : " +
+        dashboardSync.error;
+      return;
+    }
+
+    element.textContent =
+      "⚠ PDF créé, mais aucun bridge Dashboard n’a été reçu.";
+  }
+
+  function afficherEchecGeneration(message) {
+    generationEnCours = false;
+
+    const animation = obtenirElement("generationAnimation");
+    const titre = obtenirElement("generationTitle");
+    const texte = obtenirElement("generationText");
+    const anneau = animation ? animation.querySelector(".loading-ring") : null;
+
+    if (anneau) {
+      anneau.style.display = "none";
+    }
+
+    if (titre) {
+      titre.textContent = "La génération a été interrompue.";
+    }
+
+    if (texte) {
+      texte.textContent = message;
+    }
+
+    if (animation && !obtenirElement("generationRetryButton")) {
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.id = "generationRetryButton";
+      bouton.className = "main-button ag-generation-retry";
+      bouton.innerHTML =
+        '<span>Réessayer</span>' +
+        '<svg class="button-icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>';
+      bouton.addEventListener("click", lancerGeneration);
+      animation.appendChild(bouton);
+    }
+  }
+
+  function reinitialiserAnimation() {
+    const animation = obtenirElement("generationAnimation");
+    const succes = obtenirElement("generationSuccess");
+    const titre = obtenirElement("generationTitle");
+    const texte = obtenirElement("generationText");
+    const boutonReessayer = obtenirElement("generationRetryButton");
+    const anneau = animation ? animation.querySelector(".loading-ring") : null;
+
+    if (animation) {
+      animation.classList.remove("hidden");
+    }
+
+    if (succes) {
+      succes.classList.add("hidden");
+    }
+
+    if (anneau) {
+      anneau.style.display = "";
+    }
+
+    if (boutonReessayer) {
+      boutonReessayer.remove();
+    }
+
+    if (titre) {
+      titre.textContent = etapesGeneration[0].titre;
+    }
+
+    if (texte) {
+      texte.textContent = etapesGeneration[0].texte;
+    }
+  }
+
+  function valeurResultat(id, valeurParDefaut) {
+    const champ = obtenirElement(id);
+    const valeur = champ ? String(champ.value || "").trim() : "";
+    return valeur || valeurParDefaut;
+  }
+
+  function definirTexteResultat(id, valeur) {
+    const element = obtenirElement(id);
+    if (element) {
+      element.textContent = valeur;
+    }
+  }
+
+  function obtenirBesoinPrincipalPremium() {
+    const resultatComplet =
+      window.businessPlanResult ||
+      window.resultatBusinessPlan ||
+      {};
+
+    const profilCommercial =
+      resultatComplet.profilCommercial ||
+      resultatComplet.profil_commercial ||
+      {};
+
+    const besoinServeur = String(
+      profilCommercial.besoinPrincipal ||
+      profilCommercial.besoin_principal ||
+      resultatComplet.besoinPrincipal ||
+      ""
+    ).trim();
+
+    if (besoinServeur) {
+      return besoinServeur;
+    }
+
+    const typeFinancement = valeurResultat("fundingType", "");
+    const montant = valeurResultat("fundingNeed", "");
+    const stade = valeurResultat("stage", "");
+
+    if (typeFinancement && montant) {
+      return (
+        "Préparer une demande de " +
+        typeFinancement.toLowerCase() +
+        " de " +
+        montant +
+        " et sécuriser un plan d’utilisation crédible des fonds."
+      );
+    }
+
+    if (typeFinancement) {
+      return (
+        "Structurer une stratégie de " +
+        typeFinancement.toLowerCase() +
+        " et préparer un dossier convaincant pour les financeurs."
+      );
+    }
+
+    if (stade) {
+      return (
+        "Transformer le stade actuel — " +
+        stade.toLowerCase() +
+        " — en prochaines actions mesurables et finançables."
+      );
+    }
+
+    return "Structurer le passage à l’action et la stratégie de financement du projet.";
+  }
+
+  function preparerResultatPremium() {
+    const nomProjet = valeurResultat("projectName", "Votre projet");
+    const promoteur = valeurResultat("promoterName", "Entrepreneur");
+    const pays = valeurResultat("country", "À préciser");
+    const secteur = valeurResultat("sector", "À préciser");
+    const financement = valeurResultat("fundingType", "À définir");
+    const montant = valeurResultat("fundingNeed", "À déterminer");
+    const lienDocument =
+      window.businessPlanLink ||
+      window.businessPlanPdfLink ||
+      window.businessPlanPdfDownload ||
+      "#";
+
+    definirTexteResultat("resultProjectName", nomProjet);
+    definirTexteResultat("resultPromoterName", promoteur);
+    definirTexteResultat("resultPromoterGreeting", promoteur);
+    definirTexteResultat("resultCountry", pays);
+    definirTexteResultat("resultSector", secteur);
+    definirTexteResultat("resultFundingType", financement);
+    definirTexteResultat("resultFundingNeed", montant);
+    definirTexteResultat("resultMainNeed", obtenirBesoinPrincipalPremium());
+
+    const lien = obtenirElement("resultPdfLink");
+    if (lien) {
+      lien.href = lienDocument;
+      lien.setAttribute("aria-disabled", lienDocument === "#" ? "true" : "false");
+    }
+  }
+
+  function ouvrirResultatPremium() {
+    if (!window.businessPlanPdfDownload && !window.businessPlanPdfLink) {
+      afficherEchecGeneration("Le PDF n’est pas encore disponible.");
+      return;
+    }
+
+    preparerResultatPremium();
+    afficherPage("resultPage");
+
+    window.setTimeout(function() {
+      telechargerBusinessPlanPremium(true);
+    }, respecterMouvementReduit() ? 80 : 220);
+  }
+
+  function telechargerBusinessPlanPremium(silencieux) {
+    const lien = window.businessPlanPdfDownload || window.businessPlanPdfLink;
+
+    if (!lien) {
+      if (!silencieux) {
+        afficherEchecGeneration("Le PDF n’est pas encore disponible.");
+      }
+      return;
+    }
+
+    const ancre = document.createElement("a");
+    ancre.href = lien;
+    ancre.target = "_blank";
+    ancre.rel = "noopener noreferrer";
+    ancre.style.display = "none";
+    document.body.appendChild(ancre);
+    ancre.click();
+    ancre.remove();
+  }
+
+  function afficherResultatDemo() {
+    ouvrirResultatPremium();
+  }
+
+  function collecterDonneesFormulaire() {
+    return {
+      projectName: valeurChamp("projectName"),
+      promoterName: valeurChamp("promoterName"),
+      email: valeurChamp("email"),
+      country: valeurChamp("country"),
+      stage: valeurChamp("stage"),
+      problem: valeurChamp("problem"),
+      affectedPeople: valeurChamp("affectedPeople"),
+      urgency: valeurChamp("urgency"),
+      solution: valeurChamp("solution"),
+      valueProposition: valeurChamp("valueProposition"),
+      benefit: valeurChamp("benefit"),
+      targetCustomers: valeurChamp("targetCustomers"),
+      marketArea: valeurChamp("marketArea"),
+      salesChannels: valeurChamp("salesChannels"),
+      competitors: valeurChamp("competitors"),
+      revenueModel: valeurChamp("revenueModel"),
+      pricing: valeurChamp("pricing"),
+      sector: valeurChamp("sector"),
+      mainCosts: valeurChamp("mainCosts"),
+      team: valeurChamp("team"),
+      fundingType: valeurChamp("fundingType"),
+      fundingNeed: valeurChamp("fundingNeed"),
+      useOfFunds: valeurChamp("useOfFunds"),
+      impact: valeurChamp("impact"),
+      risks: valeurChamp("risks")
+    };
+  }
+
+  function valeurChamp(id) {
+    const champ = obtenirElement(id);
+    return champ ? String(champ.value || "").trim() : "";
+  }
+
+  function respecterMouvementReduit() {
+    return Boolean(
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function installerStylesJavascript() {
+    if (obtenirElement("agJavascriptStyles")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "agJavascriptStyles";
+    style.textContent = `
+      .ag-step-confirmation-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(3, 47, 32, 0.58);
+        backdrop-filter: blur(10px);
+        opacity: 1;
+        transition: opacity 180ms ease;
+      }
+
+      .ag-step-confirmation-overlay.is-leaving {
+        opacity: 0;
+      }
+
+      .ag-step-confirmation {
+        width: min(100%, 520px);
+        padding: 42px 34px;
+        text-align: center;
+        background: #ffffff;
+        border: 1px solid rgba(11, 107, 58, 0.12);
+        border-radius: 28px;
+        box-shadow: 0 30px 80px rgba(3, 47, 32, 0.24);
+        animation: agConfirmationIn 320ms ease both;
+      }
+
+      .ag-step-confirmation h2 {
+        margin: 0 0 10px;
+        color: #10231b;
+        font-size: clamp(1.7rem, 5vw, 2.25rem);
+        line-height: 1.18;
+      }
+
+      .ag-step-confirmation p {
+        margin: 0;
+        color: #5e7168;
+      }
+
+      .ag-mini-loading-line {
+        position: relative;
+        margin-top: 24px;
+        padding-top: 16px;
+        overflow: hidden;
+        color: #0b6b3a;
+        font-size: 0.8rem;
+        font-weight: 800;
+      }
+
+      .ag-mini-loading-line::before {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        content: "";
+        background: #e3eee8;
+        border-radius: 999px;
+      }
+
+      .ag-mini-loading-line::after {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 42%;
+        height: 4px;
+        content: "";
+        background: linear-gradient(90deg, #0b6b3a, #6fba16);
+        border-radius: 999px;
+        animation: agConfirmationLoad 900ms ease-in-out infinite;
+      }
+
+      .ag-generation-retry {
+        margin-top: 22px;
+      }
+
+      @keyframes agConfirmationIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes agConfirmationLoad {
+        from { transform: translateX(-120%); }
+        to { transform: translateX(340%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ag-step-confirmation,
+        .ag-mini-loading-line::after {
+          animation: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  window.preparerResultatPremium = preparerResultatPremium;
+  window.ouvrirResultatPremium = ouvrirResultatPremium;
+  window.telechargerBusinessPlanPremium = telechargerBusinessPlanPremium;
+
+  function initialiserApplication() {
+    installerStylesJavascript();
+    mettreAJourEtape(false);
+    reinitialiserAnimation();
+
+    document.addEventListener("input", function(event) {
+      if (event.target.matches("input, textarea, select")) {
+        nettoyerEtatChamp(event.target);
+        masquerErreur();
+      }
+    });
+
+    document.addEventListener("change", function(event) {
+      if (event.target.matches("select")) {
+        nettoyerEtatChamp(event.target);
+        masquerErreur();
+      }
+    });
+  }
+
+  initialiserApplication();
+</script>

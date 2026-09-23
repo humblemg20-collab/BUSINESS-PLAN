@@ -1,0 +1,6634 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+  <base target="_top">
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    <?= titre ?>
+  </title>
+
+
+  <style>
+
+    :root {
+
+      --primary:#176b45;
+      --primary-dark:#0f4d32;
+
+      --surface:#ffffff;
+      --background:#f4f7f5;
+
+      --text:#17211c;
+      --muted:#64716a;
+
+      --border:#dce5df;
+
+      --danger:#a62929;
+      --warning:#8a5a00;
+      --success:#176b45;
+
+      --radius:14px;
+
+      --shadow:
+        0 14px 40px
+        rgba(21,66,45,.10);
+
+    }
+
+
+    * {
+      box-sizing:border-box;
+    }
+
+
+    [hidden] {
+      display:none !important;
+    }
+
+
+    body {
+
+      margin:0;
+
+      font-family:
+        Inter,
+        Arial,
+        sans-serif;
+
+      background:
+        var(--background);
+
+      color:
+        var(--text);
+
+      line-height:1.5;
+
+    }
+
+
+    button,
+    input,
+    select,
+    textarea {
+
+      font:inherit;
+
+    }
+
+
+    .app-shell {
+
+      width:
+        min(
+          1120px,
+          calc(100% - 28px)
+        );
+
+      margin:
+        28px
+        auto
+        60px;
+
+    }
+
+
+    .topbar {
+
+      display:flex;
+
+      justify-content:
+        space-between;
+
+      gap:24px;
+
+      align-items:
+        flex-start;
+
+      margin-bottom:
+        20px;
+
+    }
+
+
+    .eyebrow {
+
+      margin:
+        0
+        0
+        6px;
+
+      color:
+        var(--primary);
+
+      font-size:
+        12px;
+
+      font-weight:
+        800;
+
+      letter-spacing:
+        .08em;
+
+      text-transform:
+        uppercase;
+
+    }
+
+
+    h1 {
+
+      margin:0;
+
+      font-size:
+        clamp(
+          26px,
+          4vw,
+          40px
+        );
+
+      line-height:
+        1.15;
+
+    }
+
+
+    h2 {
+
+      margin:
+        0
+        0
+        8px;
+
+      font-size:
+        25px;
+
+    }
+
+
+    h3 {
+      margin:0;
+    }
+
+
+    .subtitle {
+
+      margin:
+        10px
+        0
+        0;
+
+      color:
+        var(--muted);
+
+      max-width:
+        760px;
+
+    }
+
+
+    .status-pill {
+
+      flex:none;
+
+      padding:
+        8px
+        12px;
+
+      border-radius:
+        999px;
+
+      background:
+        #e9f4ee;
+
+      color:
+        var(--primary-dark);
+
+      font-size:
+        13px;
+
+      font-weight:
+        700;
+
+    }
+
+
+    .progress-card,
+    .content-card,
+    .audit-card {
+
+      background:
+        var(--surface);
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        var(--radius);
+
+      box-shadow:
+        var(--shadow);
+
+    }
+
+
+    .progress-card {
+
+      padding:
+        16px
+        18px;
+
+      margin-bottom:
+        18px;
+
+    }
+
+
+    .progress-row {
+
+      display:flex;
+
+      justify-content:
+        space-between;
+
+      gap:16px;
+
+      align-items:center;
+
+      font-size:
+        13px;
+
+      font-weight:
+        700;
+
+      margin-bottom:
+        10px;
+
+    }
+
+
+    .progress-track {
+
+      height:9px;
+
+      border-radius:
+        999px;
+
+      background:
+        #e6ece8;
+
+      overflow:hidden;
+
+    }
+
+
+    .progress-bar {
+
+      height:100%;
+
+      width:0;
+
+      background:
+        var(--primary);
+
+      transition:
+        width .25s ease;
+
+    }
+
+
+    .layout {
+
+      display:grid;
+
+      grid-template-columns:
+        250px
+        minmax(0,1fr);
+
+      gap:18px;
+
+    }
+
+
+    .steps {
+
+      align-self:
+        start;
+
+      position:
+        sticky;
+
+      top:18px;
+
+      padding:
+        12px;
+
+      background:
+        var(--surface);
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        var(--radius);
+
+    }
+
+
+    .step-item {
+
+      display:flex;
+
+      gap:10px;
+
+      align-items:center;
+
+      width:100%;
+
+      border:0;
+
+      background:
+        transparent;
+
+      color:
+        var(--muted);
+
+      text-align:left;
+
+      padding:
+        10px;
+
+      border-radius:
+        10px;
+
+      cursor:
+        default;
+
+    }
+
+
+    .step-item.active {
+
+      background:
+        #eaf5ef;
+
+      color:
+        var(--primary-dark);
+
+      font-weight:
+        800;
+
+    }
+
+
+    .step-item.done {
+
+      color:
+        var(--success);
+
+    }
+
+
+    .step-number {
+
+      display:grid;
+
+      place-items:center;
+
+      width:28px;
+      height:28px;
+
+      flex:none;
+
+      border-radius:
+        50%;
+
+      background:
+        #edf1ee;
+
+      font-size:
+        12px;
+
+      font-weight:
+        800;
+
+    }
+
+
+    .active .step-number,
+    .done .step-number {
+
+      background:
+        var(--primary);
+
+      color:white;
+
+    }
+
+
+    .content-card {
+
+      padding:
+        clamp(
+          20px,
+          4vw,
+          34px
+        );
+
+      min-height:
+        520px;
+
+    }
+
+
+    .section-description {
+
+      color:
+        var(--muted);
+
+      margin:
+        0
+        0
+        26px;
+
+    }
+
+
+    .field {
+
+      margin-bottom:
+        22px;
+
+    }
+
+
+    .field-label {
+
+      display:block;
+
+      margin-bottom:
+        7px;
+
+      font-weight:
+        750;
+
+    }
+
+
+    .required {
+
+      color:
+        var(--danger);
+
+    }
+
+
+    .hint {
+
+      display:block;
+
+      color:
+        var(--muted);
+
+      font-size:
+        12px;
+
+      margin-top:
+        6px;
+
+    }
+
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+
+      width:100%;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        10px;
+
+      background:
+        white;
+
+      color:
+        var(--text);
+
+      padding:
+        12px
+        13px;
+
+      outline:none;
+
+      transition:
+        border .2s,
+        box-shadow .2s;
+
+    }
+
+
+    textarea {
+
+      min-height:
+        112px;
+
+      resize:
+        vertical;
+
+    }
+
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+
+      border-color:
+        var(--primary);
+
+      box-shadow:
+        0 0 0 3px
+        rgba(23,107,69,.12);
+
+    }
+
+
+    .invalid {
+
+      border-color:
+        var(--danger)
+        !important;
+
+    }
+
+
+    .field-error {
+
+      color:
+        var(--danger);
+
+      font-size:
+        12px;
+
+      margin-top:
+        6px;
+
+    }
+
+
+    .checkbox-grid {
+
+      display:grid;
+
+      grid-template-columns:
+        repeat(
+          auto-fit,
+          minmax(190px,1fr)
+        );
+
+      gap:8px;
+
+    }
+
+
+    .checkbox-option {
+
+      display:flex;
+
+      align-items:center;
+
+      gap:9px;
+
+      padding:
+        10px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        10px;
+
+      background:
+        #fbfcfb;
+
+    }
+
+
+    .repeater {
+
+      display:grid;
+
+      gap:12px;
+
+    }
+
+
+    .repeater-row {
+
+      position:relative;
+
+      display:grid;
+
+      grid-template-columns:
+        repeat(
+          2,
+          minmax(0,1fr)
+        );
+
+      gap:12px;
+
+      padding:
+        16px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        12px;
+
+      background:
+        #fbfcfb;
+
+    }
+
+
+    .repeater-row .wide {
+
+      grid-column:
+        1 / -1;
+
+    }
+
+
+    .remove-row {
+
+      position:absolute;
+
+      top:8px;
+      right:8px;
+
+      border:0;
+
+      background:
+        transparent;
+
+      color:
+        var(--danger);
+
+      cursor:pointer;
+
+      font-weight:
+        800;
+
+    }
+
+
+    .add-row {
+
+      justify-self:
+        start;
+
+      border:
+        1px dashed
+        var(--primary);
+
+      color:
+        var(--primary-dark);
+
+      background:
+        #f0f8f4;
+
+      padding:
+        9px
+        13px;
+
+      border-radius:
+        10px;
+
+      font-weight:
+        800;
+
+      cursor:pointer;
+
+    }
+
+
+    .actions {
+
+      display:flex;
+
+      justify-content:
+        space-between;
+
+      align-items:center;
+
+      gap:12px;
+
+      border-top:
+        1px solid
+        var(--border);
+
+      margin-top:
+        28px;
+
+      padding-top:
+        20px;
+
+    }
+
+
+    .action-right {
+
+      display:flex;
+
+      gap:10px;
+
+    }
+
+
+    .btn {
+
+      border:0;
+
+      border-radius:
+        10px;
+
+      padding:
+        11px
+        17px;
+
+      font-weight:
+        800;
+
+      cursor:pointer;
+
+    }
+
+
+    .btn-primary {
+
+      background:
+        var(--primary);
+
+      color:white;
+
+    }
+
+
+    .btn-secondary {
+
+      background:
+        #e9efeb;
+
+      color:
+        var(--text);
+
+    }
+
+
+    .btn:disabled {
+
+      opacity:
+        .55;
+
+      cursor:
+        not-allowed;
+
+    }
+
+
+    .save-state {
+
+      color:
+        var(--muted);
+
+      font-size:
+        12px;
+
+    }
+
+
+    .loader {
+
+      min-height:
+        420px;
+
+      display:grid;
+
+      place-items:center;
+
+      text-align:center;
+
+      color:
+        var(--muted);
+
+    }
+
+
+    .spinner {
+
+      width:38px;
+      height:38px;
+
+      margin:
+        0
+        auto
+        12px;
+
+      border:
+        4px solid
+        #dfe8e2;
+
+      border-top-color:
+        var(--primary);
+
+      border-radius:
+        50%;
+
+      animation:
+        spin .8s
+        linear
+        infinite;
+
+    }
+
+
+    @keyframes spin {
+
+      to {
+
+        transform:
+          rotate(360deg);
+
+      }
+
+    }
+
+
+    .alert-box {
+
+      padding:
+        12px
+        14px;
+
+      border-radius:
+        10px;
+
+      margin-bottom:
+        14px;
+
+      background:
+        #fff1f1;
+
+      color:
+        var(--danger);
+
+      border:
+        1px solid
+        #f2caca;
+
+    }
+
+
+    .audit-card {
+
+      padding:
+        clamp(
+          20px,
+          4vw,
+          34px
+        );
+
+    }
+
+
+    .score-wrap {
+
+      display:grid;
+
+      grid-template-columns:
+        150px
+        1fr;
+
+      gap:
+        24px;
+
+      align-items:center;
+
+      margin:
+        24px
+        0;
+
+    }
+
+
+    .score-circle {
+
+      width:
+        142px;
+
+      height:
+        142px;
+
+      border-radius:
+        50%;
+
+      display:grid;
+
+      place-items:center;
+
+      background:
+        conic-gradient(
+          var(--primary)
+          var(--score-angle),
+          #e5ece8
+          0
+        );
+
+      position:
+        relative;
+
+    }
+
+
+    .score-circle::after {
+
+      content:'';
+
+      position:absolute;
+
+      inset:
+        10px;
+
+      border-radius:
+        50%;
+
+      background:
+        white;
+
+    }
+
+
+    .score-number {
+
+      position:
+        relative;
+
+      z-index:
+        1;
+
+      font-size:
+        31px;
+
+      font-weight:
+        900;
+
+    }
+
+
+    .metric-grid {
+
+      display:grid;
+
+      grid-template-columns:
+        repeat(
+          auto-fit,
+          minmax(190px,1fr)
+        );
+
+      gap:
+        10px;
+
+      margin:
+        18px
+        0
+        24px;
+
+    }
+
+
+    .metric {
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        10px;
+
+      padding:
+        12px;
+
+    }
+
+
+    .metric-label {
+
+      color:
+        var(--muted);
+
+      font-size:
+        12px;
+
+    }
+
+
+    .metric-value {
+
+      font-size:
+        18px;
+
+      font-weight:
+        850;
+
+      margin-top:
+        4px;
+
+    }
+
+
+    .audit-alert {
+
+      border-left:
+        4px solid
+        var(--warning);
+
+      background:
+        #fff9ec;
+
+      padding:
+        14px;
+
+      margin:
+        10px
+        0;
+
+      border-radius:
+        0
+        10px
+        10px
+        0;
+
+    }
+
+
+    .audit-alert.critical {
+
+      border-left-color:
+        var(--danger);
+
+      background:
+        #fff1f1;
+
+    }
+
+
+    .audit-alert h3 {
+
+      margin:
+        0
+        0
+        6px;
+
+      font-size:
+        16px;
+
+    }
+
+
+    .audit-alert p {
+
+      margin:
+        4px
+        0;
+
+    }
+
+
+    .success-panel {
+
+      background:
+        #edf8f2;
+
+      border:
+        1px solid
+        #b9dfca;
+
+      color:
+        var(--primary-dark);
+
+      padding:
+        16px;
+
+      border-radius:
+        12px;
+
+      margin-top:
+        18px;
+
+    }
+
+
+    .generation-panel {
+
+      margin-top:
+        18px;
+
+      padding:
+        18px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        12px;
+
+      background:
+        #fbfcfb;
+
+    }
+
+
+    .generation-panel h3 {
+
+      margin:
+        0
+        0
+        8px;
+
+    }
+
+
+    .generation-panel p {
+
+      margin:
+        6px
+        0;
+
+      color:
+        var(--muted);
+
+    }
+
+
+    .document-links {
+
+      display:flex;
+
+      flex-wrap:
+        wrap;
+
+      gap:
+        10px;
+
+      margin-top:
+        14px;
+
+    }
+
+
+    .document-link {
+
+      display:inline-flex;
+
+      align-items:center;
+
+      justify-content:center;
+
+      min-height:
+        44px;
+
+      padding:
+        10px
+        15px;
+
+      border-radius:
+        10px;
+
+      text-decoration:
+        none;
+
+      font-weight:
+        800;
+
+    }
+
+
+    .document-link.primary {
+
+      background:
+        var(--primary);
+
+      color:#fff;
+
+    }
+
+
+    .document-link.secondary {
+
+      background:
+        #e9efeb;
+
+      color:
+        var(--text);
+
+    }
+
+
+    .final-validation {
+
+      margin-top:
+        22px;
+
+      padding:
+        20px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        12px;
+
+      background:
+        #fbfcfb;
+
+    }
+
+
+    .final-validation h3 {
+
+      margin-bottom:
+        8px;
+
+    }
+
+
+    .validation-option {
+
+      display:flex;
+
+      align-items:
+        flex-start;
+
+      gap:
+        10px;
+
+      margin:
+        12px
+        0;
+
+      padding:
+        12px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius:
+        10px;
+
+      background:
+        white;
+
+    }
+
+
+    .validation-option input {
+
+      margin-top:
+        4px;
+
+      flex:none;
+
+    }
+
+
+    .validation-meta {
+
+      color:
+        var(--muted);
+
+      font-size:
+        12px;
+
+      margin-top:
+        8px;
+
+    }
+
+
+    @media(max-width:820px){
+
+      .layout {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+
+      .steps {
+
+        position:
+          static;
+
+        display:flex;
+
+        overflow-x:
+          auto;
+
+      }
+
+
+      .step-item {
+
+        min-width:
+          180px;
+
+      }
+
+
+      .topbar {
+
+        flex-direction:
+          column;
+
+      }
+
+    }
+
+
+    @media(max-width:600px){
+
+      .app-shell {
+
+        width:
+          min(
+            100% - 18px,
+            1120px
+          );
+
+        margin-top:
+          16px;
+
+      }
+
+
+      .repeater-row {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+
+      .repeater-row .wide {
+
+        grid-column:
+          auto;
+
+      }
+
+
+      .actions,
+      .score-wrap {
+
+        grid-template-columns:
+          1fr;
+
+        flex-direction:
+          column;
+
+        align-items:
+          stretch;
+
+      }
+
+
+      .action-right {
+
+        display:grid;
+
+      }
+
+
+      .score-wrap {
+
+        display:grid;
+
+      }
+
+
+      .score-circle {
+
+        margin:
+          0
+          auto;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <main class="app-shell">
+
+
+    <header class="topbar">
+
+      <div>
+
+        <p class="eyebrow">
+          AfriGreen24 — Accès Bancable activé
+        </p>
+
+        <h1>
+          Business Plan Bancable
+        </h1>
+
+        <p class="subtitle">
+          Complétez uniquement les informations supplémentaires
+          nécessaires à l’analyse financière et à la génération
+          de votre document Bancable.
+        </p>
+
+      </div>
+
+
+      <div
+        id="statusPill"
+        class="status-pill"
+      >
+        Initialisation
+      </div>
+
+    </header>
+
+
+    <section
+      id="progressCard"
+      class="progress-card"
+      hidden
+    >
+
+      <div class="progress-row">
+
+        <span id="progressLabel">
+          Progression
+        </span>
+
+        <span id="progressPercent">
+          0 %
+        </span>
+
+      </div>
+
+
+      <div class="progress-track">
+
+        <div
+          id="progressBar"
+          class="progress-bar"
+        ></div>
+
+      </div>
+
+    </section>
+
+
+    <div
+      id="loader"
+      class="content-card loader"
+    >
+
+      <div>
+
+        <div class="spinner"></div>
+
+        <strong>
+          Chargement du dossier Bancable…
+        </strong>
+
+      </div>
+
+    </div>
+
+
+    <section
+      id="questionnaireLayout"
+      class="layout"
+      hidden
+    >
+
+      <nav
+        id="steps"
+        class="steps"
+        aria-label="Étapes du questionnaire"
+      ></nav>
+
+
+      <article class="content-card">
+
+        <div
+          id="globalError"
+          class="alert-box"
+          hidden
+        ></div>
+
+
+        <div id="sectionContainer"></div>
+
+
+        <footer class="actions">
+
+          <span
+            id="saveState"
+            class="save-state"
+          >
+            Brouillon prêt
+          </span>
+
+
+          <div class="action-right">
+
+            <button
+              id="prevButton"
+              class="btn btn-secondary"
+              type="button"
+            >
+              Retour
+            </button>
+
+
+            <button
+              id="nextButton"
+              class="btn btn-primary"
+              type="button"
+            >
+              Valider cette étape
+            </button>
+
+          </div>
+
+        </footer>
+
+      </article>
+
+    </section>
+
+
+    <section
+      id="auditView"
+      class="audit-card"
+      hidden
+    ></section>
+
+
+  </main>
+
+
+  <script>
+
+    'use strict';
+
+
+    /**
+     * ============================================================
+     * CONFIGURATION
+     * ============================================================
+     */
+
+    const DOSSIER_ID =
+      <?!= JSON.stringify(dossierId) ?>;
+
+
+    const JETON_ACCES =
+      <?!= JSON.stringify(jetonAcces) ?>;
+
+
+    /**
+     * Bridge temporaire créé par le Dashboard.
+     */
+
+    let AFRIGREEN_DOCUMENT_BRIDGE =
+      '';
+
+
+    /**
+     * ============================================================
+     * STATE
+     * ============================================================
+     */
+
+    const state = {
+
+      sections:[],
+
+      responses:{},
+
+      sectionIndex:0,
+
+      sectionsValidees:[],
+
+      saveTimer:null,
+
+      saving:false,
+
+      audit:null,
+
+      generation:null,
+
+      generationEnCours:false,
+
+      saveQueued:false,
+
+      dirty:false,
+
+      lastSavedSnapshot:'',
+
+      validationFinale:null
+
+    };
+
+
+    const refs = {};
+
+
+    /**
+     * ============================================================
+     * INITIALISATION BRIDGE DOCUMENTS
+     * ============================================================
+     */
+
+    function initialiserBridgeDocumentsAfriGreen24(){
+
+      google
+        .script
+        .url
+        .getLocation(
+          function(location){
+
+            const params =
+
+              location &&
+              location.parameter
+
+                ?
+
+                location.parameter
+
+                :
+
+                {};
+
+
+            AFRIGREEN_DOCUMENT_BRIDGE =
+              String(
+                params.agBridge ||
+                ''
+              )
+              .trim();
+
+
+            console.log(
+              '[AfriGreen24 Documents] Bridge :',
+              AFRIGREEN_DOCUMENT_BRIDGE
+                ?
+                'détecté'
+                :
+                'absent'
+            );
+
+          }
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * DOM READY
+     * ============================================================
+     */
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      function(){
+
+
+        Object.assign(
+          refs,
+          {
+
+            loader:
+              document.getElementById(
+                'loader'
+              ),
+
+            questionnaireLayout:
+              document.getElementById(
+                'questionnaireLayout'
+              ),
+
+            progressCard:
+              document.getElementById(
+                'progressCard'
+              ),
+
+            progressLabel:
+              document.getElementById(
+                'progressLabel'
+              ),
+
+            progressPercent:
+              document.getElementById(
+                'progressPercent'
+              ),
+
+            progressBar:
+              document.getElementById(
+                'progressBar'
+              ),
+
+            statusPill:
+              document.getElementById(
+                'statusPill'
+              ),
+
+            steps:
+              document.getElementById(
+                'steps'
+              ),
+
+            sectionContainer:
+              document.getElementById(
+                'sectionContainer'
+              ),
+
+            globalError:
+              document.getElementById(
+                'globalError'
+              ),
+
+            saveState:
+              document.getElementById(
+                'saveState'
+              ),
+
+            prevButton:
+              document.getElementById(
+                'prevButton'
+              ),
+
+            nextButton:
+              document.getElementById(
+                'nextButton'
+              ),
+
+            auditView:
+              document.getElementById(
+                'auditView'
+              )
+
+          }
+        );
+
+
+        refs
+          .prevButton
+          .addEventListener(
+            'click',
+            previousSection
+          );
+
+
+        refs
+          .nextButton
+          .addEventListener(
+            'click',
+            validateAndContinue
+          );
+
+
+        document.addEventListener(
+          'visibilitychange',
+          function(){
+
+            if(
+              document.visibilityState ===
+              'hidden'
+            ){
+
+              sauvegarderLocalement();
+
+            }
+
+
+            if(
+              document.visibilityState ===
+              'visible' &&
+              state.dirty
+            ){
+
+              scheduleSave(
+                true
+              );
+
+            }
+
+          }
+        );
+
+
+        window.addEventListener(
+          'beforeunload',
+          sauvegarderLocalement
+        );
+
+
+        /*
+         * Récupère agBridge depuis l'URL
+         * transmise par Hostinger.
+         */
+
+        initialiserBridgeDocumentsAfriGreen24();
+
+
+        /*
+         * Initialise le Business Plan.
+         */
+
+        google
+          .script
+          .run
+
+          .withSuccessHandler(
+            handleInitialisation
+          )
+
+          .withFailureHandler(
+            handleFatalError
+          )
+
+          .initialiserParcoursBusinessPlanBancable(
+            DOSSIER_ID,
+            JETON_ACCES
+          );
+
+      }
+    );
+
+
+    /**
+     * ============================================================
+     * INITIALISATION PARCOURS
+     * ============================================================
+     */
+
+    function handleInitialisation(
+      payload
+    ){
+
+      state.responses =
+        payload.brouillon ||
+        {};
+
+
+      state.sections =
+
+        (
+          payload.questionnaire &&
+          payload.questionnaire.sections
+        )
+
+        ||
+
+        [];
+
+
+      state.sectionIndex =
+        Math.min(
+
+          Math.max(
+            0,
+            Number(
+              payload.progression &&
+              payload.progression.sectionIndex
+            )
+            ||
+            0
+          ),
+
+          Math.max(
+            0,
+            state.sections.length - 1
+          )
+
+        );
+
+
+      state.sectionsValidees =
+
+        (
+          payload.progression &&
+          payload.progression.sectionsValidees
+        )
+
+        ||
+
+        [];
+
+
+      state.audit =
+        payload.audit ||
+        null;
+
+
+      state.validationFinale =
+        payload.validationFinale ||
+        null;
+
+
+      restaurerSauvegardeLocaleSiNecessaire(
+        payload
+      );
+
+
+      state.lastSavedSnapshot =
+        JSON.stringify(
+          {
+
+            responses:
+              state.responses,
+
+            progression:
+              currentProgression()
+
+          }
+        );
+
+
+      refs.loader.hidden =
+        true;
+
+
+      const statutsApresAudit = [
+
+        'PRET_POUR_GENERATION',
+
+        'GENERATION_EN_COURS',
+
+        'DOCUMENT_GENERE',
+
+        'ERREUR_GENERATION',
+
+        'RAPPORT_GENERE',
+
+        'VALIDATION_FINALE_ENREGISTREE',
+
+        'FINANCEUR_GENERE'
+
+      ];
+
+
+      if(
+        statutsApresAudit.includes(
+          payload.statut
+        )
+        &&
+        state.audit
+      ){
+
+        renderAudit(
+          state.audit,
+          true
+        );
+
+
+        if(
+          [
+
+            'DOCUMENT_GENERE',
+
+            'RAPPORT_GENERE',
+
+            'VALIDATION_FINALE_ENREGISTREE',
+
+            'FINANCEUR_GENERE'
+
+          ].includes(
+            payload.statut
+          )
+        ){
+
+          chargerResultatGeneration();
+
+        }
+        else if(
+          payload.statut ===
+          'GENERATION_EN_COURS'
+        ){
+
+          afficherGenerationEnCours();
+
+        }
+
+
+        return;
+
+      }
+
+
+      refs.questionnaireLayout.hidden =
+        false;
+
+
+      refs.progressCard.hidden =
+        false;
+
+
+      refs.statusPill.textContent =
+        'Questionnaire en cours';
+
+
+      renderAll();
+
+    }
+
+
+    /**
+     * ============================================================
+     * RENDER
+     * ============================================================
+     */
+
+    function renderAll(){
+
+      renderSteps();
+
+      renderCurrentSection();
+
+      updateProgress();
+
+    }
+
+
+    function renderSteps(){
+
+      refs.steps.innerHTML =
+        '';
+
+
+      state.sections.forEach(
+        function(
+          section,
+          index
+        ){
+
+          const item =
+            document.createElement(
+              'div'
+            );
+
+
+          item.className =
+            'step-item';
+
+
+          if(
+            index ===
+            state.sectionIndex
+          ){
+
+            item.classList.add(
+              'active'
+            );
+
+          }
+
+
+          if(
+            state.sectionsValidees.includes(
+              section.id
+            )
+          ){
+
+            item.classList.add(
+              'done'
+            );
+
+          }
+
+
+          const number =
+            document.createElement(
+              'span'
+            );
+
+
+          number.className =
+            'step-number';
+
+
+          number.textContent =
+
+            state.sectionsValidees.includes(
+              section.id
+            )
+
+              ?
+
+              '✓'
+
+              :
+
+              String(
+                index + 1
+              );
+
+
+          const label =
+            document.createElement(
+              'span'
+            );
+
+
+          label.textContent =
+            section.titre;
+
+
+          item.append(
+            number,
+            label
+          );
+
+
+          refs.steps.appendChild(
+            item
+          );
+
+        }
+      );
+
+    }
+
+
+    function renderCurrentSection(){
+
+      clearGlobalError();
+
+
+      const section =
+        state.sections[
+          state.sectionIndex
+        ];
+
+
+      if(!section){
+
+        refs.sectionContainer.innerHTML =
+          '<p>Aucune question complémentaire n’est requise.</p>';
+
+
+        refs.nextButton.textContent =
+          'Lancer l’audit';
+
+
+        refs.prevButton.disabled =
+          true;
+
+
+        return;
+
+      }
+
+
+      refs.sectionContainer.innerHTML =
+        '';
+
+
+      const title =
+        document.createElement(
+          'h2'
+        );
+
+
+      title.textContent =
+        section.titre;
+
+
+      const description =
+        document.createElement(
+          'p'
+        );
+
+
+      description.className =
+        'section-description';
+
+
+      description.textContent =
+        section.description ||
+        '';
+
+
+      refs.sectionContainer.append(
+        title,
+        description
+      );
+
+
+      section.questions.forEach(
+        function(question){
+
+          refs.sectionContainer.appendChild(
+            renderField(
+              question
+            )
+          );
+
+        }
+      );
+
+
+      refs.prevButton.disabled =
+        state.sectionIndex ===
+        0;
+
+
+      refs.nextButton.textContent =
+
+        state.sectionIndex ===
+        state.sections.length - 1
+
+          ?
+
+          'Valider et lancer l’audit'
+
+          :
+
+          'Valider cette étape';
+
+
+      applyConditions();
+
+    }
+
+
+    /**
+     * ============================================================
+     * FIELD
+     * ============================================================
+     */
+
+    function renderField(
+      question
+    ){
+
+      const wrapper =
+        document.createElement(
+          'div'
+        );
+
+
+      wrapper.className =
+        'field';
+
+
+      wrapper.dataset.fieldId =
+        question.id;
+
+
+      const label =
+        document.createElement(
+          'label'
+        );
+
+
+      label.className =
+        'field-label';
+
+
+      label.htmlFor =
+        'field_' +
+        question.id;
+
+
+      label.textContent =
+        question.label;
+
+
+      if(
+        question.required
+      ){
+
+        const required =
+          document.createElement(
+            'span'
+          );
+
+
+        required.className =
+          'required';
+
+
+        required.textContent =
+          ' *';
+
+
+        label.appendChild(
+          required
+        );
+
+      }
+
+
+      wrapper.appendChild(
+        label
+      );
+
+
+      let control;
+
+
+      if(
+        question.type ===
+        'textarea'
+      ){
+
+        control =
+          document.createElement(
+            'textarea'
+          );
+
+
+        control.value =
+          state.responses[
+            question.id
+          ]
+          ||
+          '';
+
+      }
+      else if(
+        question.type ===
+        'select'
+      ){
+
+        control =
+          document.createElement(
+            'select'
+          );
+
+
+        appendSelectOptions(
+
+          control,
+
+          question.options ||
+          [],
+
+          state.responses[
+            question.id
+          ],
+
+          question.valeurParDefaut
+
+        );
+
+      }
+      else if(
+        question.type ===
+        'multiselect'
+      ){
+
+        control =
+          renderMultiselect(
+            question
+          );
+
+      }
+      else if(
+        question.type ===
+        'repeater'
+      ){
+
+        control =
+          renderRepeater(
+            question
+          );
+
+      }
+      else{
+
+        control =
+          document.createElement(
+            'input'
+          );
+
+
+        control.type =
+
+          question.type ===
+          'number'
+
+            ?
+
+            'number'
+
+            :
+
+            question.type ===
+            'date'
+
+              ?
+
+              'date'
+
+              :
+
+              'text';
+
+
+        if(
+          question.min !==
+          undefined
+        ){
+
+          control.min =
+            question.min;
+
+        }
+
+
+        if(
+          question.max !==
+          undefined
+        ){
+
+          control.max =
+            question.max;
+
+        }
+
+
+        control.value =
+
+          state.responses[
+            question.id
+          ]
+
+          ??
+
+          question.valeurParDefaut
+
+          ??
+
+          '';
+
+      }
+
+
+      control.id =
+        control.id ||
+        (
+          'field_' +
+          question.id
+        );
+
+
+      control.dataset.questionId =
+        question.id;
+
+
+      if(
+        ![
+          'multiselect',
+          'repeater'
+        ].includes(
+          question.type
+        )
+      ){
+
+        control.addEventListener(
+          'input',
+          function(){
+
+            state.responses[
+              question.id
+            ] =
+              normaliseControlValue(
+                control,
+                question.type
+              );
+
+
+            clearFieldError(
+              question.id
+            );
+
+
+            applyConditions();
+
+            scheduleSave();
+
+          }
+        );
+
+
+        control.addEventListener(
+          'change',
+          function(){
+
+            state.responses[
+              question.id
+            ] =
+              normaliseControlValue(
+                control,
+                question.type
+              );
+
+
+            clearFieldError(
+              question.id
+            );
+
+
+            applyConditions();
+
+            scheduleSave();
+
+          }
+        );
+
+      }
+
+
+      wrapper.appendChild(
+        control
+      );
+
+
+      if(
+        question.aide ||
+        question.type ===
+        'number'
+      ){
+
+        const hint =
+          document.createElement(
+            'small'
+          );
+
+
+        hint.className =
+          'hint';
+
+
+        hint.textContent =
+
+          question.aide
+
+          ||
+
+          'Saisissez uniquement une valeur numérique, sans texte ni symbole.';
+
+
+        wrapper.appendChild(
+          hint
+        );
+
+      }
+
+
+      return wrapper;
+
+    }
+
+
+    function appendSelectOptions(
+      select,
+      options,
+      currentValue,
+      defaultValue
+    ){
+
+      const empty =
+        document.createElement(
+          'option'
+        );
+
+
+      empty.value =
+        '';
+
+
+      empty.textContent =
+        'Sélectionner';
+
+
+      select.appendChild(
+        empty
+      );
+
+
+      const selected =
+
+        currentValue
+
+        ??
+
+        defaultValue
+
+        ??
+
+        '';
+
+
+      options.forEach(
+        function(
+          optionValue
+        ){
+
+          const option =
+            document.createElement(
+              'option'
+            );
+
+
+          option.value =
+            optionValue;
+
+
+          option.textContent =
+            optionValue;
+
+
+          option.selected =
+            optionValue ===
+            selected;
+
+
+          select.appendChild(
+            option
+          );
+
+        }
+      );
+
+
+      if(
+        selected &&
+        currentValue ===
+        undefined
+      ){
+
+        const questionId =
+          select.dataset.questionId;
+
+
+        if(questionId){
+
+          state.responses[
+            questionId
+          ] =
+            selected;
+
+        }
+
+      }
+
+    }
+
+
+    function renderMultiselect(
+      question
+    ){
+
+      const container =
+        document.createElement(
+          'div'
+        );
+
+
+      container.className =
+        'checkbox-grid';
+
+
+      container.id =
+        'field_' +
+        question.id;
+
+
+      const selected =
+
+        Array.isArray(
+          state.responses[
+            question.id
+          ]
+        )
+
+          ?
+
+          state.responses[
+            question.id
+          ]
+
+          :
+
+          [];
+
+
+      (
+        question.options ||
+        []
+      )
+      .forEach(
+        function(
+          optionValue
+        ){
+
+          const label =
+            document.createElement(
+              'label'
+            );
+
+
+          label.className =
+            'checkbox-option';
+
+
+          const input =
+            document.createElement(
+              'input'
+            );
+
+
+          input.type =
+            'checkbox';
+
+
+          input.value =
+            optionValue;
+
+
+          input.checked =
+            selected.includes(
+              optionValue
+            );
+
+
+          input.addEventListener(
+            'change',
+            function(){
+
+              const values =
+                Array.from(
+
+                  container.querySelectorAll(
+                    'input:checked'
+                  )
+
+                )
+                .map(
+                  function(item){
+
+                    return item.value;
+
+                  }
+                );
+
+
+              state.responses[
+                question.id
+              ] =
+                values;
+
+
+              clearFieldError(
+                question.id
+              );
+
+
+              scheduleSave();
+
+            }
+          );
+
+
+          const text =
+            document.createElement(
+              'span'
+            );
+
+
+          text.textContent =
+            optionValue;
+
+
+          label.append(
+            input,
+            text
+          );
+
+
+          container.appendChild(
+            label
+          );
+
+        }
+      );
+
+
+      return container;
+
+    }
+
+
+    function renderRepeater(
+      question
+    ){
+
+      const container =
+        document.createElement(
+          'div'
+        );
+
+
+      container.className =
+        'repeater';
+
+
+      container.id =
+        'field_' +
+        question.id;
+
+
+      const rows =
+
+        Array.isArray(
+          state.responses[
+            question.id
+          ]
+        )
+
+          ?
+
+          state.responses[
+            question.id
+          ]
+
+          :
+
+          [];
+
+
+      function redraw(){
+
+        container.innerHTML =
+          '';
+
+
+        rows.forEach(
+          function(
+            row,
+            rowIndex
+          ){
+
+            const rowElement =
+              document.createElement(
+                'div'
+              );
+
+
+            rowElement.className =
+              'repeater-row';
+
+
+            const remove =
+              document.createElement(
+                'button'
+              );
+
+
+            remove.type =
+              'button';
+
+
+            remove.className =
+              'remove-row';
+
+
+            remove.textContent =
+              'Supprimer';
+
+
+            remove.addEventListener(
+              'click',
+              function(){
+
+                rows.splice(
+                  rowIndex,
+                  1
+                );
+
+
+                state.responses[
+                  question.id
+                ] =
+                  rows;
+
+
+                redraw();
+
+                scheduleSave();
+
+              }
+            );
+
+
+            rowElement.appendChild(
+              remove
+            );
+
+
+            (
+              question.colonnes ||
+              []
+            )
+            .forEach(
+              function(column){
+
+                const group =
+                  document.createElement(
+                    'div'
+                  );
+
+
+                if(
+                  column.type ===
+                  'textarea'
+                ){
+
+                  group.classList.add(
+                    'wide'
+                  );
+
+                }
+
+
+                const label =
+                  document.createElement(
+                    'label'
+                  );
+
+
+                label.className =
+                  'field-label';
+
+
+                label.textContent =
+
+                  column.label
+
+                  +
+
+                  (
+                    column.required
+                      ?
+                      ' *'
+                      :
+                      ''
+                  );
+
+
+                let input;
+
+
+                if(
+                  column.type ===
+                  'textarea'
+                ){
+
+                  input =
+                    document.createElement(
+                      'textarea'
+                    );
+
+                }
+                else if(
+                  column.type ===
+                  'select'
+                ){
+
+                  input =
+                    document.createElement(
+                      'select'
+                    );
+
+
+                  appendSelectOptions(
+
+                    input,
+
+                    column.options ||
+                    [],
+
+                    row[
+                      column.id
+                    ],
+
+                    ''
+
+                  );
+
+                }
+                else{
+
+                  input =
+                    document.createElement(
+                      'input'
+                    );
+
+
+                  input.type =
+
+                    column.type ===
+                    'number'
+
+                      ?
+
+                      'number'
+
+                      :
+
+                      column.type ===
+                      'date'
+
+                        ?
+
+                        'date'
+
+                        :
+
+                        'text';
+
+
+                  if(
+                    column.min !==
+                    undefined
+                  ){
+
+                    input.min =
+                      column.min;
+
+                  }
+
+                }
+
+
+                input.value =
+                  row[
+                    column.id
+                  ]
+
+                  ??
+
+                  '';
+
+
+                input.addEventListener(
+                  'input',
+                  function(){
+
+                    row[
+                      column.id
+                    ] =
+
+                      column.type ===
+                      'number'
+
+                      &&
+
+                      input.value !==
+                      ''
+
+                        ?
+
+                        Number(
+                          input.value
+                        )
+
+                        :
+
+                        input.value;
+
+
+                    state.responses[
+                      question.id
+                    ] =
+                      rows;
+
+
+                    clearFieldError(
+                      question.id
+                    );
+
+
+                    scheduleSave();
+
+                  }
+                );
+
+
+                input.addEventListener(
+                  'change',
+                  function(){
+
+                    row[
+                      column.id
+                    ] =
+
+                      column.type ===
+                      'number'
+
+                      &&
+
+                      input.value !==
+                      ''
+
+                        ?
+
+                        Number(
+                          input.value
+                        )
+
+                        :
+
+                        input.value;
+
+
+                    state.responses[
+                      question.id
+                    ] =
+                      rows;
+
+
+                    clearFieldError(
+                      question.id
+                    );
+
+
+                    scheduleSave();
+
+                  }
+                );
+
+
+                group.append(
+                  label,
+                  input
+                );
+
+
+                rowElement.appendChild(
+                  group
+                );
+
+              }
+            );
+
+
+            container.appendChild(
+              rowElement
+            );
+
+          }
+        );
+
+
+        const add =
+          document.createElement(
+            'button'
+          );
+
+
+        add.type =
+          'button';
+
+
+        add.className =
+          'add-row';
+
+
+        add.textContent =
+          '+ Ajouter une ligne';
+
+
+        add.addEventListener(
+          'click',
+          function(){
+
+            rows.push(
+              {}
+            );
+
+
+            state.responses[
+              question.id
+            ] =
+              rows;
+
+
+            redraw();
+
+            scheduleSave();
+
+          }
+        );
+
+
+        container.appendChild(
+          add
+        );
+
+      }
+
+
+      redraw();
+
+
+      return container;
+
+    }
+
+
+    function normaliseControlValue(
+      control,
+      type
+    ){
+
+      if(
+        type ===
+        'number'
+      ){
+
+        return control.value ===
+          ''
+
+            ?
+
+            ''
+
+            :
+
+            Number(
+              control.value
+            );
+
+      }
+
+
+      return control.value;
+
+    }
+
+
+    function applyConditions(){
+
+      const section =
+        state.sections[
+          state.sectionIndex
+        ];
+
+
+      if(!section){
+        return;
+      }
+
+
+      section.questions.forEach(
+        function(question){
+
+          const wrapper =
+            refs.sectionContainer.querySelector(
+
+              '[data-field-id="' +
+              CSS.escape(
+                question.id
+              ) +
+              '"]'
+
+            );
+
+
+          if(!wrapper){
+            return;
+          }
+
+
+          if(
+            !question.condition
+          ){
+
+            wrapper.hidden =
+              false;
+
+            return;
+
+          }
+
+
+          wrapper.hidden =
+
+            state.responses[
+              question.condition.champ
+            ]
+
+            !==
+
+            question.condition.egal;
+
+        }
+      );
+
+    }
+
+
+    /**
+     * ============================================================
+     * NAVIGATION
+     * ============================================================
+     */
+
+    function previousSection(){
+
+      collectCurrentSection();
+
+
+      if(
+        state.sectionIndex <=
+        0
+      ){
+
+        return;
+
+      }
+
+
+      state.sectionIndex -=
+        1;
+
+
+      renderAll();
+
+
+      scheduleSave(
+        true
+      );
+
+
+      window.scrollTo(
+        {
+          top:0,
+          behavior:'smooth'
+        }
+      );
+
+    }
+
+
+    function validateAndContinue(){
+
+      clearGlobalError();
+
+      collectCurrentSection();
+
+
+      const section =
+        state.sections[
+          state.sectionIndex
+        ];
+
+
+      if(!section){
+
+        runAudit();
+
+        return;
+
+      }
+
+
+      setBusy(
+        true,
+        'Validation…'
+      );
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            setBusy(
+              false
+            );
+
+
+            if(
+              !result.succes
+            ){
+
+              displayValidationErrors(
+                result.erreurs ||
+                []
+              );
+
+              return;
+
+            }
+
+
+            state.sectionsValidees =
+
+              result.progression.sectionsValidees
+
+              ||
+
+              state.sectionsValidees;
+
+
+            if(
+              state.sectionIndex <
+              state.sections.length - 1
+            ){
+
+              state.sectionIndex +=
+                1;
+
+
+              renderAll();
+
+
+              scheduleSave(
+                true
+              );
+
+
+              window.scrollTo(
+                {
+                  top:0,
+                  behavior:'smooth'
+                }
+              );
+
+            }
+            else{
+
+              runAudit();
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            setBusy(
+              false
+            );
+
+
+            showGlobalError(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .validerSectionBusinessPlanBancable(
+
+          DOSSIER_ID,
+
+          section.id,
+
+          state.responses,
+
+          currentProgression()
+
+        );
+
+    }
+
+
+    function collectCurrentSection(){
+
+      const section =
+        state.sections[
+          state.sectionIndex
+        ];
+
+
+      if(!section){
+        return;
+      }
+
+
+      section.questions.forEach(
+        function(question){
+
+          if(
+            [
+              'multiselect',
+              'repeater'
+            ].includes(
+              question.type
+            )
+          ){
+
+            return;
+
+          }
+
+
+          const control =
+            refs.sectionContainer.querySelector(
+
+              '[data-question-id="' +
+              CSS.escape(
+                question.id
+              ) +
+              '"]'
+
+            );
+
+
+          if(control){
+
+            state.responses[
+              question.id
+            ] =
+              normaliseControlValue(
+                control,
+                question.type
+              );
+
+          }
+
+        }
+      );
+
+    }
+
+
+    /**
+     * ============================================================
+     * AUDIT
+     * ============================================================
+     */
+
+    function runAudit(){
+
+      setBusy(
+        true,
+        'Audit en cours…'
+      );
+
+
+      refs.statusPill.textContent =
+        'Audit en cours';
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            setBusy(
+              false
+            );
+
+
+            if(
+              !result.succes
+            ){
+
+              displayValidationErrors(
+                result.erreurs ||
+                []
+              );
+
+              return;
+
+            }
+
+
+            state.audit =
+              result.audit;
+
+
+            renderAudit(
+              result.audit,
+              false
+            );
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            setBusy(
+              false
+            );
+
+
+            showGlobalError(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .auditerParcoursBusinessPlanBancable(
+          DOSSIER_ID,
+          state.responses
+        );
+
+    }
+
+
+    function renderAudit(
+      audit,
+      alreadyConfirmed
+    ){
+
+      refs.loader.hidden =
+        true;
+
+
+      refs.questionnaireLayout.hidden =
+        true;
+
+
+      refs.progressCard.hidden =
+        true;
+
+
+      refs.auditView.hidden =
+        false;
+
+
+      refs.statusPill.textContent =
+
+        alreadyConfirmed
+
+          ?
+
+          'Dossier verrouillé'
+
+          :
+
+          'Audit terminé';
+
+
+      const indicators =
+        audit.indicateurs ||
+        {};
+
+
+      const score =
+        Number(
+          audit.score &&
+          audit.score.total
+        )
+        ||
+        0;
+
+
+      const angle =
+        Math.max(
+          0,
+          Math.min(
+            360,
+            score * 3.6
+          )
+        );
+
+
+      const alerts =
+        audit.alertes ||
+        [];
+
+
+      refs.auditView.innerHTML =
+        '';
+
+
+      const heading =
+        document.createElement(
+          'div'
+        );
+
+
+      heading.innerHTML =
+        '<p class="eyebrow">Résultat de l’audit</p>' +
+        '<h2>Préparation du dossier Bancable</h2>';
+
+
+      refs.auditView.appendChild(
+        heading
+      );
+
+
+      const scoreWrap =
+        document.createElement(
+          'div'
+        );
+
+
+      scoreWrap.className =
+        'score-wrap';
+
+
+      const circle =
+        document.createElement(
+          'div'
+        );
+
+
+      circle.className =
+        'score-circle';
+
+
+      circle.style.setProperty(
+        '--score-angle',
+        angle + 'deg'
+      );
+
+
+      const scoreNumber =
+        document.createElement(
+          'div'
+        );
+
+
+      scoreNumber.className =
+        'score-number';
+
+
+      scoreNumber.textContent =
+        score +
+        '/100';
+
+
+      circle.appendChild(
+        scoreNumber
+      );
+
+
+      const summary =
+        document.createElement(
+          'div'
+        );
+
+
+      const level =
+        document.createElement(
+          'h2'
+        );
+
+
+      level.textContent =
+        audit.niveau ||
+        '';
+
+
+      const status =
+        document.createElement(
+          'p'
+        );
+
+
+      const criticalCount =
+        alerts.filter(
+          function(item){
+
+            return (
+              item.niveau ===
+              'CRITIQUE'
+            );
+
+          }
+        ).length;
+
+
+      const warningCount =
+        alerts.filter(
+          function(item){
+
+            return (
+              item.niveau ===
+              'ATTENTION'
+            );
+
+          }
+        ).length;
+
+
+      status.textContent =
+
+        criticalCount > 0
+
+          ?
+
+          'Des erreurs critiques doivent être corrigées avant la génération.'
+
+          :
+
+          warningCount > 0
+
+            ?
+
+            'La génération est autorisée, mais certaines améliorations sont recommandées.'
+
+            :
+
+            'Le dossier ne contient aucune anomalie bloquante.';
+
+
+      summary.append(
+        level,
+        status
+      );
+
+
+      scoreWrap.append(
+        circle,
+        summary
+      );
+
+
+      refs.auditView.appendChild(
+        scoreWrap
+      );
+
+
+      const metrics =
+        document.createElement(
+          'div'
+        );
+
+
+      metrics.className =
+        'metric-grid';
+
+
+      [
+
+        [
+          'Chiffre d’affaires mensuel',
+          formatMoney(
+            indicators.chiffreAffairesMensuel,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Besoins totaux',
+          formatMoney(
+            indicators.totalBesoins,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Financement demandé',
+          formatMoney(
+            state.responses.montantDemande,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Apport',
+          (
+            indicators.tauxApportPct ??
+            0
+          ) +
+          ' %'
+        ],
+
+        [
+          'Mensualité estimée du nouveau prêt',
+          formatMoney(
+            indicators.mensualiteEstimee,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Mensualités des dettes existantes',
+          formatMoney(
+            indicators.mensualitesDettesExistantes,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Capacité disponible avant le nouveau prêt',
+          formatMoney(
+            indicators.capaciteDisponibleAvantNouvelleDette,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Mensualité maximale déclarée',
+          formatMoney(
+            indicators.mensualiteMaxSupportableDeclaree,
+            indicators.devise
+          )
+        ],
+
+        [
+          'Couverture simplifiée',
+          indicators.couvertureMensuelleSimplifiee
+          ??
+          'Non calculée'
+        ]
+
+      ]
+      .forEach(
+        function(item){
+
+          const metric =
+            document.createElement(
+              'div'
+            );
+
+
+          metric.className =
+            'metric';
+
+
+          const label =
+            document.createElement(
+              'div'
+            );
+
+
+          label.className =
+            'metric-label';
+
+
+          label.textContent =
+            item[0];
+
+
+          const value =
+            document.createElement(
+              'div'
+            );
+
+
+          value.className =
+            'metric-value';
+
+
+          value.textContent =
+            item[1];
+
+
+          metric.append(
+            label,
+            value
+          );
+
+
+          metrics.appendChild(
+            metric
+          );
+
+        }
+      );
+
+
+      refs.auditView.appendChild(
+        metrics
+      );
+
+
+      if(
+        alerts.length >
+        0
+      ){
+
+        const alertTitle =
+          document.createElement(
+            'h2'
+          );
+
+
+        alertTitle.textContent =
+          'Points à corriger ou vérifier';
+
+
+        refs.auditView.appendChild(
+          alertTitle
+        );
+
+
+        alerts.forEach(
+          function(alert){
+
+            const box =
+              document.createElement(
+                'div'
+              );
+
+
+            box.className =
+              'audit-alert ' +
+              (
+                alert.niveau ===
+                'CRITIQUE'
+
+                  ?
+
+                  'critical'
+
+                  :
+
+                  ''
+              );
+
+
+            const title =
+              document.createElement(
+                'h3'
+              );
+
+
+            title.textContent =
+
+              alert.niveau +
+              ' — ' +
+              alert.titre;
+
+
+            const message =
+              document.createElement(
+                'p'
+              );
+
+
+            message.textContent =
+              alert.message;
+
+
+            const recommendation =
+              document.createElement(
+                'p'
+              );
+
+
+            recommendation.innerHTML =
+              '<strong>Recommandation :</strong> ';
+
+
+            recommendation.appendChild(
+
+              document.createTextNode(
+                alert.recommandation ||
+                ''
+              )
+
+            );
+
+
+            box.append(
+              title,
+              message,
+              recommendation
+            );
+
+
+            refs.auditView.appendChild(
+              box
+            );
+
+          }
+        );
+
+      }
+
+
+      const actions =
+        document.createElement(
+          'div'
+        );
+
+
+      actions.className =
+        'actions';
+
+
+      const back =
+        document.createElement(
+          'button'
+        );
+
+
+      back.type =
+        'button';
+
+
+      back.className =
+        'btn btn-secondary';
+
+
+      back.textContent =
+
+        alerts.some(
+          function(item){
+
+            return (
+              item.niveau ===
+              'CRITIQUE'
+            );
+
+          }
+        )
+
+          ?
+
+          'Corriger les erreurs critiques'
+
+          :
+
+          'Corriger les recommandations';
+
+
+      back.addEventListener(
+        'click',
+        function(){
+
+          refs.auditView.hidden =
+            true;
+
+
+          refs.questionnaireLayout.hidden =
+            false;
+
+
+          refs.progressCard.hidden =
+            false;
+
+
+          refs.statusPill.textContent =
+            'Corrections en cours';
+
+
+          state.sectionIndex =
+            0;
+
+
+          renderAll();
+
+        }
+      );
+
+
+      actions.appendChild(
+        back
+      );
+
+
+      if(
+        audit.pretPourGeneration &&
+        !alreadyConfirmed
+      ){
+
+        const confirm =
+          document.createElement(
+            'button'
+          );
+
+
+        confirm.type =
+          'button';
+
+
+        confirm.className =
+          'btn btn-primary';
+
+
+        confirm.textContent =
+
+          alerts.some(
+            function(item){
+
+              return (
+                item.niveau ===
+                'ATTENTION'
+              );
+
+            }
+          )
+
+            ?
+
+            'Générer quand même le Business Plan'
+
+            :
+
+            'Générer mon Business Plan Bancable';
+
+
+        confirm.addEventListener(
+          'click',
+          confirmDossier
+        );
+
+
+        actions.appendChild(
+          confirm
+        );
+
+      }
+
+
+      refs.auditView.appendChild(
+        actions
+      );
+
+
+      if(
+        alreadyConfirmed
+      ){
+
+        const success =
+          document.createElement(
+            'div'
+          );
+
+
+        success.className =
+          'success-panel';
+
+
+        success.textContent =
+          'Le dossier est verrouillé et prêt pour la génération du Business Plan Bancable.';
+
+
+        refs.auditView.appendChild(
+          success
+        );
+
+
+        afficherBoutonGeneration();
+
+      }
+
+    }
+
+
+    /**
+     * ============================================================
+     * CONFIRMATION
+     * ============================================================
+     */
+
+    function confirmDossier(){
+
+      refs.statusPill.textContent =
+        'Validation…';
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            refs.statusPill.textContent =
+              'Dossier verrouillé';
+
+
+            const success =
+              document.createElement(
+                'div'
+              );
+
+
+            success.className =
+              'success-panel';
+
+
+            success.textContent =
+              result.message;
+
+
+            refs.auditView.appendChild(
+              success
+            );
+
+
+            lancerGeneration();
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            refs.statusPill.textContent =
+              'Audit terminé';
+
+
+            window.alert(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .confirmerDossierBusinessPlanBancable(
+          DOSSIER_ID
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * RAPPORT DE PREPARATION
+     * ============================================================
+     */
+
+    function afficherBoutonGeneration(){
+
+      let panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      if(!panel){
+
+        panel =
+          document.createElement(
+            'div'
+          );
+
+
+        panel.className =
+          'generation-panel';
+
+
+        refs.auditView.appendChild(
+          panel
+        );
+
+      }
+
+
+      panel.innerHTML =
+        '';
+
+
+      const title =
+        document.createElement(
+          'h3'
+        );
+
+
+      title.textContent =
+        'Génération du document';
+
+
+      const text =
+        document.createElement(
+          'p'
+        );
+
+
+      text.textContent =
+        'Créez maintenant le Google Docs professionnel et sa version PDF.';
+
+
+      const button =
+        document.createElement(
+          'button'
+        );
+
+
+      button.type =
+        'button';
+
+
+      button.className =
+        'btn btn-primary';
+
+
+      button.textContent =
+        'Générer le rapport de préparation';
+
+
+      button.addEventListener(
+        'click',
+        lancerGeneration
+      );
+
+
+      panel.append(
+        title,
+        text,
+        button
+      );
+
+    }
+
+
+    function afficherGenerationEnCours(){
+
+      state.generationEnCours =
+        true;
+
+
+      refs.statusPill.textContent =
+        'Génération en cours';
+
+
+      let panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      if(!panel){
+
+        panel =
+          document.createElement(
+            'div'
+          );
+
+
+        panel.className =
+          'generation-panel';
+
+
+        refs.auditView.appendChild(
+          panel
+        );
+
+      }
+
+
+      panel.innerHTML =
+        '';
+
+
+      const title =
+        document.createElement(
+          'h3'
+        );
+
+
+      title.textContent =
+        'Création du rapport de préparation…';
+
+
+      const text =
+        document.createElement(
+          'p'
+        );
+
+
+      text.textContent =
+        'Cette opération peut prendre quelques instants. Ne fermez pas cette page.';
+
+
+      panel.append(
+        title,
+        text
+      );
+
+    }
+
+
+    function lancerGeneration(){
+
+      if(
+        state.generationEnCours
+      ){
+
+        return;
+
+      }
+
+
+      state.generationEnCours =
+        true;
+
+
+      afficherGenerationEnCours();
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            state.generationEnCours =
+              false;
+
+
+            if(
+              !result ||
+              !result.succes
+            ){
+
+              afficherErreurGeneration(
+                'La génération n’a pas abouti.'
+              );
+
+              return;
+
+            }
+
+
+            afficherResultatGeneration(
+              result
+            );
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            state.generationEnCours =
+              false;
+
+
+            afficherErreurGeneration(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .genererRapportPreparationBancaireDepuisInterface(
+          DOSSIER_ID
+        );
+
+    }
+
+
+    function chargerResultatGeneration(){
+
+      refs.statusPill.textContent =
+        'Chargement du document';
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            if(
+              result &&
+              result.succes
+            ){
+
+              afficherResultatGeneration(
+                result
+              );
+
+            }
+            else{
+
+              afficherBoutonGeneration();
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function(){
+
+            afficherBoutonGeneration();
+
+          }
+        )
+
+        .obtenirResultatRapportPreparationBancaire(
+          DOSSIER_ID
+        );
+
+    }
+
+
+    function afficherResultatGeneration(
+      result
+    ){
+
+      state.generation =
+        result;
+
+
+      refs.statusPill.textContent =
+        'Document généré';
+
+
+      let panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      if(!panel){
+
+        panel =
+          document.createElement(
+            'div'
+          );
+
+
+        panel.className =
+          'generation-panel';
+
+
+        refs.auditView.appendChild(
+          panel
+        );
+
+      }
+
+
+      panel.innerHTML =
+        '';
+
+
+      const title =
+        document.createElement(
+          'h3'
+        );
+
+
+      title.textContent =
+        'Votre rapport de préparation est prêt';
+
+
+      const text =
+        document.createElement(
+          'p'
+        );
+
+
+      text.textContent =
+        'Consultez le rapport, corrigez si nécessaire, puis générez la version finale destinée au financeur.';
+
+
+      const links =
+        document.createElement(
+          'div'
+        );
+
+
+      links.className =
+        'document-links';
+
+
+      const docLink =
+        document.createElement(
+          'a'
+        );
+
+
+      docLink.className =
+        'document-link secondary';
+
+
+      docLink.href =
+        result.documentUrl;
+
+
+      docLink.target =
+        '_blank';
+
+
+      docLink.rel =
+        'noopener';
+
+
+      docLink.textContent =
+        'Ouvrir le Google Docs';
+
+
+      const pdfLink =
+        document.createElement(
+          'a'
+        );
+
+
+      pdfLink.className =
+        'document-link primary';
+
+
+      pdfLink.href =
+        result.pdfUrl;
+
+
+      pdfLink.target =
+        '_blank';
+
+
+      pdfLink.rel =
+        'noopener';
+
+
+      pdfLink.textContent =
+        'Ouvrir le PDF';
+
+
+      links.append(
+        docLink,
+        pdfLink
+      );
+
+
+      if(
+        result.folderUrl
+      ){
+
+        const folderLink =
+          document.createElement(
+            'a'
+          );
+
+
+        folderLink.className =
+          'document-link secondary';
+
+
+        folderLink.href =
+          result.folderUrl;
+
+
+        folderLink.target =
+          '_blank';
+
+
+        folderLink.rel =
+          'noopener';
+
+
+        folderLink.textContent =
+          'Voir le dossier Drive';
+
+
+        links.appendChild(
+          folderLink
+        );
+
+      }
+
+
+      panel.append(
+        title,
+        text,
+        links
+      );
+
+
+      afficherValidationFinale(
+        panel
+      );
+
+
+      chargerResultatFinanceur();
+
+    }
+
+
+    /**
+     * ============================================================
+     * VALIDATION FINALE
+     * ============================================================
+     */
+
+    function afficherValidationFinale(
+      panel
+    ){
+
+      let validationBox =
+        panel.querySelector(
+          '.final-validation'
+        );
+
+
+      if(validationBox){
+
+        validationBox.remove();
+
+      }
+
+
+      validationBox =
+        document.createElement(
+          'div'
+        );
+
+
+      validationBox.className =
+        'final-validation';
+
+
+      const title =
+        document.createElement(
+          'h3'
+        );
+
+
+      title.textContent =
+        'Validation finale avant transmission';
+
+
+      const intro =
+        document.createElement(
+          'p'
+        );
+
+
+      intro.textContent =
+        'Confirmez ces deux déclarations pour déverrouiller le Business Plan final destiné au financeur.';
+
+
+      const exactLabel =
+        document.createElement(
+          'label'
+        );
+
+
+      exactLabel.className =
+        'validation-option';
+
+
+      const exact =
+        document.createElement(
+          'input'
+        );
+
+
+      exact.type =
+        'checkbox';
+
+
+      exact.id =
+        'validationExacte';
+
+
+      exact.checked =
+        Boolean(
+          state.validationFinale &&
+          state.validationFinale.informationsExactes
+        );
+
+
+      const exactText =
+        document.createElement(
+          'span'
+        );
+
+
+      exactText.textContent =
+        'Je confirme que les informations fournies sont exactes et complètes.';
+
+
+      exactLabel.append(
+        exact,
+        exactText
+      );
+
+
+      const decisionLabel =
+        document.createElement(
+          'label'
+        );
+
+
+      decisionLabel.className =
+        'validation-option';
+
+
+      const decision =
+        document.createElement(
+          'input'
+        );
+
+
+      decision.type =
+        'checkbox';
+
+
+      decision.id =
+        'validationDecision';
+
+
+      decision.checked =
+        Boolean(
+          state.validationFinale &&
+          state.validationFinale.decisionFinanceur
+        );
+
+
+      const decisionText =
+        document.createElement(
+          'span'
+        );
+
+
+      decisionText.textContent =
+        'Je comprends que la décision de financement appartient exclusivement à l’établissement financier.';
+
+
+      decisionLabel.append(
+        decision,
+        decisionText
+      );
+
+
+      const button =
+        document.createElement(
+          'button'
+        );
+
+
+      button.type =
+        'button';
+
+
+      button.className =
+        'btn btn-primary';
+
+
+      button.textContent =
+
+        state.validationFinale
+
+          ?
+
+          'Générer le Business Plan final'
+
+          :
+
+          'Valider et générer le Business Plan final';
+
+
+      button.disabled =
+
+        !(
+          exact.checked &&
+          decision.checked
+        );
+
+
+      function actualiserBouton(){
+
+        button.disabled =
+
+          !(
+            exact.checked &&
+            decision.checked
+          );
+
+      }
+
+
+      exact.addEventListener(
+        'change',
+        actualiserBouton
+      );
+
+
+      decision.addEventListener(
+        'change',
+        actualiserBouton
+      );
+
+
+      button.addEventListener(
+        'click',
+        function(){
+
+          enregistrerValidationEtGenerer(
+
+            exact.checked,
+
+            decision.checked,
+
+            button
+
+          );
+
+        }
+      );
+
+
+      const meta =
+        document.createElement(
+          'p'
+        );
+
+
+      meta.className =
+        'validation-meta';
+
+
+      meta.textContent =
+
+        state.validationFinale &&
+        state.validationFinale.valideLe
+
+          ?
+
+          'Validation enregistrée le ' +
+          new Date(
+            state.validationFinale.valideLe
+          )
+          .toLocaleString(
+            'fr-FR'
+          ) +
+          '.'
+
+          :
+
+          'La date, le dossier et les confirmations seront enregistrés.';
+
+
+      validationBox.append(
+
+        title,
+
+        intro,
+
+        exactLabel,
+
+        decisionLabel,
+
+        button,
+
+        meta
+
+      );
+
+
+      panel.appendChild(
+        validationBox
+      );
+
+    }
+
+
+    function enregistrerValidationEtGenerer(
+      informationsExactes,
+      decisionFinanceur,
+      button
+    ){
+
+      button.disabled =
+        true;
+
+
+      button.textContent =
+        'Validation en cours…';
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            state.validationFinale =
+              result.validationFinale;
+
+
+            afficherValidationFinale(
+
+              refs.auditView.querySelector(
+                '.generation-panel'
+              )
+
+            );
+
+
+            lancerGenerationFinanceur();
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            button.disabled =
+              false;
+
+
+            button.textContent =
+              'Valider et générer le Business Plan final';
+
+
+            window.alert(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .enregistrerValidationFinaleBusinessPlanBancable(
+
+          DOSSIER_ID,
+
+          {
+
+            informationsExactes:
+              informationsExactes ===
+              true,
+
+            decisionFinanceur:
+              decisionFinanceur ===
+              true
+
+          }
+
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * BUSINESS PLAN FINANCEUR
+     * ============================================================
+     */
+
+    function lancerGenerationFinanceur(){
+
+      refs.statusPill.textContent =
+        'Version financeur en cours';
+
+
+      const panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      const wait =
+        document.createElement(
+          'p'
+        );
+
+
+      wait.id =
+        'financeurStatus';
+
+
+      wait.textContent =
+        'Création du Business Plan final et de son PDF…';
+
+
+      panel.appendChild(
+        wait
+      );
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            if(
+              !result ||
+              !result.succes
+            ){
+
+              afficherErreurFinanceur(
+                'La version financeur n’a pas été générée.'
+              );
+
+              return;
+
+            }
+
+
+            afficherResultatFinanceur(
+              result
+            );
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            afficherErreurFinanceur(
+              error.message ||
+              String(
+                error
+              )
+            );
+
+          }
+        )
+
+        .genererBusinessPlanFinanceurDepuisInterface(
+          DOSSIER_ID
+        );
+
+    }
+
+
+    function chargerResultatFinanceur(){
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(result){
+
+            if(
+              result &&
+              result.succes
+            ){
+
+              afficherResultatFinanceur(
+                result
+              );
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function(){}
+        )
+
+        .obtenirResultatBusinessPlanFinanceur(
+          DOSSIER_ID
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * SYNCHRONISATION AVEC DOCUMENTS AFRIGREEN24
+     * ============================================================
+     */
+
+    function enregistrerBusinessPlanDansDocuments(
+      result
+    ){
+
+      if(
+        result &&
+        result.dashboardSync &&
+        result.dashboardSync.success === true
+      ){
+
+        console.log(
+          '[AfriGreen24 Documents] Synchronisation déjà effectuée côté serveur.'
+        );
+
+        return;
+      }
+
+      /*
+       * Le Business Plan a été ouvert
+       * hors du Dashboard.
+       */
+
+      if(
+        !AFRIGREEN_DOCUMENT_BRIDGE
+      ){
+
+        console.log(
+          '[AfriGreen24 Documents] Aucun bridge : synchronisation ignorée.'
+        );
+
+
+        return;
+
+      }
+
+
+      /*
+       * Le PDF doit être réellement généré.
+       */
+
+      if(
+        !result ||
+        !result.pdfId ||
+        !result.pdfUrl
+      ){
+
+        console.warn(
+          '[AfriGreen24 Documents] PDF final absent.'
+        );
+
+
+        return;
+
+      }
+
+
+      console.log(
+        '[AfriGreen24 Documents] Synchronisation du Business Plan…'
+      );
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(response){
+
+            console.log(
+              '[AfriGreen24 Documents] Synchronisation réussie :',
+              response
+            );
+
+          }
+        )
+
+        .withFailureHandler(
+          function(error){
+
+            console.error(
+              '[AfriGreen24 Documents] Synchronisation impossible :',
+              error
+            );
+
+          }
+        )
+
+        .synchroniserBusinessPlanVersDashboard(
+
+          AFRIGREEN_DOCUMENT_BRIDGE,
+
+          result
+
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * AFFICHAGE RESULTAT FINANCEUR
+     * ============================================================
+     */
+
+    function afficherResultatFinanceur(
+      result
+    ){
+
+      refs.statusPill.textContent =
+        'Version financeur prête';
+
+
+      const panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      let box =
+        panel.querySelector(
+          '.financeur-result'
+        );
+
+
+      if(!box){
+
+        box =
+          document.createElement(
+            'div'
+          );
+
+
+        box.className =
+          'success-panel financeur-result';
+
+
+        panel.appendChild(
+          box
+        );
+
+      }
+
+
+      box.innerHTML =
+        '';
+
+
+      const title =
+        document.createElement(
+          'h3'
+        );
+
+
+      title.textContent =
+        'Business Plan final prêt à être transmis';
+
+
+      const text =
+        document.createElement(
+          'p'
+        );
+
+
+      text.textContent =
+        'Cette version est épurée : elle ne contient ni score détaillé, ni alertes internes, ni identifiant technique du dossier.';
+
+
+      const links =
+        document.createElement(
+          'div'
+        );
+
+
+      links.className =
+        'document-links';
+
+
+      const docLink =
+        document.createElement(
+          'a'
+        );
+
+
+      docLink.className =
+        'document-link secondary';
+
+
+      docLink.href =
+        result.documentUrl;
+
+
+      docLink.target =
+        '_blank';
+
+
+      docLink.rel =
+        'noopener';
+
+
+      docLink.textContent =
+        'Ouvrir le Google Docs final';
+
+
+      const pdfLink =
+        document.createElement(
+          'a'
+        );
+
+
+      pdfLink.className =
+        'document-link primary';
+
+
+      pdfLink.href =
+        result.pdfUrl;
+
+
+      pdfLink.target =
+        '_blank';
+
+
+      pdfLink.rel =
+        'noopener';
+
+
+      pdfLink.textContent =
+        'Ouvrir le PDF final';
+
+
+      links.append(
+        docLink,
+        pdfLink
+      );
+
+
+      box.append(
+        title,
+        text,
+        links
+      );
+
+
+      const status =
+        panel.querySelector(
+          '#financeurStatus'
+        );
+
+
+      if(status){
+
+        status.remove();
+
+      }
+
+
+      /*
+       * =========================================================
+       * ENREGISTREMENT AUTOMATIQUE DANS LE DASHBOARD
+       * =========================================================
+       */
+
+      enregistrerBusinessPlanDansDocuments(
+        result
+      );
+
+    }
+
+
+    /**
+     * ============================================================
+     * ERREURS
+     * ============================================================
+     */
+
+    function afficherErreurFinanceur(
+      message
+    ){
+
+      refs.statusPill.textContent =
+        'Erreur version financeur';
+
+
+      const panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      const box =
+        document.createElement(
+          'div'
+        );
+
+
+      box.className =
+        'audit-alert critical';
+
+
+      box.innerHTML =
+        '<h3>Génération impossible</h3><p></p>';
+
+
+      box
+        .querySelector(
+          'p'
+        )
+        .textContent =
+          message;
+
+
+      panel.appendChild(
+        box
+      );
+
+
+      const status =
+        panel.querySelector(
+          '#financeurStatus'
+        );
+
+
+      if(status){
+
+        status.remove();
+
+      }
+
+    }
+
+
+    function afficherErreurGeneration(
+      message
+    ){
+
+      refs.statusPill.textContent =
+        'Erreur de génération';
+
+
+      let panel =
+        refs.auditView.querySelector(
+          '.generation-panel'
+        );
+
+
+      if(!panel){
+
+        panel =
+          document.createElement(
+            'div'
+          );
+
+
+        panel.className =
+          'generation-panel';
+
+
+        refs.auditView.appendChild(
+          panel
+        );
+
+      }
+
+
+      panel.innerHTML =
+        '';
+
+
+      const box =
+        document.createElement(
+          'div'
+        );
+
+
+      box.className =
+        'alert-box';
+
+
+      box.textContent =
+        message;
+
+
+      const retry =
+        document.createElement(
+          'button'
+        );
+
+
+      retry.type =
+        'button';
+
+
+      retry.className =
+        'btn btn-primary';
+
+
+      retry.textContent =
+        'Réessayer la génération';
+
+
+      retry.addEventListener(
+        'click',
+        lancerGeneration
+      );
+
+
+      panel.append(
+        box,
+        retry
+      );
+
+    }
+
+
+    function displayValidationErrors(
+      errors
+    ){
+
+      if(
+        !errors.length
+      ){
+
+        return;
+
+      }
+
+
+      showGlobalError(
+
+        errors
+          .map(
+            function(error){
+
+              return error.message;
+
+            }
+          )
+          .join(
+            '\n'
+          )
+
+      );
+
+
+      errors.forEach(
+        function(error){
+
+          const wrapper =
+            refs.sectionContainer.querySelector(
+
+              '[data-field-id="' +
+              CSS.escape(
+                error.champ
+              ) +
+              '"]'
+
+            );
+
+
+          if(!wrapper){
+            return;
+          }
+
+
+          const input =
+            wrapper.querySelector(
+              'input, select, textarea'
+            );
+
+
+          if(input){
+
+            input.classList.add(
+              'invalid'
+            );
+
+          }
+
+
+          let message =
+            wrapper.querySelector(
+              '.field-error'
+            );
+
+
+          if(!message){
+
+            message =
+              document.createElement(
+                'div'
+              );
+
+
+            message.className =
+              'field-error';
+
+
+            wrapper.appendChild(
+              message
+            );
+
+          }
+
+
+          message.textContent =
+            error.message;
+
+        }
+      );
+
+
+      window.scrollTo(
+        {
+          top:0,
+          behavior:'smooth'
+        }
+      );
+
+    }
+
+
+    function clearFieldError(
+      fieldId
+    ){
+
+      const wrapper =
+        refs.sectionContainer.querySelector(
+
+          '[data-field-id="' +
+          CSS.escape(
+            fieldId
+          ) +
+          '"]'
+
+        );
+
+
+      if(!wrapper){
+        return;
+      }
+
+
+      const input =
+        wrapper.querySelector(
+          'input, select, textarea'
+        );
+
+
+      if(input){
+
+        input.classList.remove(
+          'invalid'
+        );
+
+      }
+
+
+      const message =
+        wrapper.querySelector(
+          '.field-error'
+        );
+
+
+      if(message){
+
+        message.remove();
+
+      }
+
+    }
+
+
+    function showGlobalError(
+      message
+    ){
+
+      refs.globalError.hidden =
+        false;
+
+
+      refs.globalError.textContent =
+        message;
+
+    }
+
+
+    function clearGlobalError(){
+
+      refs.globalError.hidden =
+        true;
+
+
+      refs.globalError.textContent =
+        '';
+
+    }
+
+
+    /**
+     * ============================================================
+     * AUTOSAVE
+     * ============================================================
+     */
+
+    function scheduleSave(
+      immediate
+    ){
+
+      state.dirty =
+        true;
+
+
+      sauvegarderLocalement();
+
+
+      clearTimeout(
+        state.saveTimer
+      );
+
+
+      state.saveTimer =
+        setTimeout(
+          saveDraft,
+          immediate
+            ?
+            0
+            :
+            900
+        );
+
+    }
+
+
+    function saveDraft(){
+
+      if(
+        state.saving
+      ){
+
+        state.saveQueued =
+          true;
+
+
+        return;
+
+      }
+
+
+      const snapshot =
+        JSON.stringify(
+          {
+
+            responses:
+              state.responses,
+
+            progression:
+              currentProgression()
+
+          }
+        );
+
+
+      if(
+        snapshot ===
+        state.lastSavedSnapshot
+      ){
+
+        state.dirty =
+          false;
+
+
+        refs.saveState.textContent =
+          'Enregistré';
+
+
+        return;
+
+      }
+
+
+      state.saving =
+        true;
+
+
+      state.saveQueued =
+        false;
+
+
+      refs.saveState.textContent =
+        'Enregistrement en cours…';
+
+
+      const responsesSnapshot =
+        JSON.parse(
+          JSON.stringify(
+            state.responses
+          )
+        );
+
+
+      const progressionSnapshot =
+        JSON.parse(
+          JSON.stringify(
+            currentProgression()
+          )
+        );
+
+
+      google
+        .script
+        .run
+
+        .withSuccessHandler(
+          function(){
+
+            state.saving =
+              false;
+
+
+            state.lastSavedSnapshot =
+              JSON.stringify(
+                {
+
+                  responses:
+                    responsesSnapshot,
+
+                  progression:
+                    progressionSnapshot
+
+                }
+              );
+
+
+            state.dirty =
+
+              JSON.stringify(
+                {
+
+                  responses:
+                    state.responses,
+
+                  progression:
+                    currentProgression()
+
+                }
+              )
+
+              !==
+
+              state.lastSavedSnapshot;
+
+
+            refs.saveState.textContent =
+
+              state.dirty
+
+                ?
+
+                'Modifications en attente…'
+
+                :
+
+                'Enregistré';
+
+
+            if(
+              !state.dirty
+            ){
+
+              supprimerSauvegardeLocale();
+
+            }
+
+
+            if(
+              state.saveQueued ||
+              state.dirty
+            ){
+
+              scheduleSave(
+                true
+              );
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function(){
+
+            state.saving =
+              false;
+
+
+            state.dirty =
+              true;
+
+
+            refs.saveState.textContent =
+              'Erreur d’enregistrement — copie locale conservée';
+
+
+            sauvegarderLocalement();
+
+          }
+        )
+
+        .enregistrerBrouillonBusinessPlanBancable(
+
+          DOSSIER_ID,
+
+          responsesSnapshot,
+
+          progressionSnapshot
+
+        );
+
+    }
+
+
+    /**
+     * ============================================================
+     * LOCAL STORAGE
+     * ============================================================
+     */
+
+    function cleSauvegardeLocale(){
+
+      return (
+        'AFRIGREEN24_BPB_DRAFT_' +
+        DOSSIER_ID
+      );
+
+    }
+
+
+    function sauvegarderLocalement(){
+
+      try{
+
+        localStorage.setItem(
+
+          cleSauvegardeLocale(),
+
+          JSON.stringify(
+            {
+
+              responses:
+                state.responses,
+
+              progression:
+                currentProgression(),
+
+              savedAt:
+                new Date()
+                  .toISOString()
+
+            }
+          )
+
+        );
+
+      }
+      catch(error){}
+
+    }
+
+
+    function supprimerSauvegardeLocale(){
+
+      try{
+
+        localStorage.removeItem(
+          cleSauvegardeLocale()
+        );
+
+      }
+      catch(error){}
+
+    }
+
+
+    function restaurerSauvegardeLocaleSiNecessaire(
+      payload
+    ){
+
+      try{
+
+        const raw =
+          localStorage.getItem(
+            cleSauvegardeLocale()
+          );
+
+
+        if(!raw){
+
+          return;
+
+        }
+
+
+        const local =
+          JSON.parse(
+            raw
+          );
+
+
+        const serveurModifieLe =
+
+          payload &&
+          payload.meta &&
+          payload.meta.modifieLe
+
+            ?
+
+            Date.parse(
+              payload.meta.modifieLe
+            )
+
+            :
+
+            0;
+
+
+        const localModifieLe =
+
+          local.savedAt
+
+            ?
+
+            Date.parse(
+              local.savedAt
+            )
+
+            :
+
+            0;
+
+
+        if(
+          localModifieLe >
+          serveurModifieLe
+
+          &&
+
+          local.responses
+
+          &&
+
+          typeof local.responses ===
+          'object'
+        ){
+
+          state.responses =
+            Object.assign(
+
+              {},
+
+              state.responses,
+
+              local.responses
+
+            );
+
+
+          if(
+            local.progression
+          ){
+
+            state.sectionIndex =
+              Math.min(
+
+                Math.max(
+                  0,
+                  Number(
+                    local.progression.sectionIndex
+                  )
+                  ||
+                  0
+                ),
+
+                Math.max(
+                  0,
+                  state.sections.length - 1
+                )
+
+              );
+
+
+            state.sectionsValidees =
+
+              Array.isArray(
+                local.progression.sectionsValidees
+              )
+
+                ?
+
+                local.progression.sectionsValidees
+
+                :
+
+                state.sectionsValidees;
+
+          }
+
+
+          state.dirty =
+            true;
+
+
+          refs.saveState.textContent =
+            'Copie locale restaurée — synchronisation en cours…';
+
+
+          setTimeout(
+            function(){
+
+              scheduleSave(
+                true
+              );
+
+            },
+            100
+          );
+
+        }
+
+      }
+      catch(error){}
+
+    }
+
+
+    /**
+     * ============================================================
+     * PROGRESSION
+     * ============================================================
+     */
+
+    function currentProgression(){
+
+      return {
+
+        sectionIndex:
+          state.sectionIndex,
+
+        sectionsValidees:
+          state.sectionsValidees
+
+      };
+
+    }
+
+
+    function updateProgress(){
+
+      const total =
+        Math.max(
+          1,
+          state.sections.length
+        );
+
+
+      const completed =
+        state.sectionsValidees.length;
+
+
+      const percent =
+        Math.round(
+          completed /
+          total *
+          100
+        );
+
+
+      refs.progressLabel.textContent =
+
+        'Étape ' +
+
+        Math.min(
+          state.sectionIndex + 1,
+          total
+        )
+
+        +
+
+        ' sur ' +
+
+        total;
+
+
+      refs.progressPercent.textContent =
+        percent +
+        ' %';
+
+
+      refs.progressBar.style.width =
+        percent +
+        '%';
+
+    }
+
+
+    /**
+     * ============================================================
+     * BUSY
+     * ============================================================
+     */
+
+    function setBusy(
+      isBusy,
+      label
+    ){
+
+      refs.nextButton.disabled =
+        isBusy;
+
+
+      refs.prevButton.disabled =
+
+        isBusy
+
+        ||
+
+        state.sectionIndex ===
+        0;
+
+
+      if(
+        isBusy &&
+        label
+      ){
+
+        refs.nextButton.textContent =
+          label;
+
+      }
+
+
+      if(
+        !isBusy
+      ){
+
+        refs.nextButton.textContent =
+
+          state.sectionIndex ===
+          state.sections.length - 1
+
+            ?
+
+            'Valider et lancer l’audit'
+
+            :
+
+            'Valider cette étape';
+
+      }
+
+    }
+
+
+    /**
+     * ============================================================
+     * MONEY
+     * ============================================================
+     */
+
+    function formatMoney(
+      value,
+      currency
+    ){
+
+      const amount =
+        Number(
+          value
+        )
+        ||
+        0;
+
+
+      try{
+
+        return new Intl.NumberFormat(
+
+          'fr-FR',
+
+          {
+
+            style:
+              'currency',
+
+            currency:
+              currency ||
+              'XOF',
+
+            maximumFractionDigits:
+              0
+
+          }
+
+        )
+        .format(
+          amount
+        );
+
+      }
+      catch(error){
+
+        return (
+
+          new Intl.NumberFormat(
+            'fr-FR'
+          )
+          .format(
+            amount
+          )
+
+          +
+
+          ' '
+
+          +
+
+          (
+            currency ||
+            ''
+          )
+
+        )
+        .trim();
+
+      }
+
+    }
+
+
+    /**
+     * ============================================================
+     * FATAL ERROR
+     * ============================================================
+     */
+
+    function handleFatalError(
+      error
+    ){
+
+      refs.loader.innerHTML =
+        '';
+
+
+      const box =
+        document.createElement(
+          'div'
+        );
+
+
+      box.className =
+        'alert-box';
+
+
+      box.textContent =
+        error.message ||
+        String(
+          error
+        );
+
+
+      refs.loader.appendChild(
+        box
+      );
+
+
+      refs.statusPill.textContent =
+        'Erreur';
+
+    }
+
+
+  </script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,636 @@
+<style>
+  .agp-bancable-contact {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .agp-payment-status {
+    display: none;
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid rgba(11, 107, 58, 0.16);
+    border-radius: 14px;
+    background: #f7fbf8;
+    color: #3e5f51;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    text-align: left;
+  }
+
+  .agp-payment-status.is-visible { display: block; }
+
+  .agp-payment-status.is-pending {
+    border-color: rgba(184, 134, 34, 0.24);
+    background: #fffaf0;
+    color: #72551d;
+  }
+
+  .agp-payment-status.is-success {
+    border-color: rgba(22, 138, 80, 0.28);
+    background: #eefaf2;
+    color: #14532d;
+  }
+
+  .agp-payment-status.is-error {
+    border-color: rgba(185, 28, 28, 0.20);
+    background: #fff5f5;
+    color: #8f1d1d;
+  }
+
+  .agp-payment-status strong {
+    display: block;
+    margin-bottom: 4px;
+    color: inherit;
+  }
+
+  .agp-payment-status a {
+    display: inline-flex;
+    margin-top: 10px;
+    color: #0b6b3a;
+    font-weight: 850;
+  }
+
+  .agp-bancable-contact[disabled] {
+    cursor: wait;
+    opacity: 0.72;
+    transform: none;
+  }
+
+  .agp-payment-meta {
+    display: grid;
+    gap: 7px;
+    margin: 14px 0;
+    padding: 12px;
+    border: 1px dashed rgba(11, 107, 58, 0.24);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  .agp-payment-meta span {
+    overflow-wrap: anywhere;
+  }
+
+  .agp-payment-ref {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.77rem;
+    letter-spacing: 0.02em;
+  }
+
+  .agp-manual-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .agp-manual-form label {
+    color: #173f30;
+    font-weight: 800;
+  }
+
+  .agp-manual-form input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 46px;
+    padding: 0 13px;
+    border: 1px solid rgba(11, 107, 58, 0.24);
+    border-radius: 11px;
+    background: #fff;
+    color: #173f30;
+    font: inherit;
+  }
+
+  .agp-manual-form input:focus {
+    outline: 2px solid rgba(11, 107, 58, 0.16);
+    border-color: #0b6b3a;
+  }
+
+  .agp-manual-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .agp-manual-action {
+    min-height: 43px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 10px;
+    background: #0b6b3a;
+    color: #fff;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .agp-manual-action.secondary {
+    border: 1px solid rgba(11, 107, 58, 0.22);
+    background: #fff;
+    color: #0b6b3a;
+  }
+
+  .agp-manual-action[disabled] {
+    cursor: wait;
+    opacity: 0.7;
+  }
+
+  .agp-manual-note {
+    margin: 0;
+    color: #667085;
+    font-size: 0.78rem;
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'afrigreen24_bancable_payment_v41_manual';
+  var POLL_INTERVAL = 8000;
+  var POLL_MAX_DURATION = 60 * 60 * 1000;
+  var pollingTimer = null;
+  var pollingStartedAt = 0;
+  var paymentWindow = null;
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function fieldValue(id) {
+    var field = byId(id);
+    return field ? String(field.value || '').trim() : '';
+  }
+
+  function escapeHtml(text) {
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function setButtonState(busy, text) {
+    var button = byId('bancableContactLink');
+    if (!button) return;
+    button.disabled = Boolean(busy);
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    var label = button.querySelector('span');
+    if (label && text) label.textContent = text;
+  }
+
+  function saveSession(session) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    } catch (error) {
+      console.warn('Sauvegarde de la session de paiement impossible :', error);
+    }
+  }
+
+  function readSession() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function clearSession() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Suppression de la session impossible :', error);
+    }
+  }
+
+  function serverCall(functionName, args) {
+    return new Promise(function (resolve, reject) {
+      if (!window.google || !google.script || !google.script.run) {
+        reject(new Error('Le serveur AfriGreen24 est indisponible. Rechargez la page.'));
+        return;
+      }
+
+      var runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (error) {
+          reject(new Error(error && error.message ? error.message : String(error)));
+        });
+
+      runner[functionName].apply(runner, args || []);
+    });
+  }
+
+  function ensureDossier() {
+    if (window.businessPlanDossierId) {
+      return Promise.resolve(String(window.businessPlanDossierId));
+    }
+
+    if (typeof window.enregistrerTransitionStandardSiNecessaire === 'function') {
+      return Promise.resolve(window.enregistrerTransitionStandardSiNecessaire())
+        .then(function (result) {
+          var dossierId = result && result.dossierId
+            ? result.dossierId
+            : window.businessPlanDossierId;
+          if (!dossierId) throw new Error('Le dossier Standard n’a pas encore été enregistré.');
+          return String(dossierId);
+        });
+    }
+
+    return Promise.reject(new Error('Transition Standard vers Bancable indisponible.'));
+  }
+
+  function openCheckout(url) {
+    if (!url) return;
+
+    if (paymentWindow && !paymentWindow.closed) {
+      paymentWindow.location.href = url;
+      paymentWindow.focus();
+      return;
+    }
+
+    var opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) window.location.href = url;
+  }
+
+  function sessionMetaHtml(session) {
+    return [
+      '<div class="agp-payment-meta">',
+      '<span><b>Référence AfriGreen24 :</b> <span class="agp-payment-ref">' + escapeHtml(session.paymentRef) + '</span></span>',
+      '<span><b>Dossier :</b> <span class="agp-payment-ref">' + escapeHtml(session.dossierId) + '</span></span>',
+      '<span><b>Montant :</b> ' + escapeHtml(session.montant || 5) + ' ' + escapeHtml(session.devise || 'EUR') + '</span>',
+      '</div>'
+    ].join('');
+  }
+
+  function manualFormHtml(session) {
+    return [
+      '<div class="agp-manual-form">',
+      '<label for="agpSelarOrderId">Numéro de commande Selar</label>',
+      '<input id="agpSelarOrderId" type="text" autocomplete="off" maxlength="120" ',
+      'placeholder="Exemple : numéro affiché dans votre confirmation Selar" value="' + escapeHtml(session.orderId || '') + '">',
+      '<div class="agp-manual-actions">',
+      '<button id="agpDeclarePaymentBtn" class="agp-manual-action" type="button">J’ai payé — demander la vérification</button>',
+      '<button id="agpReopenCheckoutBtn" class="agp-manual-action secondary" type="button">Rouvrir Selar</button>',
+      '</div>',
+      '<p class="agp-manual-note">L’accès n’est activé qu’après contrôle de la commande dans le tableau de bord Selar.</p>',
+      '</div>'
+    ].join('');
+  }
+
+  function showStatus(type, title, message, session, includeForm, link) {
+    var box = byId('bancablePaymentStatus');
+    if (!box) return;
+
+    box.className = 'agp-payment-status is-visible' + (type ? ' is-' + type : '');
+    var html = '<strong>' + escapeHtml(title || '') + '</strong>' + escapeHtml(message || '');
+
+    if (session && session.paymentRef) html += sessionMetaHtml(session);
+    if (includeForm && session) html += manualFormHtml(session);
+    if (link) {
+      html += '<a id="agpContinueBancableLink" href="' + escapeHtml(link) + '" target="_top">Continuer vers le Business Plan Bancable</a>';
+    }
+
+    box.innerHTML = html;
+    bindDynamicActions();
+  }
+
+  function bindDynamicActions() {
+    var declareButton = byId('agpDeclarePaymentBtn');
+    if (declareButton && !declareButton.__agpBound) {
+      declareButton.__agpBound = true;
+      declareButton.addEventListener('click', declarePayment);
+    }
+
+    var reopenButton = byId('agpReopenCheckoutBtn');
+    if (reopenButton && !reopenButton.__agpBound) {
+      reopenButton.__agpBound = true;
+      reopenButton.addEventListener('click', function () {
+        var session = readSession();
+        if (session && session.checkoutUrl) openCheckout(session.checkoutUrl);
+      });
+    }
+  }
+
+  function startPayment() {
+    setButtonState(true, 'Préparation du paiement…');
+    showStatus('pending', 'Préparation sécurisée', 'Création de votre référence de paiement AfriGreen24…');
+
+    try {
+      paymentWindow = window.open('', '_blank');
+      if (paymentWindow) {
+        paymentWindow.document.write('<p style="font-family:Arial,sans-serif;padding:24px">Préparation du paiement sécurisé…</p>');
+      }
+    } catch (error) {
+      paymentWindow = null;
+    }
+
+    ensureDossier()
+      .then(function (dossierId) {
+        return serverCall('creerSessionPaiementBancable', [
+          dossierId,
+          fieldValue('email'),
+          fieldValue('promoterName'),
+          fieldValue('phone') || fieldValue('telephone')
+        ]);
+      })
+      .then(function (session) {
+        if (!session || !session.succes) {
+          throw new Error(session && session.message ? session.message : 'Session de paiement non créée.');
+        }
+
+        var localSession = {
+          paymentRef: session.paymentRef,
+          dossierId: session.dossierId,
+          checkoutUrl: session.checkoutUrl,
+          montant: session.montant || 5,
+          devise: session.devise || 'EUR',
+          statut: session.statut,
+          orderId: '',
+          createdAt: new Date().toISOString()
+        };
+        saveSession(localSession);
+
+        if (session.statut === 'ACCES_BANCABLE_ACTIF' && session.lienBancable) {
+          activateAccess(session);
+          return;
+        }
+
+        showStatus(
+          'pending',
+          'Paiement Selar prêt',
+          'Finalisez le paiement, puis revenez ici avec votre numéro de commande Selar.',
+          localSession,
+          true
+        );
+        setButtonState(false, 'Rouvrir le paiement');
+        openCheckout(session.checkoutUrl);
+
+        if (session.statut === 'VERIFICATION_MANUELLE_DEMANDEE') {
+          startPolling(session.paymentRef, session.dossierId);
+        }
+      })
+      .catch(function (error) {
+        if (paymentWindow && !paymentWindow.closed) paymentWindow.close();
+        showStatus('error', 'Paiement non préparé', error.message || String(error));
+        setButtonState(false, 'Réessayer le paiement');
+      });
+  }
+
+  function declarePayment() {
+    var session = readSession();
+    var input = byId('agpSelarOrderId');
+    var orderId = input ? String(input.value || '').trim() : '';
+    var button = byId('agpDeclarePaymentBtn');
+
+    if (!session || !session.paymentRef || !session.dossierId) {
+      showStatus('error', 'Session introuvable', 'Cliquez à nouveau sur « Payer et continuer ».');
+      return;
+    }
+    if (orderId.length < 4) {
+      showStatus(
+        'error',
+        'Numéro de commande requis',
+        'Saisissez le numéro reçu dans votre confirmation Selar.',
+        session,
+        true
+      );
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Transmission…';
+    }
+
+    serverCall('declarerPaiementBancable', [
+      session.paymentRef,
+      session.dossierId,
+      orderId,
+      fieldValue('email')
+    ])
+      .then(function (result) {
+        if (!result || !result.succes) {
+          throw new Error(result && result.message ? result.message : 'Déclaration non enregistrée.');
+        }
+
+        session.orderId = orderId;
+        session.statut = result.statut;
+        saveSession(session);
+        showStatus(
+          'pending',
+          'Demande de vérification reçue',
+          'AfriGreen24 vérifiera cette commande dans Selar. Après validation, le lien Bancable sera envoyé par email.',
+          session,
+          false
+        );
+        setButtonState(false, 'Rouvrir le paiement');
+        startPolling(session.paymentRef, session.dossierId);
+      })
+      .catch(function (error) {
+        showStatus('error', 'Déclaration non enregistrée', error.message || String(error), session, true);
+      });
+  }
+
+  function startPolling(paymentRef, dossierId) {
+    stopPolling();
+    pollingStartedAt = Date.now();
+
+    function check() {
+      if (Date.now() - pollingStartedAt > POLL_MAX_DURATION) {
+        stopPolling();
+        var session = readSession();
+        showStatus(
+          'pending',
+          'Vérification toujours en attente',
+          'Vous pouvez fermer cette page. Le lien personnel sera envoyé par email après validation.',
+          session,
+          false
+        );
+        return;
+      }
+
+      serverCall('obtenirStatutPaiementBancable', [paymentRef, dossierId])
+        .then(function (status) {
+          if (!status || !status.succes) return;
+
+          var session = readSession() || {
+            paymentRef: paymentRef,
+            dossierId: dossierId,
+            montant: 5,
+            devise: 'EUR'
+          };
+          session.statut = status.statut;
+          saveSession(session);
+
+          if (status.statut === 'ACCES_BANCABLE_ACTIF' && status.lienBancable) {
+            activateAccess(status);
+            return;
+          }
+
+          if (status.statut === 'VERIFICATION_REFUSEE') {
+            stopPolling();
+            showStatus(
+              'error',
+              'Commande non confirmée',
+              'Vérifiez le numéro de commande Selar, puis transmettez-le de nouveau.',
+              session,
+              true
+            );
+          } else if (status.statut === 'ERREUR_ACTIVATION') {
+            showStatus(
+              'pending',
+              'Paiement vérifié',
+              'Une vérification technique de votre accès est en cours. Votre paiement n’est pas perdu.',
+              session,
+              false
+            );
+          } else if (status.statut === 'EXPIREE') {
+            stopPolling();
+            clearSession();
+            showStatus('error', 'Session expirée', 'Cliquez à nouveau sur le bouton pour créer une nouvelle session.');
+            setButtonState(false, 'Payer et continuer');
+          }
+        })
+        .catch(function (error) {
+          console.warn('Vérification du statut impossible :', error);
+        });
+    }
+
+    check();
+    pollingTimer = window.setInterval(check, POLL_INTERVAL);
+  }
+
+  function stopPolling() {
+    if (pollingTimer) {
+      window.clearInterval(pollingTimer);
+      pollingTimer = null;
+    }
+  }
+
+  function activateAccess(status) {
+    stopPolling();
+    clearSession();
+    setButtonState(true, 'Accès activé');
+    showStatus(
+      'success',
+      'Paiement vérifié — accès activé',
+      'Votre dossier Standard a été repris. Vous pouvez maintenant compléter la partie Bancable.',
+      status,
+      false,
+      status.lienBancable
+    );
+
+    window.setTimeout(function () {
+      var link = byId('agpContinueBancableLink');
+      if (link) link.click();
+    }, 1800);
+  }
+
+  function restorePendingSession() {
+    var resultPage = byId('resultPage');
+    if (resultPage && resultPage.classList.contains('hidden')) return false;
+
+    var session = readSession();
+    if (!session || !session.paymentRef || !session.dossierId) return false;
+
+    var currentDossier = String(window.businessPlanDossierId || '');
+    if (currentDossier && currentDossier !== String(session.dossierId)) return false;
+
+    serverCall('obtenirStatutPaiementBancable', [session.paymentRef, session.dossierId])
+      .then(function (status) {
+        if (!status || !status.succes) return;
+
+        session.statut = status.statut;
+        saveSession(session);
+
+        if (status.statut === 'ACCES_BANCABLE_ACTIF' && status.lienBancable) {
+          activateAccess(status);
+          return;
+        }
+
+        if (status.statut === 'VERIFICATION_MANUELLE_DEMANDEE' || status.statut === 'ERREUR_ACTIVATION') {
+          showStatus(
+            'pending',
+            'Vérification manuelle en cours',
+            'Votre demande a été retrouvée. Le lien Bancable sera envoyé après validation dans Selar.',
+            session,
+            false
+          );
+          setButtonState(false, 'Rouvrir le paiement');
+          startPolling(session.paymentRef, session.dossierId);
+          return;
+        }
+
+        if (status.statut === 'VERIFICATION_REFUSEE') {
+          showStatus(
+            'error',
+            'Commande non confirmée',
+            'Corrigez le numéro de commande, puis envoyez une nouvelle demande de vérification.',
+            session,
+            true
+          );
+          setButtonState(false, 'Rouvrir le paiement');
+          return;
+        }
+
+        showStatus(
+          'pending',
+          'Paiement Selar',
+          'Finalisez le paiement puis saisissez votre numéro de commande.',
+          session,
+          true
+        );
+        setButtonState(false, 'Rouvrir le paiement');
+      })
+      .catch(function (error) {
+        console.warn('Restauration du paiement impossible :', error);
+      });
+
+    return true;
+  }
+
+  function prepare() {
+    var button = byId('bancableContactLink');
+    if (!button || button.__agpManualPaymentInstalled) return;
+
+    button.__agpManualPaymentInstalled = true;
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+
+      var session = readSession();
+      if (session && session.checkoutUrl) {
+        openCheckout(session.checkoutUrl);
+        restorePendingSession();
+        return;
+      }
+
+      startPayment();
+    });
+
+    restorePendingSession();
+  }
+
+  function initialize() {
+    prepare();
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) restorePendingSession();
+    });
+
+    window.addEventListener('pageshow', restorePendingSession);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+  } else {
+    initialize();
+  }
+
+  window.AfriGreen24Payment41 = {
+    prepare: prepare,
+    restore: restorePendingSession,
+    clear: clearSession,
+    start: startPayment
+  };
+})();
+</script>

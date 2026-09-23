@@ -1,0 +1,345 @@
+<style>
+  .ag24-resume-notice {
+    display: none;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid rgba(22, 101, 52, 0.22);
+    border-radius: 14px;
+    background: rgba(240, 253, 244, 0.96);
+    color: #14532d;
+    font-size: 0.94rem;
+    line-height: 1.5;
+  }
+
+  .ag24-resume-notice.is-visible {
+    display: block;
+  }
+
+  .ag24-resume-notice strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .ag24-save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+    color: #667085;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .ag24-save-status::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #16a34a;
+  }
+
+  @media (max-width: 640px) {
+    .ag24-save-status {
+      width: 100%;
+      justify-content: center;
+      margin: 8px 0 0;
+    }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'afrigreen24_standard_draft_v3';
+  var VERSION = '3.0';
+  var saveTimer = null;
+  var restored = false;
+  var originalNext = null;
+  var originalPrevious = null;
+  var originalShowStep = null;
+  var originalOpenResult = null;
+
+  function getFields() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll('#questionnairePage input, #questionnairePage textarea, #questionnairePage select')
+    ).filter(function (field) {
+      return field.id && field.type !== 'button' && field.type !== 'submit';
+    });
+  }
+
+  function getActiveStep() {
+    var active = document.querySelector('#questionnairePage .form-step.active-step');
+    if (!active) return 1;
+    return Math.max(1, Number(active.getAttribute('data-step')) || 1);
+  }
+
+  function getMaximumStep() {
+    return Math.max(1, document.querySelectorAll('#questionnairePage .form-step').length || 1);
+  }
+
+  function collectData() {
+    var data = {};
+
+    getFields().forEach(function (field) {
+      if (field.type === 'checkbox' || field.type === 'radio') {
+        data[field.id] = {
+          type: field.type,
+          checked: Boolean(field.checked),
+          value: field.value
+        };
+      } else {
+        data[field.id] = {
+          type: field.type || field.tagName.toLowerCase(),
+          value: field.value
+        };
+      }
+    });
+
+    return data;
+  }
+
+  function updateSaveStatus(text) {
+    var status = document.getElementById('ag24SaveStatus');
+    if (status) status.textContent = text || 'Progression sauvegardée';
+  }
+
+  function saveDraft() {
+    try {
+      var draft = {
+        version: VERSION,
+        step: getActiveStep(),
+        data: collectData(),
+        savedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+      updateSaveStatus('Progression sauvegardée');
+      return true;
+    } catch (error) {
+      console.warn('Sauvegarde locale AfriGreen24 impossible :', error);
+      updateSaveStatus('Sauvegarde indisponible');
+      return false;
+    }
+  }
+
+  function scheduleSave() {
+    updateSaveStatus('Sauvegarde…');
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(saveDraft, 250);
+  }
+
+  function readDraft() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var draft = JSON.parse(raw);
+      if (!draft || typeof draft !== 'object' || !draft.data) return null;
+      return draft;
+    } catch (error) {
+      console.warn('Lecture du brouillon AfriGreen24 impossible :', error);
+      return null;
+    }
+  }
+
+  function applyData(data) {
+    Object.keys(data || {}).forEach(function (id) {
+      var field = document.getElementById(id);
+      var saved = data[id];
+      if (!field || !saved) return;
+
+      if (field.type === 'checkbox' || field.type === 'radio') {
+        field.checked = Boolean(saved.checked);
+      } else if (saved.value !== undefined && saved.value !== null) {
+        field.value = saved.value;
+      }
+
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  function showStepFallback(step) {
+    var maximum = getMaximumStep();
+    var target = Math.min(maximum, Math.max(1, Number(step) || 1));
+
+    document.querySelectorAll('#questionnairePage .form-step').forEach(function (element) {
+      var isTarget = Number(element.getAttribute('data-step')) === target;
+      element.classList.toggle('active-step', isTarget);
+    });
+
+    var counter = document.getElementById('stepCounter');
+    if (counter) counter.textContent = 'Étape ' + target + ' sur ' + maximum;
+
+    var progress = document.getElementById('progressBar');
+    if (progress) progress.style.width = ((target / maximum) * 100) + '%';
+
+    var track = document.querySelector('#questionnairePage .progress-track');
+    if (track) track.setAttribute('aria-valuenow', String(target));
+
+    var previous = document.getElementById('previousButton');
+    if (previous) previous.style.visibility = target === 1 ? 'hidden' : 'visible';
+
+    var topBack = document.querySelector('#questionnairePage .back-button');
+    if (topBack) topBack.style.visibility = target === 1 ? 'hidden' : 'visible';
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function displaySavedStep(step) {
+    var target = Math.min(getMaximumStep(), Math.max(1, Number(step) || 1));
+
+    if (typeof originalShowStep === 'function') {
+      try {
+        originalShowStep(target);
+      } catch (error) {
+        showStepFallback(target);
+      }
+    } else {
+      showStepFallback(target);
+    }
+  }
+
+  function restoreDraft() {
+    if (restored) return false;
+    var draft = readDraft();
+    if (!draft) return false;
+
+    applyData(draft.data);
+    displaySavedStep(draft.step || 1);
+    restored = true;
+
+    var notice = document.getElementById('ag24ResumeNotice');
+    if (notice) notice.classList.add('is-visible');
+
+    updateSaveStatus('Brouillon restauré');
+    return true;
+  }
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      restored = false;
+      updateSaveStatus('Dossier finalisé');
+    } catch (error) {
+      console.warn('Suppression du brouillon impossible :', error);
+    }
+  }
+
+  function addInterfaceElements() {
+    var card = document.getElementById('questionCard');
+    if (card && !document.getElementById('ag24ResumeNotice')) {
+      var notice = document.createElement('div');
+      notice.id = 'ag24ResumeNotice';
+      notice.className = 'ag24-resume-notice';
+      notice.setAttribute('role', 'status');
+      notice.innerHTML = '<strong>Votre progression a été retrouvée.</strong>Vous pouvez continuer exactement là où vous vous étiez arrêté.';
+      card.insertBefore(notice, card.firstChild);
+    }
+
+    var topbar = document.querySelector('#questionnairePage .questionnaire-topbar');
+    if (topbar && !document.getElementById('ag24SaveStatus')) {
+      var status = document.createElement('span');
+      status.id = 'ag24SaveStatus';
+      status.className = 'ag24-save-status';
+      status.textContent = 'Sauvegarde automatique active';
+      topbar.appendChild(status);
+    }
+  }
+
+  function installNavigationWrappers() {
+    originalNext = typeof window.etapeSuivante === 'function' ? window.etapeSuivante : null;
+    originalPrevious = typeof window.etapePrecedente === 'function' ? window.etapePrecedente : null;
+    originalShowStep = typeof window.afficherEtape === 'function' ? window.afficherEtape : null;
+    originalOpenResult = typeof window.ouvrirResultatPremium === 'function' ? window.ouvrirResultatPremium : null;
+
+    window.etapeSuivante = function () {
+      saveDraft();
+
+      if (originalNext) {
+        var result = originalNext.apply(this, arguments);
+        window.setTimeout(saveDraft, 80);
+        return result;
+      }
+
+      var current = getActiveStep();
+      if (current < getMaximumStep()) {
+        showStepFallback(current + 1);
+        saveDraft();
+      }
+    };
+
+    window.etapePrecedente = function () {
+      saveDraft();
+
+      if (getActiveStep() <= 1) return;
+
+      if (originalPrevious) {
+        var result = originalPrevious.apply(this, arguments);
+        window.setTimeout(saveDraft, 80);
+        return result;
+      }
+
+      showStepFallback(getActiveStep() - 1);
+      saveDraft();
+    };
+
+    if (originalOpenResult) {
+      window.ouvrirResultatPremium = function () {
+        var result = originalOpenResult.apply(this, arguments);
+        if (window.businessPlanPdfDownload || window.businessPlanPdfLink) {
+          clearDraft();
+        }
+        return result;
+      };
+    }
+  }
+
+  function watchQuestionnaireVisibility() {
+    var page = document.getElementById('questionnairePage');
+    if (!page) return;
+
+    var observer = new MutationObserver(function () {
+      if (!page.classList.contains('hidden')) {
+        restoreDraft();
+      }
+    });
+
+    observer.observe(page, { attributes: true, attributeFilter: ['class'] });
+
+    if (!page.classList.contains('hidden')) restoreDraft();
+  }
+
+  function initialize() {
+    addInterfaceElements();
+    installNavigationWrappers();
+
+    var page = document.getElementById('questionnairePage');
+    if (page) {
+      page.addEventListener('input', scheduleSave, true);
+      page.addEventListener('change', scheduleSave, true);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) saveDraft();
+    });
+
+    window.addEventListener('pagehide', saveDraft);
+    window.addEventListener('beforeunload', saveDraft);
+
+    watchQuestionnaireVisibility();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+  } else {
+    initialize();
+  }
+
+  window.AfriGreen24Draft30 = {
+    save: saveDraft,
+    restore: restoreDraft,
+    clear: clearDraft,
+    key: STORAGE_KEY
+  };
+})();
+</script>
