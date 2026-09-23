@@ -423,7 +423,7 @@ function journaliserPreservationDonneesStandardIA52_(
  *
  * Aucun appel HumbleOS.
  */
-function TEST_STANDARD_AI_52_PRESERVATION_LOCALE() {
+function TEST_STANDARD_AI_52_PRESERVATION_LOCALE_() {
   var source = {
     projectName:
       "GreenStep Shoes",
@@ -540,7 +540,7 @@ function TEST_STANDARD_AI_52_PRESERVATION_LOCALE() {
  * Il vérifie seulement que le fallback narratif reste disponible
  * lorsqu'aucun narratif IA n'existe.
  */
-function TEST_STANDARD_AI_52_FALLBACK_LOCAL() {
+function TEST_STANDARD_AI_52_FALLBACK_LOCAL_() {
   AG24_STANDARD_AI_52_CACHE = {
     donnees: {
       projectName:

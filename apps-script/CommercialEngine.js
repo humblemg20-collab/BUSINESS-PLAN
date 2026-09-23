@@ -803,7 +803,7 @@ function lireContactTelephoneCommercial(
 /**
  * Test direct depuis Apps Script.
  */
-function testerCommercialEngine() {
+function testerCommercialEngine_() {
   var donneesTest = {
     projectName:
       "EcoCycle Africa",

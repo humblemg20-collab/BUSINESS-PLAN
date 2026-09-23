@@ -1237,6 +1237,6 @@ function analyserBusinessPlanBancable(reponsesStandard, reponsesPremium) {
   return BusinessPlanBancable.analyser(reponsesStandard, reponsesPremium);
 }
 
-function testerBusinessPlanBancable() {
+function testerBusinessPlanBancable_() {
   return BusinessPlanBancable.test();
 }

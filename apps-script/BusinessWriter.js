@@ -651,7 +651,7 @@ function writerPhrase(
  * TEST DE L’INTELLIGENCE SECTORIELLE
  * ============================================================
  */
-function testerBusinessWriterSectoriel() {
+function testerBusinessWriterSectoriel_() {
   var projets = [
     {
       projectName: "AgroPlus",

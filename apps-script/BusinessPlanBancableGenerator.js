@@ -428,7 +428,7 @@ function BPB5_texteIA_(dossier, cle) {
   return n && typeof n[cle] === 'string' ? n[cle].trim() : '';
 }
 
-function viderCacheRedactionHumbleOS(dossierId) {
+function viderCacheRedactionHumbleOS_(dossierId) {
   const id = BPB3_normaliserDossierId_(dossierId);
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_NARRATIF));
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_SIGNATURE));
