@@ -210,6 +210,13 @@ function genererBusinessPlan_(data) {
 
     var pdfId = fichierPdf.getId();
 
+    var pdfAccessToken =
+      AG24_DOC_issueCapability_(
+        pdfId,
+        'STANDARD',
+        ''
+      );
+
     /*
      * Liens retournés au navigateur.
      */
@@ -347,6 +354,7 @@ actualiserDashboardCommercial_();
       documentId: documentId,
       docId: documentId,
       pdfId: pdfId,
+      pdfAccessToken: pdfAccessToken,
       url: docUrl,
       documentUrl: docUrl,
       docUrl: docUrl,
@@ -3458,22 +3466,9 @@ function creerPdfDansMemeDossier(
     );
   }
 
-  /*
-   * Le partage public peut être interdit par certaines
-   * configurations Google Workspace. Dans ce cas, le PDF reste
-   * créé et accessible au propriétaire du script.
-   */
-  try {
-    fichierPdf.setSharing(
-      DriveApp.Access.ANYONE_WITH_LINK,
-      DriveApp.Permission.VIEW
-    );
-  } catch (erreurPartage) {
-    console.warn(
-      "Partage public du PDF non autorisé :",
-      erreurPartage
-    );
-  }
+  AG24_AUDIT_event_('STANDARD_PDF_CREATED_PRIVATE', {
+    fileId: fichierPdf.getId()
+  });
 
   return fichierPdf;
 }
