@@ -211,7 +211,7 @@ function executerPartieStandardHumbleOSSafe_(
 ) {
   try {
     var resultat =
-      genererBusinessPlanStandardPartieAsyncAvecHumbleOS(
+      genererBusinessPlanStandardPartieAsyncAvecHumbleOS_(
         clonerDonneesStandardIA52_(donnees),
         partie,
         instructions
