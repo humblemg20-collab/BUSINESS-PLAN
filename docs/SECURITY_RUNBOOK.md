@@ -17,6 +17,8 @@ Apps Script Script Properties must contain:
 
 The production adapter sets `store:false`, uses Structured Outputs, performs no automatic retry, and keeps deterministic fallbacks so an OpenAI outage does not block Business Plan generation.
 
+Production deployment also calls the public-safe `?health=openai-config` route. The route exposes only configuration state/model metadata, never the key. If `configured:true` is absent after deployment, the GitHub Actions release fails and invokes the existing automatic rollback.
+
 Legacy HumbleOS bridge and paid Business Plan modules have been removed from the deployable source. Git history remains the rollback archive. CI enforces the OpenAI-only, single-offer production contract.
 
 ## GitHub deployment secrets
