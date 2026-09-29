@@ -90,8 +90,11 @@
   function afficherPage(idPage) {
     const pages = [
       "homePage",
+      "importBusinessPlanPage",
+      "businessPlanCompletionPage",
       "introPage",
       "questionnairePage",
+      "businessPlanDesignPage",
       "generationPage",
       "resultPage"
     ];
@@ -156,7 +159,9 @@
       return;
     }
 
-    lancerGeneration();
+    ouvrirChoixDesignBusinessPlan(
+      "questionnaire"
+    );
   }
 
   function etapePrecedente() {
@@ -370,6 +375,367 @@
     erreur.style.display = "none";
   }
 
+  const AG24_BP_DESIGN_STATE = {
+    origin: "questionnaire",
+    themeId: "executive_premium",
+    logoUpload: null,
+    slogan: ""
+  };
+
+  window.AG24BusinessPlanDesign =
+    AG24_BP_DESIGN_STATE;
+
+  function lireLogoDesignBusinessPlan_(file) {
+    return new Promise(function(resolve, reject) {
+      if (!file) {
+        resolve(null);
+        return;
+      }
+
+      if (
+        file.type !== "image/png" &&
+        file.type !== "image/jpeg"
+      ) {
+        reject(
+          new Error(
+            "Le logo doit être au format PNG ou JPEG."
+          )
+        );
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        reject(
+          new Error(
+            "Le logo ne doit pas dépasser 2 Mo."
+          )
+        );
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function() {
+        resolve({
+          dataUrl: String(
+            reader.result || ""
+          ),
+          mimeType: file.type,
+          name:
+            file.name ||
+            "logo-client"
+        });
+      };
+
+      reader.onerror = function() {
+        reject(
+          new Error(
+            "Impossible de lire le logo sélectionné."
+          )
+        );
+      };
+
+      reader.readAsDataURL(
+        file
+      );
+    });
+  }
+
+  function afficherApercuLogoDesignBusinessPlan_(
+    logoUpload
+  ) {
+    const preview =
+      obtenirElement(
+        "bpDocumentLogoPreview"
+      );
+
+    if (!preview) {
+      return;
+    }
+
+    preview.innerHTML = "";
+
+    if (
+      !logoUpload ||
+      !logoUpload.dataUrl
+    ) {
+      preview.textContent =
+        "Aucun logo";
+      return;
+    }
+
+    const image =
+      document.createElement(
+        "img"
+      );
+
+    image.src =
+      logoUpload.dataUrl;
+
+    image.alt =
+      logoUpload.name ||
+      "Logo du projet";
+
+    preview.appendChild(
+      image
+    );
+  }
+
+  function selectionnerThemeBusinessPlan_(
+    themeId
+  ) {
+    const allowed = [
+      "executive_premium",
+      "institutional_banking",
+      "modern_minimal",
+      "impact_sustainability"
+    ];
+
+    const id =
+      allowed.indexOf(
+        String(
+          themeId || ""
+        )
+          .trim()
+          .toLowerCase()
+      ) !== -1
+        ? String(
+            themeId
+          )
+            .trim()
+            .toLowerCase()
+        : "executive_premium";
+
+    AG24_BP_DESIGN_STATE.themeId =
+      id;
+
+    document
+      .querySelectorAll(
+        "[data-theme-card]"
+      )
+      .forEach(function(card) {
+        const selected =
+          card.getAttribute(
+            "data-theme-card"
+          ) === id;
+
+        card.classList.toggle(
+          "is-selected",
+          selected
+        );
+
+        const radio =
+          card.querySelector(
+            'input[name="bpDocumentTheme"]'
+          );
+
+        if (radio) {
+          radio.checked =
+            selected;
+        }
+      });
+  }
+
+  function ouvrirChoixDesignBusinessPlan(
+    origin
+  ) {
+    AG24_BP_DESIGN_STATE.origin =
+      origin === "import"
+        ? "import"
+        : "questionnaire";
+
+    const slogan =
+      obtenirElement(
+        "bpDocumentSlogan"
+      );
+
+    if (
+      slogan &&
+      !slogan.value &&
+      AG24_BP_DESIGN_STATE.slogan
+    ) {
+      slogan.value =
+        AG24_BP_DESIGN_STATE.slogan;
+    }
+
+    selectionnerThemeBusinessPlan_(
+      AG24_BP_DESIGN_STATE.themeId
+    );
+
+    afficherApercuLogoDesignBusinessPlan_(
+      AG24_BP_DESIGN_STATE.logoUpload
+    );
+
+    afficherPage(
+      "businessPlanDesignPage"
+    );
+  }
+
+  window.ouvrirChoixDesignBusinessPlan =
+    ouvrirChoixDesignBusinessPlan;
+
+  function confirmerDesignEtGenererBusinessPlan_() {
+    const checked =
+      document.querySelector(
+        'input[name="bpDocumentTheme"]:checked'
+      );
+
+    selectionnerThemeBusinessPlan_(
+      checked
+        ? checked.value
+        : AG24_BP_DESIGN_STATE.themeId
+    );
+
+    const slogan =
+      obtenirElement(
+        "bpDocumentSlogan"
+      );
+
+    AG24_BP_DESIGN_STATE.slogan =
+      slogan
+        ? String(
+            slogan.value || ""
+          )
+            .trim()
+        : "";
+
+    lancerGeneration();
+  }
+
+  function retourDepuisDesignBusinessPlan_() {
+    if (
+      AG24_BP_DESIGN_STATE.origin ===
+      "import"
+    ) {
+      if (
+        typeof bpAfficherPageV4_ ===
+        "function"
+      ) {
+        bpAfficherPageV4_(
+          "businessPlanCompletionPage"
+        );
+        return;
+      }
+
+      afficherPage(
+        "businessPlanCompletionPage"
+      );
+      return;
+    }
+
+    afficherPage(
+      "questionnairePage"
+    );
+  }
+
+  function initialiserDesignBusinessPlanV2_() {
+    document
+      .querySelectorAll(
+        "[data-theme-card]"
+      )
+      .forEach(function(card) {
+        card.addEventListener(
+          "click",
+          function() {
+            selectionnerThemeBusinessPlan_(
+              card.getAttribute(
+                "data-theme-card"
+              )
+            );
+          }
+        );
+      });
+
+    const logoInput =
+      obtenirElement(
+        "bpDocumentLogo"
+      );
+
+    if (logoInput) {
+      logoInput.addEventListener(
+        "change",
+        function(event) {
+          const file =
+            event.target &&
+            event.target.files &&
+            event.target.files.length
+              ? event.target.files[0]
+              : null;
+
+          lireLogoDesignBusinessPlan_(
+            file
+          )
+            .then(
+              function(logoUpload) {
+                AG24_BP_DESIGN_STATE.logoUpload =
+                  logoUpload;
+
+                afficherApercuLogoDesignBusinessPlan_(
+                  logoUpload
+                );
+              }
+            )
+            .catch(
+              function(error) {
+                AG24_BP_DESIGN_STATE.logoUpload =
+                  null;
+
+                logoInput.value = "";
+
+                afficherApercuLogoDesignBusinessPlan_(
+                  null
+                );
+
+                window.alert(
+                  error &&
+                  error.message
+                    ? error.message
+                    : "Logo invalide."
+                );
+              }
+            );
+        }
+      );
+    }
+
+    const generateButton =
+      obtenirElement(
+        "bpDesignGenerateButton"
+      );
+
+    if (generateButton) {
+      generateButton.addEventListener(
+        "click",
+        confirmerDesignEtGenererBusinessPlan_
+      );
+    }
+
+    const backButton =
+      obtenirElement(
+        "bpDesignBackButton"
+      );
+
+    if (backButton) {
+      backButton.addEventListener(
+        "click",
+        retourDepuisDesignBusinessPlan_
+      );
+    }
+  }
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      initialiserDesignBusinessPlanV2_
+    );
+  } else {
+    initialiserDesignBusinessPlanV2_();
+  }
+
+
   function lancerGeneration() {
     if (generationEnCours) {
       return;
@@ -381,6 +747,34 @@
     afficherPage("generationPage");
 
     const donnees = collecterDonneesFormulaire();
+
+    const documentDesign =
+      window.AG24BusinessPlanDesign ||
+      AG24_BP_DESIGN_STATE;
+
+    donnees.documentTheme =
+      String(
+        documentDesign.themeId ||
+        "executive_premium"
+      )
+        .trim()
+        .toLowerCase();
+
+    donnees.organizationSlogan =
+      String(
+        documentDesign.slogan || ""
+      ).trim();
+
+    if (
+      documentDesign.logoUpload &&
+      documentDesign.logoUpload.dataUrl
+    ) {
+      donnees.logoUpload =
+        documentDesign.logoUpload;
+    } else {
+      delete donnees.logoUpload;
+    }
+
     const agBridge = String(
       window.AFRIGREEN_DOCUMENT_BRIDGE || ""
     ).trim();
