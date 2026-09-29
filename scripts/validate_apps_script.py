@@ -30,6 +30,7 @@ required = [
     APP / "BusinessPlanDesignSystemV2.js",
     APP / "BusinessPlanDesignV2.html",
     APP / "BusinessPlanVisualQualityGateV1.js",
+    APP / "BusinessPlanVisualRegressionPreviewV1.js",
 ]
 
 for path in required:
@@ -752,6 +753,53 @@ else:
 
     if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", full_system_test_text):
         fail("Possible hard-coded OpenAI API key in full system test")
+
+
+# Business Plan Visual Regression Preview V1 contract
+visual_preview_path = APP / "BusinessPlanVisualRegressionPreviewV1.js"
+if not visual_preview_path.exists():
+    fail("BusinessPlanVisualRegressionPreviewV1.js is required")
+else:
+    visual_preview_text = visual_preview_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        '"executive_premium"',
+        '"institutional_banking"',
+        '"modern_minimal"',
+        '"impact_sustainability"',
+        "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1()",
+        "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_LAST_REPORT_V1()",
+        "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_CLEANUP_V1()",
+        "AG24_BP_VISUAL_PREVIEW_cleanupPrevious_",
+        "AG24_BP_VISUAL_PREVIEW_renderTheme_",
+        "AG24_BP_V2_renderDocument_(",
+        "AG24_BP_VISUAL_assertPdf_(",
+        "aiRequestCount",
+        "physicalPdfPages",
+        "BUSINESS_PLAN_VISUAL_PREVIEW_CREATED",
+        "BUSINESS_PLAN_VISUAL_PREVIEW_CLEANUP",
+    ]:
+        if marker not in visual_preview_text:
+            fail(f"Visual regression preview marker missing: {marker}")
+
+    if visual_preview_text.count("preparerBusinessPlanStandardIA52(") != 1:
+        fail("Visual regression preview must prepare canonical AI content exactly once")
+
+    if "UrlFetchApp.fetch(" in visual_preview_text:
+        fail("Visual regression preview must not call external APIs directly")
+
+    if "DriveApp.Access.ANYONE_WITH_LINK" in visual_preview_text:
+        fail("Visual regression preview artifacts must remain private")
+
+    if "AG24_DOC_issueCapability_(" in visual_preview_text:
+        fail("Visual regression preview must not issue production download capabilities")
+
+    if "genererBusinessPlan_(" in visual_preview_text:
+        fail("Visual regression preview must bypass production persistence and CRM/dashboard writes")
 
 
 # Import Engine V5 contract
