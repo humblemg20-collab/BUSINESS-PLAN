@@ -117,7 +117,7 @@ function genererRapportPreparationBancaire_(dossierId, options) {
       score: Number(dossier.audit.score && dossier.audit.score.total) || 0,
       niveau: dossier.audit.niveau || '',
       typeDocument: 'RAPPORT_PREPARATION',
-      moteurRedaction: dossier.narratifIA && !dossier.narratifIA._fallback ? 'HUMBLEOS_LOCAL' : 'SECOURS_DETERMINISTE',
+      moteurRedaction: dossier.narratifIA && !dossier.narratifIA._fallback ? 'OPENAI' : 'SECOURS_DETERMINISTE',
       avertissement: 'Ce rapport est destiné au porteur de projet. Il sert à préparer le dossier avant la génération de la version financeur.'
     };
 
@@ -301,7 +301,7 @@ function testerGenerationBusinessPlanBancable_() {
 }
 
 /* =====================================================
- * HumbleOS AI — couche de rédaction professionnelle 5.1
+ * OpenAI — couche de rédaction professionnelle 5.1
  * ===================================================== */
 
 const BPB5_IA_CONFIG = Object.freeze({
@@ -439,22 +439,59 @@ function BPB5_obtenirNarratifIA_(dossier, modele) {
   }
 
   try {
-    if (typeof genererNarratifBusinessPlanAvecHumbleOS_ !== 'function') {
-      throw new Error('HumbleOSBridge.gs n’est pas installé.');
+    if (typeof AG24_OPENAI_generateBancableNarrative_ !== 'function') {
+      throw new Error('OpenAIBridge.js n’est pas installé.');
     }
 
-    const narratif = genererNarratifBusinessPlanAvecHumbleOS_(
+    const resultatIA = AG24_OPENAI_generateBancableNarrative_(
       BPB5_donneesBrutesIA_(dossier),
       BPB5_donneesCalculeesIA_(dossier, modele),
-      'Rédige comme un consultant en financement d’entreprise. Préserve une tonalité humaine, précise et sobre. N’invente rien. Les sections doivent se compléter sans répétitions.'
+      'Les sections doivent se compléter sans répétitions. Utilise les chiffres calculés sans les recalculer ni les modifier.'
     );
 
-    BPB_ecrireJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_NARRATIF), narratif);
-    BPB_ecrireJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_SIGNATURE), { signature: signature, genereLe: new Date().toISOString() });
+    if (
+      !resultatIA ||
+      resultatIA.skipped === true ||
+      !resultatIA.narratif ||
+      typeof resultatIA.narratif !== 'object'
+    ) {
+      return {
+        _fallback: true,
+        _erreur:
+          resultatIA && resultatIA.reason
+            ? String(resultatIA.reason)
+            : 'OPENAI_SKIPPED'
+      };
+    }
+
+    const narratif = resultatIA.narratif;
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id, BPB5_IA_CONFIG.CLE_NARRATIF),
+      narratif
+    );
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id, BPB5_IA_CONFIG.CLE_SIGNATURE),
+      {
+        signature: signature,
+        genereLe: new Date().toISOString(),
+        moteur: 'OPENAI',
+        modele: String(resultatIA.model || '')
+      }
+    );
+
     return narratif;
   } catch (error) {
-    Logger.log('HumbleOS indisponible — utilisation des formulations de secours : ' + error.message);
-    return { _fallback: true, _erreur: error.message };
+    Logger.log(
+      'OpenAI indisponible — utilisation des formulations de secours : ' +
+      error.message
+    );
+
+    return {
+      _fallback: true,
+      _erreur: error.message
+    };
   }
 }
 
@@ -463,7 +500,7 @@ function BPB5_texteIA_(dossier, cle) {
   return n && typeof n[cle] === 'string' ? n[cle].trim() : '';
 }
 
-function viderCacheRedactionHumbleOS_(dossierId) {
+function viderCacheRedactionOpenAI_(dossierId) {
   const id = BPB3_normaliserDossierId_(dossierId);
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_NARRATIF));
   BPB_supprimerJsonChunked_(BPB_cle_(id, BPB5_IA_CONFIG.CLE_SIGNATURE));
@@ -1227,7 +1264,7 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
     const generation = {
       statut: 'FINANCEUR_GENERE',
       typeDocument: 'BUSINESS_PLAN_FINANCEUR',
-      moteurRedaction: dossier.narratifIA && !dossier.narratifIA._fallback ? 'HUMBLEOS_LOCAL' : 'SECOURS_DETERMINISTE',
+      moteurRedaction: dossier.narratifIA && !dossier.narratifIA._fallback ? 'OPENAI' : 'SECOURS_DETERMINISTE',
       dossierId: id,
       nomProjet: BPB3_texte_(dossier.standard.nomProjet, 'Projet'),
       genereLe: new Date().toISOString(),
