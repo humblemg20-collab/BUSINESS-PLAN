@@ -102,6 +102,15 @@ jobs:
           grep -qi "Business Plan" /tmp/business-plan.html
           echo "PRODUCTION_HEALTH=PASS"
 
+          AI_HEALTH="$(
+            curl -L --silent --show-error "${URL}?health=openai-config"
+          )"
+          echo "OPENAI_CONFIG_RESPONSE=$AI_HEALTH"
+          printf '%s' "$AI_HEALTH" | grep -q '"provider":"OPENAI"'
+          printf '%s' "$AI_HEALTH" | grep -q '"configured":true'
+          printf '%s' "$AI_HEALTH" | grep -q '"store":false'
+          echo "OPENAI_CONFIG_HEALTH=PASS"
+
 
       - name: Automatic rollback on failed production health
         if: failure() && env.PRODUCTION_UPDATED == '1' && env.PREVIOUS_VERSION != ''
