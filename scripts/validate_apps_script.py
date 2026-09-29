@@ -25,6 +25,7 @@ required = [
     APP / "DocumentAccess.js",
     APP / "FinancialModelEngine.js",
     APP / "BankingRules.js",
+    APP / "OpenAIBridge.js",
     APP / "ImportBusinessPlanV5.html",
 ]
 
@@ -132,13 +133,64 @@ for name in sorted(sensitive_rpc):
         if "jetonAcces" not in params:
             fail(f"RPC {name} in {filename} must require jetonAcces")
 
-bridge = (APP / "HumbleOSBridge.js")
-if bridge.exists():
-    text = bridge.read_text(encoding="utf-8", errors="replace")
-    if "HUMBLEOS_GATEWAY_SECRET" not in text:
-        warn("HumbleOS secret property name not found")
-    if re.search(r"(?m)^\s*const\s+secret\s*=", text):
-        fail("HumbleOS secret must never be assigned from source code")
+openai_bridge = APP / "OpenAIBridge.js"
+if openai_bridge.exists():
+    text = openai_bridge.read_text(encoding="utf-8", errors="replace")
+
+    if "OPENAI_API_KEY" not in text:
+        fail("OpenAI bridge must read OPENAI_API_KEY from Script Properties")
+
+    if "OPENAI_MODEL" not in text:
+        fail("OpenAI bridge must expose OPENAI_MODEL as a configurable Script Property")
+
+    if "store: false" not in text:
+        fail("OpenAI Responses calls must set store:false")
+
+    if "https://api.openai.com/v1/responses" not in text:
+        fail("OpenAI bridge must use the Responses API")
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", text):
+        fail("Possible hard-coded OpenAI API key in OpenAIBridge.js")
+
+production_ai_files = [
+    APP / "BusinessPlanStandardAI.js",
+    APP / "BusinessPlanImport.js",
+    APP / "BusinessPlanBancableGenerator.js",
+    APP / "Code.js",
+]
+
+for path in production_ai_files:
+    if not path.exists():
+        continue
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    if "HumbleOS" in text or "HUMBLEOS" in text:
+        fail(f"Legacy HumbleOS reference remains in production AI path: {path.name}")
+
+if (APP / "BusinessPlanStandardAI.js").exists():
+    text = (APP / "BusinessPlanStandardAI.js").read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    if "AG24_OPENAI_generateStandardNarrative_" not in text:
+        fail("Standard Business Plan narrative is not routed through OpenAI")
+
+if (APP / "BusinessPlanImport.js").exists():
+    text = (APP / "BusinessPlanImport.js").read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    if "AG24_OPENAI_extractBusinessPlan_" not in text:
+        fail("Business Plan import extraction is not routed through OpenAI")
+
+if (APP / "BusinessPlanBancableGenerator.js").exists():
+    text = (APP / "BusinessPlanBancableGenerator.js").read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    if "AG24_OPENAI_generateBancableNarrative_" not in text:
+        fail("Funding-readiness narrative is not routed through OpenAI")
 
 config_payment = APP / "ConfigurationPaiementManuel.js"
 if config_payment.exists():
