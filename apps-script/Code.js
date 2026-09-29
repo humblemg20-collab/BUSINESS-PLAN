@@ -180,6 +180,10 @@ function genererBusinessPlan_(data) {
 
     data.organizationSlogan =
       brandingClient.slogan;
+
+    data.documentTheme =
+      brandingClient.documentTheme;
+
     var nomProjet = nettoyerTexte(
       data.projectName,
       "Projet entrepreneurial"
@@ -199,34 +203,28 @@ function genererBusinessPlan_(data) {
     var body = document.getBody();
 
     /*
-     * Paramètres généraux du document.
+     * Business Plan Design System V2.
+     * The legacy document renderer is intentionally bypassed.
+     * Content/OpenAI remains unchanged; only the renderer changes.
      */
-    configurerDocument(body);
-    configurerIdentiteDocument(
-      document,
-      data
-    );
+    if (
+      typeof AG24_BP_V2_renderDocument_ !==
+      "function"
+    ) {
+      throw new Error(
+        "BusinessPlanDesignSystemV2.js est indisponible."
+      );
+    }
 
-    /*
-     * Construction du Business Plan.
-     */
-    ajouterPageDeCouverture(body, data);
-    ajouterSommaire(body);
-    ajouterSyntheseStrategique(body, data);
-    ajouterResumeExecutif(body, data);
-    ajouterPresentationProjet(body, data);
-    ajouterAnalyseProbleme(body, data);
-    ajouterSolution(body, data);
-    ajouterMarche(body, data);
-    ajouterModeleEconomique(body, data);
-    ajouterStrategieCommerciale(body, data);
-    ajouterEquipeEtOperations(body, data);
-    ajouterFinancement(body, data);
-    ajouterImpact(body, data);
-    ajouterRisques(body, data);
-    ajouterConclusion(body, data);
-
-    ajouterPageFinale(body, data);
+    var designResult =
+      AG24_BP_V2_renderDocument_(
+        document,
+        data,
+        {
+          themeId:
+            data.documentTheme
+        }
+      );
 
     /*
      * Sauvegarde complète du Google Docs.
@@ -420,6 +418,8 @@ actualiserDashboardCommercial_();
       businessPlanPdfDownload: pdfDownloadUrl,
       dashboardSync: dashboardSync,
       projectName: nomProjet,
+      documentDesign:
+        designResult || null,
       promoterName: nettoyerTexte(
         data.promoterName,
         "Porteur du projet"
@@ -2788,9 +2788,25 @@ function extraireBrandingBusinessPlan_(data) {
     ""
   );
 
+  var documentTheme =
+    String(
+      data.documentTheme ||
+      data.designTheme ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
   return {
     logoUpload: logoUpload,
-    slogan: slogan
+    slogan: slogan,
+    documentTheme:
+      documentTheme ||
+      (
+        typeof AG24_BP_DESIGN_V2 !== "undefined"
+          ? AG24_BP_DESIGN_V2.DEFAULT_THEME
+          : "executive_premium"
+      )
   };
 }
 
@@ -2803,7 +2819,9 @@ function construireDonneesBusinessPlanSansBranding_(data) {
     if (
       cle === "logoUpload" ||
       cle === "organizationSlogan" ||
-      cle === "projectSlogan"
+      cle === "projectSlogan" ||
+      cle === "documentTheme" ||
+      cle === "designTheme"
     ) {
       return;
     }

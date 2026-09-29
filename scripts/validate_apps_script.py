@@ -27,6 +27,8 @@ required = [
     APP / "BankingRules.js",
     APP / "OpenAIBridge.js",
     APP / "ImportBusinessPlanV5.html",
+    APP / "BusinessPlanDesignSystemV2.js",
+    APP / "BusinessPlanDesignV2.html",
 ]
 
 for path in required:
@@ -563,6 +565,80 @@ else:
             fail("Narrative contract test must not log generated narrative content")
 
 
+# Business Plan Design System V2 contract
+design_system_path = APP / "BusinessPlanDesignSystemV2.js"
+if not design_system_path.exists():
+    fail("BusinessPlanDesignSystemV2.js is required")
+else:
+    design_system_text = design_system_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'DEFAULT_THEME: "executive_premium"',
+        '"institutional_banking"',
+        '"modern_minimal"',
+        '"impact_sustainability"',
+        "function AG24_BP_V2_buildSemanticModel_",
+        "function AG24_BP_V2_renderDocument_",
+        "function AG24_BP_V2_assertWhiteLabel_",
+        '"afrigreen24"',
+        "AG24_BP_V2_addCover_",
+        "AG24_BP_V2_addSnapshot_",
+        "AG24_BP_V2_addClosing_",
+    ]:
+        if marker not in design_system_text:
+            fail(f"Business Plan Design System V2 marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in design_system_text:
+        fail("Document Design System must remain deterministic and must not call external AI/APIs")
+
+design_ui_path = APP / "BusinessPlanDesignV2.html"
+if not design_ui_path.exists():
+    fail("BusinessPlanDesignV2.html is required")
+else:
+    design_ui_text = design_ui_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'id="businessPlanDesignPage"',
+        'value="executive_premium"',
+        'value="institutional_banking"',
+        'value="modern_minimal"',
+        'value="impact_sustainability"',
+        'id="bpDocumentLogo"',
+        'id="bpDesignGenerateButton"',
+    ]:
+        if marker not in design_ui_text:
+            fail(f"Business Plan design-selection UI marker missing: {marker}")
+
+if code.exists():
+    code_text = code.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    if "AG24_BP_V2_renderDocument_(" not in code_text:
+        fail("Standard Business Plan production path must use Design System V2")
+
+    for legacy_call in [
+        "ajouterPageDeCouverture(body, data);",
+        "ajouterSommaire(body);",
+        "ajouterSyntheseStrategique(body, data);",
+    ]:
+        # Legacy helpers may remain for compatibility/tests, but the exact old
+        # production orchestration block must no longer be present.
+        if legacy_call in code_text[
+            code_text.find("function genererBusinessPlan_(data)"):
+            code_text.find("function genererBusinessPlanWeb")
+            if code_text.find("function genererBusinessPlanWeb") > 0
+            else len(code_text)
+        ]:
+            fail(f"Legacy Business Plan renderer remains active in production: {legacy_call}")
+
 # Full Business Plan isolated system test
 full_system_test_path = APP / "BusinessPlanFullSystemTest.js"
 if not full_system_test_path.exists():
@@ -580,6 +656,9 @@ else:
         "dashboardWritesAttempted: false",
         "preparerBusinessPlanStandardIA52(",
         "DocumentApp.create(",
+        "AG24_BP_V2_renderDocument_(",
+        "designSystemVersion",
+        "whiteLabel",
         "creerPdfDansMemeDossier(",
         "AG24_DOC_issueCapability_(",
         "telechargerPdfBusinessPlanStandard(",
@@ -607,6 +686,10 @@ if index_path.exists():
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     if "include('ImportBusinessPlanV5')" not in index_text:
         fail("Index.html must include ImportBusinessPlanV5")
+    if "include('BusinessPlanDesignV2')" not in index_text:
+        fail("Index.html must include BusinessPlanDesignV2")
+    if 'ouvrirChoixDesignBusinessPlan(' not in index_text:
+        fail("Import completion must route through the shared design selector")
 
 import_backend = APP / "BusinessPlanImport.js"
 if import_backend.exists():

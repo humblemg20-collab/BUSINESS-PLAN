@@ -2523,57 +2523,6 @@
                 </select>
               </div>
 
-              <div class="form-field full-field">
-                <label>Identité visuelle du document</label>
-
-                <div class="bp-branding-box">
-                  <div>
-                    <label for="organizationSlogan">
-                      Slogan du projet ou de l’organisation
-                    </label>
-
-                    <input
-                      id="organizationSlogan"
-                      type="text"
-                      maxlength="140"
-                      placeholder="Exemple : Innover aujourd’hui, transformer demain"
-                    >
-
-                    <p class="bp-branding-help">
-                      Le slogan apparaîtra dans le pied de page du Business Plan.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label for="projectLogo">
-                      Logo du projet ou de l’organisation
-                    </label>
-
-                    <div class="bp-logo-upload">
-                      <div
-                        id="projectLogoPreview"
-                        class="bp-logo-preview"
-                        aria-live="polite"
-                      >
-                        Aucun logo
-                      </div>
-
-                      <div style="min-width:0;flex:1">
-                        <input
-                          id="projectLogo"
-                          type="file"
-                          accept="image/png,image/jpeg"
-                        >
-
-                        <p class="bp-branding-help">
-                          PNG ou JPEG, 2 Mo maximum.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </div>
 
           </div>
@@ -3322,165 +3271,9 @@
   </section>
 
 
+  <?!= include('BusinessPlanDesignV2'); ?>
   <?!= include('Javascript'); ?>
   <?!= include('NavigationSauvegarde30'); ?>
-
-
-  <script>
-    (function() {
-      var MAX_LOGO_BYTES = 2 * 1024 * 1024;
-
-      var logoState = {
-        dataUrl: "",
-        mimeType: "",
-        name: ""
-      };
-
-      function resetLogo() {
-        logoState.dataUrl = "";
-        logoState.mimeType = "";
-        logoState.name = "";
-
-        var preview =
-          document.getElementById("projectLogoPreview");
-
-        if (preview) {
-          preview.innerHTML = "";
-          preview.textContent = "Aucun logo";
-        }
-      }
-
-      function afficherLogo(dataUrl, alt) {
-        var preview =
-          document.getElementById("projectLogoPreview");
-
-        if (!preview) {
-          return;
-        }
-
-        preview.innerHTML = "";
-
-        var image =
-          document.createElement("img");
-
-        image.src = dataUrl;
-        image.alt = alt || "Aperçu du logo";
-
-        preview.appendChild(image);
-      }
-
-      function lireLogo(file) {
-        if (!file) {
-          resetLogo();
-          return;
-        }
-
-        if (
-          file.type !== "image/png" &&
-          file.type !== "image/jpeg"
-        ) {
-          resetLogo();
-          window.alert(
-            "Le logo doit être au format PNG ou JPEG."
-          );
-          return;
-        }
-
-        if (file.size > MAX_LOGO_BYTES) {
-          resetLogo();
-          window.alert(
-            "Le logo ne doit pas dépasser 2 Mo."
-          );
-          return;
-        }
-
-        var reader = new FileReader();
-
-        reader.onload = function() {
-          logoState.dataUrl =
-            String(reader.result || "");
-
-          logoState.mimeType =
-            file.type;
-
-          logoState.name =
-            file.name || "logo-client";
-
-          afficherLogo(
-            logoState.dataUrl,
-            file.name || "Logo"
-          );
-        };
-
-        reader.onerror = function() {
-          resetLogo();
-          window.alert(
-            "Impossible de lire le logo sélectionné."
-          );
-        };
-
-        reader.readAsDataURL(file);
-      }
-
-      var inputLogo =
-        document.getElementById("projectLogo");
-
-      if (inputLogo) {
-        inputLogo.addEventListener(
-          "change",
-          function(event) {
-            var fichier =
-              event.target &&
-              event.target.files
-                ? event.target.files[0]
-                : null;
-
-            lireLogo(fichier);
-          }
-        );
-      }
-
-      if (
-        typeof collecterDonneesFormulaire ===
-        "function"
-      ) {
-        var collecterDonneesOriginal =
-          collecterDonneesFormulaire;
-
-        collecterDonneesFormulaire =
-          function() {
-            var data =
-              collecterDonneesOriginal();
-
-            var sloganElement =
-              document.getElementById(
-                "organizationSlogan"
-              );
-
-            data.organizationSlogan =
-              sloganElement
-                ? String(
-                    sloganElement.value || ""
-                  ).trim()
-                : "";
-
-            if (logoState.dataUrl) {
-              data.logoUpload = {
-                dataUrl: logoState.dataUrl,
-                mimeType: logoState.mimeType,
-                name: logoState.name
-              };
-            }
-
-            return data;
-          };
-      }
-
-      window.BusinessPlanBranding = {
-        reset: resetLogo
-      };
-    })();
-  </script>
 
 
   <script>
@@ -4581,7 +4374,7 @@ initialiserBridgeAfriGreen24_();
       }
 
       function bpAfficherPageV4_(id) {
-        ["homePage", "importBusinessPlanPage", "businessPlanCompletionPage", "introPage", "questionnairePage", "generationPage", "resultPage"].forEach(function(pageId) {
+        ["homePage", "importBusinessPlanPage", "businessPlanCompletionPage", "introPage", "questionnairePage", "businessPlanDesignPage", "generationPage", "resultPage"].forEach(function(pageId) {
           var page = document.getElementById(pageId);
           if (page) page.classList.add("hidden");
         });
@@ -5050,11 +4843,19 @@ function bpValeurSelectValide_(field, value) {
         var pageCompletion = document.getElementById("businessPlanCompletionPage");
         if (pageCompletion) pageCompletion.classList.add("hidden");
 
-        if (typeof lancerGeneration === "function") {
-          lancerGeneration();
+        if (
+          typeof ouvrirChoixDesignBusinessPlan ===
+          "function"
+        ) {
+          ouvrirChoixDesignBusinessPlan(
+            "import"
+          );
           return;
         }
-        bpAfficherErreurCompletion_("Le moteur de génération Business Plan n’est pas disponible.");
+
+        bpAfficherErreurCompletion_(
+          "Le sélecteur de design Business Plan n’est pas disponible."
+        );
       };
 
       document.addEventListener("input", function(event) {

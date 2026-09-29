@@ -9,23 +9,23 @@
  */
 
 const AG24_BP_SYSTEM_TEST_V1 = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '2.0.0',
   LAST_REPORT_PROPERTY:
     'AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT',
   MIN_PDF_BYTES: 5000,
   REQUIRED_DOC_MARKERS: Object.freeze([
+    'Executive Snapshot',
     'Résumé exécutif',
     'Présentation du projet',
     'Problème et opportunité',
-    'Solution proposée',
-    'Analyse du marché',
+    'Solution et proposition de valeur',
+    'Marché et clientèle',
     'Modèle économique',
-    'Stratégie commerciale et marketing',
+    'Stratégie commerciale',
     'Équipe et organisation opérationnelle',
-    'Besoin de financement',
-    'Impact économique, social et environnemental',
-    'Risques identifiés',
-    'Conclusion'
+    'Financement',
+    'Impact',
+    'Risques et points de vigilance'
   ])
 });
 
@@ -222,6 +222,9 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
     cacheHit: false,
     fallbackUsed: false,
     narrativeBlockCount: 0,
+    designSystemVersion: '',
+    themeId: '',
+    whiteLabel: false,
     docCreated: false,
     docMimeValid: false,
     docMarkersValid: false,
@@ -291,6 +294,9 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
 
     data.organizationSlogan =
       brandingClient.slogan;
+
+    data.documentTheme =
+      'executive_premium';
 
     const openAI =
       preparationIA.openAI || {};
@@ -370,96 +376,44 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
         documentId
       );
 
-    const body =
-      document.getBody();
+    if (
+      typeof AG24_BP_V2_renderDocument_ !==
+      'function'
+    ) {
+      throw new Error(
+        'Business Plan Design System V2 unavailable.'
+      );
+    }
 
-    configurerDocument(
-      body
-    );
+    const designResult =
+      AG24_BP_V2_renderDocument_(
+        document,
+        data,
+        {
+          themeId:
+            data.documentTheme
+        }
+      );
 
-    configurerIdentiteDocument(
-      document,
-      data
-    );
+    report.designSystemVersion =
+      String(
+        designResult &&
+        designResult.version ||
+        ''
+      );
 
-    ajouterPageDeCouverture(
-      body,
-      data
-    );
+    report.themeId =
+      String(
+        designResult &&
+        designResult.themeId ||
+        ''
+      );
 
-    ajouterSommaire(
-      body
-    );
-
-    ajouterSyntheseStrategique(
-      body,
-      data
-    );
-
-    ajouterResumeExecutif(
-      body,
-      data
-    );
-
-    ajouterPresentationProjet(
-      body,
-      data
-    );
-
-    ajouterAnalyseProbleme(
-      body,
-      data
-    );
-
-    ajouterSolution(
-      body,
-      data
-    );
-
-    ajouterMarche(
-      body,
-      data
-    );
-
-    ajouterModeleEconomique(
-      body,
-      data
-    );
-
-    ajouterStrategieCommerciale(
-      body,
-      data
-    );
-
-    ajouterEquipeEtOperations(
-      body,
-      data
-    );
-
-    ajouterFinancement(
-      body,
-      data
-    );
-
-    ajouterImpact(
-      body,
-      data
-    );
-
-    ajouterRisques(
-      body,
-      data
-    );
-
-    ajouterConclusion(
-      body,
-      data
-    );
-
-    ajouterPageFinale(
-      body,
-      data
-    );
+    report.whiteLabel =
+      Boolean(
+        designResult &&
+        designResult.whiteLabel === true
+      );
 
     document.saveAndClose();
 
@@ -565,6 +519,18 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
           secureDownload.base64 || ''
         ).length > 1000
       );
+
+    if (
+      report.designSystemVersion !==
+        AG24_BP_DESIGN_V2.VERSION ||
+      report.themeId !==
+        data.documentTheme ||
+      !report.whiteLabel
+    ) {
+      throw new Error(
+        'Design System V2 contract failed.'
+      );
+    }
 
     if (!report.docCreated) {
       throw new Error(

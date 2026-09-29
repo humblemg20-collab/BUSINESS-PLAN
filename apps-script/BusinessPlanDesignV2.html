@@ -1,0 +1,440 @@
+<style>
+  .bp-design-page {
+    min-height: 100vh;
+    padding: 34px 20px 70px;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(43, 74, 105, .08), transparent 30%),
+      radial-gradient(circle at 92% 10%, rgba(183, 139, 67, .08), transparent 28%),
+      #f7f8fa;
+  }
+
+  .bp-design-shell {
+    width: min(1160px, 100%);
+    margin: 0 auto;
+  }
+
+  .bp-design-header {
+    max-width: 760px;
+    margin: 0 auto 28px;
+    text-align: center;
+  }
+
+  .bp-design-kicker {
+    display: inline-flex;
+    padding: 6px 11px;
+    color: #5f6973;
+    font-size: .7rem;
+    font-weight: 900;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 999px;
+  }
+
+  .bp-design-header h2 {
+    margin: 14px 0 10px;
+    color: #18212b;
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 1.02;
+    letter-spacing: -.045em;
+  }
+
+  .bp-design-header p {
+    margin: 0;
+    color: #6b747d;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .bp-design-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .bp-design-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 360px;
+    padding: 14px;
+    text-align: left;
+    background: #fff;
+    border: 1px solid #e0e4e8;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+
+  .bp-design-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 45px rgba(22, 32, 42, .09);
+  }
+
+  .bp-design-card.is-selected {
+    border-color: #1f4f80;
+    box-shadow: 0 0 0 3px rgba(31, 79, 128, .10), 0 20px 45px rgba(22, 32, 42, .09);
+  }
+
+  .bp-design-radio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .bp-design-preview {
+    height: 235px;
+    margin-bottom: 14px;
+    padding: 17px;
+    overflow: hidden;
+    border-radius: 15px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+  }
+
+  .bp-design-preview-top {
+    width: 62%;
+    height: 6px;
+    margin-bottom: 26px;
+    border-radius: 999px;
+  }
+
+  .bp-design-preview-title {
+    width: 84%;
+    height: 16px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+  }
+
+  .bp-design-preview-title.short {
+    width: 58%;
+    margin-bottom: 25px;
+  }
+
+  .bp-design-preview-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 8px;
+  }
+
+  .bp-design-preview-block {
+    height: 48px;
+    border-radius: 8px;
+  }
+
+  .bp-design-preview-line {
+    height: 5px;
+    margin-top: 8px;
+    border-radius: 999px;
+  }
+
+  .bp-design-preview-line:nth-child(2n) {
+    width: 76%;
+  }
+
+  .bp-theme-executive {
+    background: #f4f1ea;
+  }
+  .bp-theme-executive .bp-design-preview-top,
+  .bp-theme-executive .bp-design-preview-title { background: #16263d; }
+  .bp-theme-executive .bp-design-preview-title.short { background: #b78b43; }
+  .bp-theme-executive .bp-design-preview-block { background: #fff; }
+  .bp-theme-executive .bp-design-preview-line { background: #c7cdd2; }
+
+  .bp-theme-banking {
+    background: #f1f5f7;
+  }
+  .bp-theme-banking .bp-design-preview-top,
+  .bp-theme-banking .bp-design-preview-title { background: #15324b; }
+  .bp-theme-banking .bp-design-preview-title.short { background: #557a8b; }
+  .bp-theme-banking .bp-design-preview-block { background: #fff; border: 1px solid #d9e1e6; }
+  .bp-theme-banking .bp-design-preview-line { background: #bdc9d0; }
+
+  .bp-theme-minimal {
+    background: #fafafb;
+  }
+  .bp-theme-minimal .bp-design-preview-top,
+  .bp-theme-minimal .bp-design-preview-title { background: #20252b; }
+  .bp-theme-minimal .bp-design-preview-title.short { background: #2f6fed; }
+  .bp-theme-minimal .bp-design-preview-block { background: #f2f4f7; }
+  .bp-theme-minimal .bp-design-preview-line { background: #d2d6db; }
+
+  .bp-theme-impact {
+    background: #f0f5f1;
+  }
+  .bp-theme-impact .bp-design-preview-top,
+  .bp-theme-impact .bp-design-preview-title { background: #25483c; }
+  .bp-theme-impact .bp-design-preview-title.short { background: #c28c52; }
+  .bp-theme-impact .bp-design-preview-block { background: #fff; }
+  .bp-theme-impact .bp-design-preview-line { background: #c9d5cd; }
+
+  .bp-design-name {
+    display: block;
+    margin-bottom: 5px;
+    color: #1d2731;
+    font-size: .95rem;
+    font-weight: 900;
+  }
+
+  .bp-design-description {
+    color: #707982;
+    font-size: .76rem;
+    line-height: 1.5;
+  }
+
+  .bp-design-branding {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 22px;
+    padding: 22px;
+    background: #fff;
+    border: 1px solid #e0e4e8;
+    border-radius: 22px;
+  }
+
+  .bp-design-field label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3741;
+    font-size: .78rem;
+    font-weight: 850;
+  }
+
+  .bp-design-field input[type="text"] {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 13px;
+    font: inherit;
+    border: 1px solid #dce1e5;
+    border-radius: 11px;
+    outline: none;
+  }
+
+  .bp-design-field input[type="text"]:focus {
+    border-color: #7892ad;
+    box-shadow: 0 0 0 3px rgba(31, 79, 128, .08);
+  }
+
+  .bp-design-logo-box {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .bp-design-logo-preview {
+    display: grid;
+    width: 74px;
+    height: 74px;
+    flex: 0 0 74px;
+    place-items: center;
+    overflow: hidden;
+    color: #8a9299;
+    font-size: .65rem;
+    text-align: center;
+    background: #f5f6f7;
+    border: 1px dashed #cfd5da;
+    border-radius: 13px;
+  }
+
+  .bp-design-logo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .bp-design-help {
+    margin: 7px 0 0;
+    color: #7c858d;
+    font-size: .68rem;
+    line-height: 1.45;
+  }
+
+  .bp-design-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 22px;
+  }
+
+  .bp-design-back {
+    min-height: 48px;
+    padding: 0 18px;
+    color: #4f5962;
+    font: inherit;
+    font-weight: 800;
+    background: #fff;
+    border: 1px solid #dce1e5;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .bp-design-generate {
+    min-height: 50px;
+    padding: 0 22px;
+    color: #fff;
+    font: inherit;
+    font-weight: 900;
+    background: #182b3d;
+    border: 0;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 13px 26px rgba(24,43,61,.16);
+  }
+
+  .bp-design-white-label {
+    margin-top: 16px;
+    color: #7a838b;
+    font-size: .69rem;
+    text-align: center;
+  }
+
+  @media (max-width: 960px) {
+    .bp-design-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 650px) {
+    .bp-design-page {
+      padding: 20px 12px 48px;
+    }
+
+    .bp-design-grid,
+    .bp-design-branding {
+      grid-template-columns: 1fr;
+    }
+
+    .bp-design-actions {
+      flex-direction: column-reverse;
+    }
+
+    .bp-design-back,
+    .bp-design-generate {
+      width: 100%;
+    }
+  }
+</style>
+
+<section id="businessPlanDesignPage" class="bp-design-page hidden">
+  <div class="bp-design-shell">
+    <header class="bp-design-header">
+      <span class="bp-design-kicker">Mise en page du document</span>
+      <h2>Choisissez le style de votre Business Plan</h2>
+      <p>
+        Le contenu reste identique. Seuls la composition, les couleurs,
+        la hiérarchie visuelle et la présentation changent.
+      </p>
+    </header>
+
+    <div id="bpDesignThemeGrid" class="bp-design-grid">
+      <label class="bp-design-card is-selected" data-theme-card="executive_premium">
+        <input class="bp-design-radio" type="radio" name="bpDocumentTheme" value="executive_premium" checked>
+        <div class="bp-design-preview bp-theme-executive">
+          <div class="bp-design-preview-top"></div>
+          <div class="bp-design-preview-title"></div>
+          <div class="bp-design-preview-title short"></div>
+          <div class="bp-design-preview-row">
+            <div class="bp-design-preview-block"></div>
+            <div class="bp-design-preview-block"></div>
+          </div>
+          <div class="bp-design-preview-line"></div>
+          <div class="bp-design-preview-line"></div>
+        </div>
+        <strong class="bp-design-name">Executive Premium</strong>
+        <span class="bp-design-description">Cabinet de conseil, investisseurs et partenaires stratégiques.</span>
+      </label>
+
+      <label class="bp-design-card" data-theme-card="institutional_banking">
+        <input class="bp-design-radio" type="radio" name="bpDocumentTheme" value="institutional_banking">
+        <div class="bp-design-preview bp-theme-banking">
+          <div class="bp-design-preview-top"></div>
+          <div class="bp-design-preview-title"></div>
+          <div class="bp-design-preview-title short"></div>
+          <div class="bp-design-preview-row">
+            <div class="bp-design-preview-block"></div>
+            <div class="bp-design-preview-block"></div>
+          </div>
+          <div class="bp-design-preview-line"></div>
+          <div class="bp-design-preview-line"></div>
+        </div>
+        <strong class="bp-design-name">Institutional Banking</strong>
+        <span class="bp-design-description">Sobre, formel et adapté aux banques, bailleurs et institutions.</span>
+      </label>
+
+      <label class="bp-design-card" data-theme-card="modern_minimal">
+        <input class="bp-design-radio" type="radio" name="bpDocumentTheme" value="modern_minimal">
+        <div class="bp-design-preview bp-theme-minimal">
+          <div class="bp-design-preview-top"></div>
+          <div class="bp-design-preview-title"></div>
+          <div class="bp-design-preview-title short"></div>
+          <div class="bp-design-preview-row">
+            <div class="bp-design-preview-block"></div>
+            <div class="bp-design-preview-block"></div>
+          </div>
+          <div class="bp-design-preview-line"></div>
+          <div class="bp-design-preview-line"></div>
+        </div>
+        <strong class="bp-design-name">Modern Minimal</strong>
+        <span class="bp-design-description">Épuré, contemporain et particulièrement adapté aux startups et services.</span>
+      </label>
+
+      <label class="bp-design-card" data-theme-card="impact_sustainability">
+        <input class="bp-design-radio" type="radio" name="bpDocumentTheme" value="impact_sustainability">
+        <div class="bp-design-preview bp-theme-impact">
+          <div class="bp-design-preview-top"></div>
+          <div class="bp-design-preview-title"></div>
+          <div class="bp-design-preview-title short"></div>
+          <div class="bp-design-preview-row">
+            <div class="bp-design-preview-block"></div>
+            <div class="bp-design-preview-block"></div>
+          </div>
+          <div class="bp-design-preview-line"></div>
+          <div class="bp-design-preview-line"></div>
+        </div>
+        <strong class="bp-design-name">Impact & Sustainability</strong>
+        <span class="bp-design-description">Impact, climat, énergie, agriculture et projets à forte dimension ESG.</span>
+      </label>
+    </div>
+
+    <div class="bp-design-branding">
+      <div class="bp-design-field">
+        <label for="bpDocumentLogo">Logo du projet ou de l’organisation — facultatif</label>
+        <div class="bp-design-logo-box">
+          <div id="bpDocumentLogoPreview" class="bp-design-logo-preview">Aucun logo</div>
+          <div style="min-width:0;flex:1">
+            <input id="bpDocumentLogo" type="file" accept="image/png,image/jpeg">
+            <p class="bp-design-help">PNG ou JPEG, 2 Mo maximum. Les proportions sont conservées automatiquement.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bp-design-field">
+        <label for="bpDocumentSlogan">Slogan ou phrase de positionnement — facultatif</label>
+        <input
+          id="bpDocumentSlogan"
+          type="text"
+          maxlength="140"
+          placeholder="Exemple : L’énergie solaire sans investissement initial"
+        >
+        <p class="bp-design-help">Cette phrase appartient au projet et peut apparaître sur la couverture ou dans le pied de page.</p>
+      </div>
+    </div>
+
+    <div class="bp-design-actions">
+      <button id="bpDesignBackButton" type="button" class="bp-design-back">
+        Retour
+      </button>
+
+      <button id="bpDesignGenerateButton" type="button" class="bp-design-generate">
+        Générer avec ce design
+      </button>
+    </div>
+
+    <div class="bp-design-white-label">
+      Le document final utilise uniquement les informations et l’identité du projet.
+    </div>
+  </div>
+</section>
