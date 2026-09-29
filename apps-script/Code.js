@@ -43,6 +43,30 @@ var BUSINESS_PLAN_THEME = {
  */
 function doGet(e) {
 
+  const health =
+    e && e.parameter
+      ? String(
+          e.parameter.health || ''
+        )
+          .trim()
+          .toLowerCase()
+      : '';
+
+  if (
+    health ===
+    'openai-config'
+  ) {
+    return ContentService
+      .createTextOutput(
+        JSON.stringify(
+          AG24_OPENAI_getHealthStatus_()
+        )
+      )
+      .setMimeType(
+        ContentService.MimeType.JSON
+      );
+  }
+
   const pageBancable =
     routerBusinessPlanBancable(e);
 
