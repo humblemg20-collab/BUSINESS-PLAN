@@ -1,0 +1,548 @@
+/**
+ * AfriGreen24 — Script Properties Migration V1
+ *
+ * Safe maintenance engine for Apps Script Script Properties.
+ *
+ * SAFETY CONTRACT
+ * - DRY_RUN is the default and never mutates Script Properties.
+ * - APPLY deletes only exact keys or exact legacy prefixes listed below.
+ * - Unknown properties are NEVER deleted.
+ * - AFRIGREEN24_BPB:* dossier/business data are always protected.
+ * - OPENAI_* configuration is always protected.
+ * - A backup snapshot is persisted before APPLY.
+ * - APPLY requires an explicit confirmation token from a fresh DRY_RUN.
+ */
+
+const AG24_PROPERTIES_MIGRATION_V1 = Object.freeze({
+  VERSION: '1.0.0',
+  BACKUP_PREFIX: 'AFRIGREEN24_MIGRATION_BACKUP:',
+  LAST_REPORT_KEY: 'AFRIGREEN24_MIGRATION_LAST_REPORT',
+  PLAN_KEY: 'AFRIGREEN24_MIGRATION_PENDING_PLAN',
+
+  PROTECTED_EXACT: Object.freeze([
+    'OPENAI_API_KEY',
+    'OPENAI_MODEL'
+  ]),
+
+  PROTECTED_PREFIXES: Object.freeze([
+    'OPENAI_',
+    'AFRIGREEN24_BPB:',
+    'AFRIGREEN24_MIGRATION_'
+  ]),
+
+  /*
+   * Only confirmed obsolete configuration namespaces belong here.
+   * Business dossier/history keys must never be added to this list.
+   */
+  DELETE_EXACT: Object.freeze([
+    'HUMBLEOS_GATEWAY_SECRET',
+    'HUMBLEOS_GATEWAY_URL',
+    'HUMBLEOS_API_KEY',
+    'HUMBLEOS_MODEL',
+    'AFRIGREEN24_BPB_PAYMENT_URL',
+    'AFRIGREEN24_BPB_PAYMENT_MODE',
+    'AFRIGREEN24_BPB_PAYMENT_PROVIDER',
+    'AFRIGREEN24_BPB_SELAR_URL'
+  ]),
+
+  DELETE_PREFIXES: Object.freeze([
+    'HUMBLEOS_'
+  ])
+});
+
+function AG24_PROPERTIES_classifyKeyV1_(key) {
+  const value = String(key || '').trim();
+
+  if (!value) {
+    return {
+      action: 'KEEP',
+      reason: 'EMPTY_OR_INVALID_KEY'
+    };
+  }
+
+  if (
+    AG24_PROPERTIES_MIGRATION_V1.PROTECTED_EXACT.indexOf(value) !== -1
+  ) {
+    return {
+      action: 'KEEP',
+      reason: 'PROTECTED_EXACT'
+    };
+  }
+
+  for (
+    let i = 0;
+    i < AG24_PROPERTIES_MIGRATION_V1.PROTECTED_PREFIXES.length;
+    i += 1
+  ) {
+    const prefix =
+      AG24_PROPERTIES_MIGRATION_V1.PROTECTED_PREFIXES[i];
+
+    if (value.indexOf(prefix) === 0) {
+      return {
+        action: 'KEEP',
+        reason: 'PROTECTED_PREFIX:' + prefix
+      };
+    }
+  }
+
+  if (
+    AG24_PROPERTIES_MIGRATION_V1.DELETE_EXACT.indexOf(value) !== -1
+  ) {
+    return {
+      action: 'DELETE',
+      reason: 'LEGACY_EXACT'
+    };
+  }
+
+  for (
+    let i = 0;
+    i < AG24_PROPERTIES_MIGRATION_V1.DELETE_PREFIXES.length;
+    i += 1
+  ) {
+    const prefix =
+      AG24_PROPERTIES_MIGRATION_V1.DELETE_PREFIXES[i];
+
+    if (value.indexOf(prefix) === 0) {
+      return {
+        action: 'DELETE',
+        reason: 'LEGACY_PREFIX:' + prefix
+      };
+    }
+  }
+
+  return {
+    action: 'REVIEW',
+    reason: 'UNKNOWN_NOT_DELETED'
+  };
+}
+
+function AG24_PROPERTIES_hashV1_(text) {
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(text || ''),
+    Utilities.Charset.UTF_8
+  );
+
+  return digest.map(function(byte) {
+    const normalized = byte < 0 ? byte + 256 : byte;
+    return ('0' + normalized.toString(16)).slice(-2);
+  }).join('');
+}
+
+function AG24_PROPERTIES_buildPlanV1_() {
+  const properties =
+    PropertiesService.getScriptProperties();
+
+  const all =
+    properties.getProperties();
+
+  const keys =
+    Object.keys(all).sort();
+
+  const result = {
+    version:
+      AG24_PROPERTIES_MIGRATION_V1.VERSION,
+    generatedAt:
+      new Date().toISOString(),
+    total:
+      keys.length,
+    delete: [],
+    keep: [],
+    review: []
+  };
+
+  keys.forEach(function(key) {
+    const classification =
+      AG24_PROPERTIES_classifyKeyV1_(key);
+
+    const item = {
+      key: key,
+      reason: classification.reason
+    };
+
+    if (classification.action === 'DELETE') {
+      result.delete.push(item);
+    } else if (classification.action === 'KEEP') {
+      result.keep.push(item);
+    } else {
+      result.review.push(item);
+    }
+  });
+
+  const fingerprintPayload =
+    JSON.stringify({
+      version: result.version,
+      deleteKeys: result.delete.map(function(item) {
+        return item.key;
+      }),
+      allKeys: keys
+    });
+
+  result.confirmationToken =
+    AG24_PROPERTIES_hashV1_(
+      fingerprintPayload
+    ).slice(0, 24);
+
+  return result;
+}
+
+function AG24_PROPERTIES_publicReportV1_(plan, mode) {
+  return {
+    success: true,
+    mode: mode,
+    version: plan.version,
+    generatedAt: plan.generatedAt,
+    total: plan.total,
+    deleteCount: plan.delete.length,
+    keepCount: plan.keep.length,
+    reviewCount: plan.review.length,
+    delete: plan.delete,
+    keep: plan.keep,
+    review: plan.review,
+    confirmationToken: plan.confirmationToken
+  };
+}
+
+/**
+ * SAFE ENTRY POINT.
+ *
+ * Run this first from the Apps Script editor.
+ * It NEVER deletes a property and NEVER prints property values.
+ */
+function AG24_PROPERTIES_DRY_RUN_V1() {
+  const properties =
+    PropertiesService.getScriptProperties();
+
+  const plan =
+    AG24_PROPERTIES_buildPlanV1_();
+
+  properties.setProperty(
+    AG24_PROPERTIES_MIGRATION_V1.PLAN_KEY,
+    JSON.stringify({
+      version: plan.version,
+      generatedAt: plan.generatedAt,
+      confirmationToken: plan.confirmationToken,
+      deleteKeys: plan.delete.map(function(item) {
+        return item.key;
+      })
+    })
+  );
+
+  const report =
+    AG24_PROPERTIES_publicReportV1_(
+      plan,
+      'DRY_RUN'
+    );
+
+  properties.setProperty(
+    AG24_PROPERTIES_MIGRATION_V1.LAST_REPORT_KEY,
+    JSON.stringify(report)
+  );
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
+}
+
+/**
+ * APPLY is intentionally impossible without a confirmation token
+ * generated by a prior DRY_RUN.
+ *
+ * Example:
+ * AG24_PROPERTIES_APPLY_V1('token-from-dry-run')
+ */
+function AG24_PROPERTIES_APPLY_V1(
+  confirmationToken
+) {
+  const lock =
+    LockService.getScriptLock();
+
+  lock.waitLock(30000);
+
+  try {
+    const properties =
+      PropertiesService.getScriptProperties();
+
+    const pendingRaw =
+      properties.getProperty(
+        AG24_PROPERTIES_MIGRATION_V1.PLAN_KEY
+      );
+
+    if (!pendingRaw) {
+      throw new Error(
+        'Aucun plan DRY_RUN disponible. Exécutez AG24_PROPERTIES_DRY_RUN_V1() avant APPLY.'
+      );
+    }
+
+    let pending;
+
+    try {
+      pending =
+        JSON.parse(
+          pendingRaw
+        );
+    } catch (error) {
+      throw new Error(
+        'Le plan DRY_RUN stocké est illisible. Relancez DRY_RUN.'
+      );
+    }
+
+    const token =
+      String(
+        confirmationToken || ''
+      ).trim();
+
+    if (
+      !token ||
+      token !==
+        String(
+          pending.confirmationToken || ''
+        )
+    ) {
+      throw new Error(
+        'Confirmation refusée : token DRY_RUN absent ou invalide.'
+      );
+    }
+
+    /*
+     * Rebuild immediately before mutation.
+     * If properties changed after DRY_RUN, the token changes and APPLY stops.
+     */
+    const currentPlan =
+      AG24_PROPERTIES_buildPlanV1_();
+
+    if (
+      currentPlan.confirmationToken !==
+      token
+    ) {
+      throw new Error(
+        'Les Script Properties ont changé depuis DRY_RUN. Aucun élément supprimé. Relancez DRY_RUN.'
+      );
+    }
+
+    const allBefore =
+      properties.getProperties();
+
+    const backupKey =
+      AG24_PROPERTIES_MIGRATION_V1.BACKUP_PREFIX +
+      new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-');
+
+    /*
+     * Full rollback snapshot is stored inside Script Properties.
+     * Values are never written to Logger.
+     */
+    properties.setProperty(
+      backupKey,
+      JSON.stringify({
+        version:
+          AG24_PROPERTIES_MIGRATION_V1.VERSION,
+        createdAt:
+          new Date().toISOString(),
+        properties:
+          allBefore
+      })
+    );
+
+    const deleted = [];
+
+    currentPlan.delete.forEach(function(item) {
+      /*
+       * Defense in depth: reclassify each key at deletion time.
+       */
+      const classification =
+        AG24_PROPERTIES_classifyKeyV1_(
+          item.key
+        );
+
+      if (
+        classification.action !==
+        'DELETE'
+      ) {
+        throw new Error(
+          'Suppression refusée pour la clé protégée/non whitelistée : ' +
+          item.key
+        );
+      }
+
+      properties.deleteProperty(
+        item.key
+      );
+
+      deleted.push(
+        item.key
+      );
+    });
+
+    const after =
+      properties.getProperties();
+
+    const stillPresent =
+      deleted.filter(function(key) {
+        return Object.prototype.hasOwnProperty.call(
+          after,
+          key
+        );
+      });
+
+    if (stillPresent.length) {
+      /*
+       * Rollback from in-memory pre-change snapshot.
+       */
+      properties.deleteAllProperties();
+      properties.setProperties(
+        allBefore,
+        false
+      );
+
+      throw new Error(
+        'Vérification de suppression échouée. Rollback automatique effectué : ' +
+        stillPresent.join(', ')
+      );
+    }
+
+    const report = {
+      success: true,
+      mode: 'APPLY',
+      version:
+        AG24_PROPERTIES_MIGRATION_V1.VERSION,
+      appliedAt:
+        new Date().toISOString(),
+      backupKey: backupKey,
+      deletedCount: deleted.length,
+      deleted: deleted,
+      remainingCount:
+        Object.keys(after).length
+    };
+
+    properties.setProperty(
+      AG24_PROPERTIES_MIGRATION_V1.LAST_REPORT_KEY,
+      JSON.stringify(report)
+    );
+
+    properties.deleteProperty(
+      AG24_PROPERTIES_MIGRATION_V1.PLAN_KEY
+    );
+
+    Logger.log(
+      JSON.stringify(
+        report,
+        null,
+        2
+      )
+    );
+
+    return report;
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Roll back the most recent or an explicitly named migration backup.
+ * Values are restored but never logged.
+ */
+function AG24_PROPERTIES_ROLLBACK_V1(
+  backupKey
+) {
+  const lock =
+    LockService.getScriptLock();
+
+  lock.waitLock(30000);
+
+  try {
+    const properties =
+      PropertiesService.getScriptProperties();
+
+    const all =
+      properties.getProperties();
+
+    const requested =
+      String(
+        backupKey || ''
+      ).trim();
+
+    const candidates =
+      Object.keys(all)
+        .filter(function(key) {
+          return key.indexOf(
+            AG24_PROPERTIES_MIGRATION_V1.BACKUP_PREFIX
+          ) === 0;
+        })
+        .sort()
+        .reverse();
+
+    const selected =
+      requested ||
+      (
+        candidates.length
+          ? candidates[0]
+          : ''
+      );
+
+    if (
+      !selected ||
+      candidates.indexOf(selected) === -1
+    ) {
+      throw new Error(
+        'Backup de migration introuvable.'
+      );
+    }
+
+    const payload =
+      JSON.parse(
+        properties.getProperty(
+          selected
+        )
+      );
+
+    if (
+      !payload ||
+      !payload.properties ||
+      typeof payload.properties !== 'object'
+    ) {
+      throw new Error(
+        'Backup de migration invalide.'
+      );
+    }
+
+    properties.deleteAllProperties();
+    properties.setProperties(
+      payload.properties,
+      false
+    );
+
+    const report = {
+      success: true,
+      mode: 'ROLLBACK',
+      restoredFrom: selected,
+      restoredCount:
+        Object.keys(
+          payload.properties
+        ).length,
+      restoredAt:
+        new Date().toISOString()
+    };
+
+    Logger.log(
+      JSON.stringify(
+        report,
+        null,
+        2
+      )
+    );
+
+    return report;
+
+  } finally {
+    lock.releaseLock();
+  }
+}
