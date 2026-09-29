@@ -4502,7 +4502,9 @@ initialiserBridgeAfriGreen24_();
         risks: { label: "Quel est le principal risque à anticiper ?", type: "textarea" }
       };
 
-      window.BP_IMPORT_FIELD_META = BP_IMPORT_FIELD_META;\n\n      function bpSansAccents_(value) {
+      window.BP_IMPORT_FIELD_META = BP_IMPORT_FIELD_META;
+
+      function bpSansAccents_(value) {
         var text = String(value || "").toLowerCase();
         try {
           return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
