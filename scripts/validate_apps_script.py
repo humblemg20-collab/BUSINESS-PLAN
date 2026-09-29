@@ -620,6 +620,26 @@ if import_backend.exists():
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
 
+import_frontend = APP / "ImportBusinessPlanV5.html"
+if not import_frontend.exists():
+    fail("ImportBusinessPlanV5.html is required")
+else:
+    import_frontend_text = import_frontend.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    for marker in [
+        "function bindReviewTransition()",
+        "button.removeAttribute('onclick')",
+        "button.addEventListener('click'",
+        "var openReview = window.ouvrirComplementsBusinessPlan",
+        "AG24_IMPORT_REVIEW_TRANSITION_FAILED",
+        "window.setTimeout(enhanceCompletionPage, 0)",
+    ]:
+        if marker not in import_frontend_text:
+            fail(f"Import review transition safety marker missing: {marker}")
+
+
 for message in warnings:
     print(f"WARNING: {message}")
 

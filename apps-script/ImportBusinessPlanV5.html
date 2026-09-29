@@ -1017,13 +1017,54 @@
       readAndSend(file);
     };
 
-    var originalOpen = window.ouvrirComplementsBusinessPlan;
-    if (typeof originalOpen === 'function') {
-      window.ouvrirComplementsBusinessPlan = function () {
-        originalOpen.apply(this, arguments);
-        window.setTimeout(enhanceCompletionPage, 0);
-      };
+    /*
+     * Index.html defines ouvrirComplementsBusinessPlan in a later inline
+     * script in some rendered/deployment orders. Capturing it only once here
+     * makes the enhancement race with script evaluation and can leave the
+     * review CTA bound to an unavailable/stale transition.
+     *
+     * Bind the CTA explicitly after the whole document is ready and resolve
+     * the canonical transition at click time. This keeps one deterministic
+     * path and gives the user a visible failure instead of a dead button.
+     */
+    function bindReviewTransition() {
+      var button = el('bpImportContinueButton');
+      if (!button || button.dataset.ag24ReviewBound === '1') return;
+
+      button.dataset.ag24ReviewBound = '1';
+      button.removeAttribute('onclick');
+
+      button.addEventListener('click', function () {
+        var openReview = window.ouvrirComplementsBusinessPlan;
+
+        if (typeof openReview !== 'function') {
+          setStatus(
+            'La vérification ne peut pas être ouverte. Rechargez la page puis relancez l’analyse.',
+            true,
+            false
+          );
+          return;
+        }
+
+        try {
+          openReview();
+          window.setTimeout(enhanceCompletionPage, 0);
+        } catch (error) {
+          setStatus(
+            'Impossible d’ouvrir la vérification. Rechargez la page puis réessayez.',
+            true,
+            false
+          );
+
+          if (window.console && typeof console.error === 'function') {
+            console.error('AG24_IMPORT_REVIEW_TRANSITION_FAILED', error);
+          }
+        }
+      });
     }
+
+    bindReviewTransition();
+    window.setTimeout(bindReviewTransition, 0);
 
     var originalBack = window.retourAccueilImportBusinessPlan;
     if (typeof originalBack === 'function') {
