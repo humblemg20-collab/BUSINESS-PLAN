@@ -29,7 +29,7 @@ const BPB_ACTIVATION_CONFIG =
       'ACCES_BANCABLE_ACTIF',
 
     PRIX_EUR:
-      5,
+      0,
 
     NOM_EXPEDITEUR:
       'AfriGreen24',
@@ -62,11 +62,11 @@ function preparerTransitionBusinessPlanBancable(
   AG24_SEC_assertPayloadSize_(
     reponsesStandard || {},
     AG24_SECURITY.STANDARD_MAX_PAYLOAD_BYTES,
-    'Transition Business Plan Bancable'
+    'Transition Business Plan complet'
   );
 
   AG24_SEC_assertRateLimit_(
-    'bancable-transition',
+    'business-plan-unified-transition',
     reponsesStandard && reponsesStandard.email
       ? reponsesStandard.email
       : dossierStandardId,
@@ -75,48 +75,35 @@ function preparerTransitionBusinessPlanBancable(
   );
 
   const source =
-
     reponsesStandard &&
-    typeof reponsesStandard ===
-    'object'
-
-      ?
-
-      reponsesStandard
-
-      :
-
-      {};
-
+    typeof reponsesStandard === 'object'
+      ? reponsesStandard
+      : {};
 
   const bridge =
     String(
       agBridge || ''
-    )
-    .trim();
-
+    ).trim();
 
   const id =
     BPB_ACT_normaliserOuCreerId_(
       dossierStandardId
     );
 
-
   /*
-   * Sauvegarde des réponses Standard
-   * qui seront réutilisées dans le Bancable.
+   * Le socle initial reste la source canonique.
+   * L'ancien moteur Bancable devient la couche d'approfondissement
+   * du Business Plan unique : aucun paiement n'est requis.
    */
-
   enregistrerReponsesStandardPourBancable(
     id,
     source
   );
 
-
-  let statutFinal =
-    BPB_ACTIVATION_CONFIG
-      .STATUT_ATTENTE;
-
+  const email =
+    BPB_ACT_normaliserEmail_(
+      source.email || ''
+    );
 
   BPB_avecVerrou_(
     function(){
@@ -127,172 +114,91 @@ function preparerTransitionBusinessPlanBancable(
             id,
             'META'
           )
-        )
-        ||
-        {};
-
-
-      const accesDejaActif =
-
-        meta.statut ===
-        BPB_ACTIVATION_CONFIG
-          .STATUT_ACTIF
-
-        &&
-
-        meta.accesBancable ===
-        'ACTIF';
-
-
-      statutFinal =
-
-        accesDejaActif
-
-          ?
-
-          BPB_ACTIVATION_CONFIG
-            .STATUT_ACTIF
-
-          :
-
-          BPB_ACTIVATION_CONFIG
-            .STATUT_ATTENTE;
-
-
-      /*
-       * IMPORTANT :
-       *
-       * Si le nouveau parcours apporte un bridge,
-       * on le conserve.
-       *
-       * Sinon on garde celui éventuellement déjà
-       * enregistré sur le dossier.
-       */
+        ) || {};
 
       const bridgeFinal =
-        bridge
-
-        ||
-
+        bridge ||
         String(
           meta.agBridge || ''
-        )
-        .trim();
-
+        ).trim();
 
       BPB_ecrireJsonChunked_(
-
         BPB_cle_(
           id,
           'META'
         ),
-
         Object.assign(
           {},
           meta,
           {
-
-            dossierId:
-              id,
-
-            dossierStandardId:
-              id,
-
-            source:
-              'BUSINESS_PLAN_STANDARD',
-
-            statut:
-              statutFinal,
-
-            prixAfficheEUR:
-              BPB_ACTIVATION_CONFIG
-                .PRIX_EUR,
-
+            dossierId: id,
+            dossierStandardId: id,
+            source: 'BUSINESS_PLAN_UNIFIED',
+            offre: 'UNIQUE_INCLUSE',
+            prixAfficheEUR: 0,
             emailClient:
+              email ||
               String(
-
-                source.email
-
-                ||
-
-                meta.emailClient
-
-                ||
-
-                ''
-
-              )
-              .trim()
-              .toLowerCase(),
-
+                meta.emailClient || ''
+              ).trim().toLowerCase(),
             nomProjet:
               String(
-
-                source.nomProjet
-
-                ||
-
-                source.projectName
-
-                ||
-
-                meta.nomProjet
-
-                ||
-
+                source.nomProjet ||
+                source.projectName ||
+                meta.nomProjet ||
                 ''
-
-              )
-              .trim(),
-
-            /*
-             * Bridge Documents AfriGreen24.
-             */
-
-            agBridge:
-              bridgeFinal,
-
+              ).trim(),
+            agBridge: bridgeFinal,
             modifieLe:
-              new Date()
-                .toISOString()
-
+              new Date().toISOString()
           }
         )
-
       );
-
     }
   );
 
+  const activation =
+    BPB_ACT_activerDossier_(
+      id,
+      email,
+      {
+        mode:
+          'BUSINESS_PLAN_UNIQUE_INCLUS',
+        paiementRequis:
+          false,
+        valideLe:
+          new Date().toISOString()
+      }
+    );
+
+  AG24_AUDIT_event_(
+    'BUSINESS_PLAN_UNIFIED_ACCESS_ISSUED',
+    {
+      dossierId:
+        id,
+      existingAccess:
+        activation.dejaActif === true
+    }
+  );
 
   return {
-
     succes:
       true,
-
     dossierId:
       id,
-
     statut:
-      statutFinal,
-
+      BPB_ACTIVATION_CONFIG
+        .STATUT_ACTIF,
+    accesBancable:
+      'ACTIF',
     agBridge:
       bridge,
-
+    lienBancable:
+      activation.lienBancable,
+    paiementRequis:
+      false,
     message:
-
-      statutFinal ===
-      BPB_ACTIVATION_CONFIG
-        .STATUT_ACTIF
-
-        ?
-
-        'L’accès Business Plan Bancable est déjà actif.'
-
-        :
-
-        'Dossier Standard enregistré en attente de vérification du paiement.'
-
+      'L’analyse approfondie et la préparation au financement sont incluses dans votre Business Plan AfriGreen24.'
   };
 
 }
@@ -934,7 +840,7 @@ function BPB_ACT_verifierAcces_(
   ){
 
     throw new Error(
-      "Accès non autorisé. Le paiement doit être confirmé avant l'ouverture du Business Plan Bancable."
+      "Accès non autorisé. Le lien personnel du Business Plan est invalide ou n’est plus actif."
     );
 
   }
@@ -1365,7 +1271,7 @@ function BPB_ACT_obtenirUrlWebAppPublique_(){
 
 
   throw new Error(
-    'URL publique /exec absente. Collez-la dans ConfigurationPaiementManuel.gs puis exécutez installerPaiementManuelBancable().'
+    'URL publique /exec absente. Configurez AFRIGREEN24_BPB_WEB_APP_EXEC_URL ou vérifiez le déploiement Apps Script actif.'
   );
 
 }
