@@ -496,6 +496,54 @@ else:
         fail("OpenAI smoke test must not log raw provider responses")
 
 
+# OpenAI narrative contract test
+narrative_test_path = APP / "OpenAINarrativeContractTest.js"
+if not narrative_test_path.exists():
+    fail("OpenAINarrativeContractTest.js is required")
+else:
+    narrative_test_text = narrative_test_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "function AG24_OPENAI_NARRATIVE_CONTRACT_TEST_V1()",
+        "syntheticData: true",
+        "AG24_OPENAI_assessNarrativeNeed_",
+        "preparerBusinessPlanStandardIA52(",
+        "AG24_OPENAI_NARRATIVE_KEYS.slice()",
+        "factsPreserved",
+        "UNEXPECTED_CACHE_HIT",
+        "FACT_SOURCE_MUTATED",
+        "MISSING_NARRATIVE_BLOCKS",
+        "EMPTY_NARRATIVE_BLOCKS",
+        "OPENAI_NARRATIVE_CONTRACT_TEST_PASSED",
+        "AFRIGREEN24_OPENAI_NARRATIVE_TEST_LAST_REPORT",
+    ]:
+        if marker not in narrative_test_text:
+            fail(f"OpenAI narrative contract marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in narrative_test_text:
+        fail(
+            "Narrative contract test must use the canonical OpenAI bridge, "
+            "not call the provider directly"
+        )
+
+    if narrative_test_text.count("preparerBusinessPlanStandardIA52(") != 1:
+        fail(
+            "Narrative contract test must invoke the production Standard AI "
+            "wrapper exactly once"
+        )
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", narrative_test_text):
+        fail("Possible hard-coded OpenAI API key in narrative contract test")
+
+    if "narrative[key]" in narrative_test_text and "Logger.log" in narrative_test_text:
+        # Narrative content is validated in memory; only the compact report may be logged.
+        if "JSON.stringify(\n      narrative" in narrative_test_text:
+            fail("Narrative contract test must not log generated narrative content")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
