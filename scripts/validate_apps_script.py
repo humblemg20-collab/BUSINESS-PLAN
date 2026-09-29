@@ -300,8 +300,25 @@ else:
         if marker not in migration_text:
             fail(f"Script Properties migration safety marker missing: {marker}")
 
-    if "properties.deleteAllProperties();" not in migration_text:
-        fail("Script Properties migration rollback restore contract is missing")
+    for safety_marker in [
+        "INTERNAL_PREFIX",
+        "canonicalKeys",
+        "AG24_PROPERTIES_compactReportV1_",
+        "deletedProperties",
+        "properties.setProperties(",
+        "Targeted rollback",
+    ]:
+        if safety_marker not in migration_text:
+            fail(
+                "Script Properties migration V1.0.1 safety marker missing: "
+                + safety_marker
+            )
+
+    destructive_clear = "deleteAll" + "Properties"
+    if destructive_clear in migration_text:
+        fail(
+            "Script Properties migration must never clear the whole property store"
+        )
 
     if re.search(
         r"DELETE_PREFIXES[\s\S]{0,500}AFRIGREEN24_BPB:",
