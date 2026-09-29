@@ -209,6 +209,21 @@ if code.exists():
         fail("Standard PDF capability issuance is missing")
 
 
+# Legacy modules must stay out of deployable source.
+for legacy_path in [
+    APP / "HumbleOSBridge.js",
+    APP / "HumbleOS_Bridge_Import_OPTIONNEL.js",
+    APP / "BusinessPlanBancablePaiement.js",
+    APP / "ConfigurationPaiementManuel.js",
+    APP / "PaiementManuel41.html",
+    APP / "PaiementAutomatique40.html",
+]:
+    if legacy_path.exists():
+        fail(
+            "Legacy AI/payment module must not return to deployable source: "
+            + legacy_path.name
+        )
+
 # Unified Business Plan product contract
 index_path = APP / "Index.html"
 if index_path.exists():
