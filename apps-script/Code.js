@@ -1788,7 +1788,7 @@ function ajouterConclusion(body, data) {
  * PACK 5.5 — COUCHE DOCUMENT PROFESSIONNELLE
  * ============================================================
  *
- * Les zones éditoriales utilisent exclusivement le narratif HumbleOS.
+ * Les zones éditoriales utilisent exclusivement le narratif OpenAI.
  * Les données factuelles restent utilisées dans les tableaux.
  */
 function obtenirNarratifCourtStandardIA55_(
@@ -1828,7 +1828,7 @@ function obtenirNarratifCourtStandardIA55_(
 
 
 /**
- * Valeur factuelle nettoyée par HumbleOS.
+ * Valeur factuelle préservée par le moteur OpenAI.
  * À utiliser pour tableaux/encadrés, jamais pour les grands paragraphes.
  */
 function obtenirDonneeStandardIA55_(
