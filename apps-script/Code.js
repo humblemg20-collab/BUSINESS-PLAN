@@ -105,7 +105,7 @@ function genererBusinessPlan_(data) {
     verifierDonneesGeneration_(data);
 
     /*
-     * Pack 5.2 — HumbleOS :
+     * Pack 6.0 — OpenAI :
      * normalisation des réponses puis génération du narratif professionnel.
      */
     var brandingClient =
