@@ -542,12 +542,11 @@ function TEST_STANDARD_AI_52_FALLBACK_LOCAL_() {
 
     narratif: {},
 
-    humbleOS: {
+    openAI: {
       success: false,
       fallbackUsed: true,
-      errors: [
+      error:
         "Simulation timeout"
-      ]
     }
   };
 
