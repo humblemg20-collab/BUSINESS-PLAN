@@ -359,6 +359,21 @@ else:
                 + required_legacy_key
             )
 
+    for finalizer_marker in [
+        "function AG24_PROPERTIES_FINALIZE_LEGACY_BACKUPS_V1()",
+        "currentPlan.delete.length !== 0",
+        "currentPlan.review.length !== 0",
+        "APPROVED_DELETE_SET",
+        "backupsPurged",
+        "remainingBackups: 0",
+        "properties.deleteProperty(",
+    ]:
+        if finalizer_marker not in migration_text:
+            fail(
+                "Script Properties legacy-backup finalizer marker missing: "
+                + finalizer_marker
+            )
+
     for entrypoint_marker in [
         "APPROVED_DELETE_SET",
         "function AG24_PROPERTIES_APPLY_APPROVED_V1()",
