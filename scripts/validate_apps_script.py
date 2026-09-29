@@ -548,6 +548,44 @@ else:
             fail("Narrative contract test must not log generated narrative content")
 
 
+# Full Business Plan isolated system test
+full_system_test_path = APP / "BusinessPlanFullSystemTest.js"
+if not full_system_test_path.exists():
+    fail("BusinessPlanFullSystemTest.js is required")
+else:
+    full_system_test_text = full_system_test_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1()",
+        "syntheticData: true",
+        "crmWritesAttempted: false",
+        "dashboardWritesAttempted: false",
+        "preparerBusinessPlanStandardIA52(",
+        "DocumentApp.create(",
+        "creerPdfDansMemeDossier(",
+        "AG24_DOC_issueCapability_(",
+        "telechargerPdfBusinessPlanStandard(",
+        "setTrashed(true)",
+        "cleanupSuccess",
+        "BUSINESS_PLAN_FULL_SYSTEM_TEST_PASSED",
+        "AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT",
+    ]:
+        if marker not in full_system_test_text:
+            fail(f"Full Business Plan system-test marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in full_system_test_text:
+        fail("Full Business Plan system test must use the canonical OpenAI bridge")
+
+    if full_system_test_text.count("preparerBusinessPlanStandardIA52(") != 1:
+        fail("Full Business Plan system test must invoke the Standard AI wrapper once")
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", full_system_test_text):
+        fail("Possible hard-coded OpenAI API key in full system test")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
