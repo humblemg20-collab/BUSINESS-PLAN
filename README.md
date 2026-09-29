@@ -60,6 +60,7 @@ OpenAI est l’unique fournisseur IA du chemin Business Plan en production.
 - aucun retry automatique.
 - fallback déterministe SmartWriter / BusinessWriter si OpenAI est indisponible.
 - l’IA ne remplace jamais les données factuelles fournies par l’utilisateur.
+- le déploiement production vérifie que la configuration OpenAI est présente et déclenche le rollback automatique si elle manque.
 
 ## Release
 
