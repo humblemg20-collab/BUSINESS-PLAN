@@ -252,6 +252,33 @@ if activation_path.exists():
         fail("Unified Business Plan transition must explicitly disable payment requirement")
 
 
+# OpenAI production release gate contract
+openai_bridge = APP / "OpenAIBridge.js"
+code_path = APP / "Code.js"
+deploy_workflow = ROOT / ".github" / "workflows" / "deploy-apps-script.yml"
+
+if openai_bridge.exists():
+    bridge_text = openai_bridge.read_text(encoding="utf-8", errors="replace")
+    if "function AG24_OPENAI_getHealthStatus_" not in bridge_text:
+        fail("OpenAI safe configuration health helper is missing")
+
+if code_path.exists():
+    code_text = code_path.read_text(encoding="utf-8", errors="replace")
+    if "openai-config" not in code_text:
+        fail("OpenAI configuration health route is missing from doGet")
+
+if deploy_workflow.exists():
+    deploy_text = deploy_workflow.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "?health=openai-config",
+        '"configured":true',
+        "OPENAI_CONFIG_HEALTH=PASS",
+        "Automatic rollback on failed production health",
+    ]:
+        if marker not in deploy_text:
+            fail(f"OpenAI production release gate marker missing: {marker}")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():

@@ -65,6 +65,37 @@ function AG24_OPENAI_getConfig_() {
   };
 }
 
+function AG24_OPENAI_getHealthStatus_() {
+  const properties =
+    PropertiesService.getScriptProperties();
+
+  const configured =
+    Boolean(
+      String(
+        properties.getProperty(
+          AG24_OPENAI_CONFIG.API_KEY_PROPERTY
+        ) || ''
+      ).trim()
+    );
+
+  const model =
+    String(
+      properties.getProperty(
+        AG24_OPENAI_CONFIG.MODEL_PROPERTY
+      ) ||
+      AG24_OPENAI_CONFIG.DEFAULT_MODEL
+    ).trim();
+
+  return {
+    success: true,
+    provider: 'OPENAI',
+    configured: configured,
+    model: model || AG24_OPENAI_CONFIG.DEFAULT_MODEL,
+    store: false
+  };
+}
+
+
 function AG24_OPENAI_sha256_(value) {
   const digest = Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256,
