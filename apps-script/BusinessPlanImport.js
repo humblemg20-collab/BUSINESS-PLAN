@@ -1,23 +1,23 @@
 /**
  * ============================================================
- * AFRIGREEN24 — BUSINESS PLAN IMPORT V4 HUMBLEOS — DRIVE API V3
+ * AFRIGREEN24 — BUSINESS PLAN IMPORT V4 OPENAI — DRIVE API V3
  * ============================================================
  *
  * Dépendances déjà présentes dans le projet :
- * - appelerHumbleOS_(endpoint, method, payload)
+ * - appelerOpenAI_(endpoint, method, payload)
  * - Drive API avancée activée en v3
  *
  * Pipeline :
  * PDF / WORD
  * -> conversion Google Docs / OCR
  * -> texte
- * -> HumbleOS /extract-business-plan
+ * -> OpenAI /extract-business-plan
  * -> contrôle local de la preuve
  * -> FOUND / TO_CONFIRM / MISSING
  * ============================================================
  */
 
-const BP_IMPORT_HOS_CONFIG = Object.freeze({
+const BP_IMPORT_AI_CONFIG = Object.freeze({
   VERSION: "5.0.0",
   SCHEMA_VERSION: "afrigreen24_bp_import_v5",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
@@ -122,7 +122,7 @@ function recevoirFichierBusinessPlan(payload) {
 
     if (
       originalTextLength <
-      BP_IMPORT_HOS_CONFIG.MIN_TEXT_CHARS
+      BP_IMPORT_AI_CONFIG.MIN_TEXT_CHARS
     ) {
       throw new Error(
         "Le document contient trop peu de texte exploitable. Vérifiez qu’il n’est pas vide, protégé ou illisible."
@@ -131,18 +131,18 @@ function recevoirFichierBusinessPlan(payload) {
 
     var texteTronque =
       originalTextLength >
-      BP_IMPORT_HOS_CONFIG.MAX_TEXT_CHARS;
+      BP_IMPORT_AI_CONFIG.MAX_TEXT_CHARS;
 
     if (texteTronque) {
       texte =
         texte.substring(
           0,
-          BP_IMPORT_HOS_CONFIG.MAX_TEXT_CHARS
+          BP_IMPORT_AI_CONFIG.MAX_TEXT_CHARS
         );
     }
 
     var analysisResult =
-      analyserBusinessPlanAvecHumbleOS_(
+      analyserBusinessPlanAvecOpenAI_(
         texte
       );
 
@@ -153,10 +153,10 @@ function recevoirFichierBusinessPlan(payload) {
 
     var importMeta = {
       version:
-        BP_IMPORT_HOS_CONFIG.VERSION,
+        BP_IMPORT_AI_CONFIG.VERSION,
 
       schemaVersion:
-        BP_IMPORT_HOS_CONFIG.SCHEMA_VERSION,
+        BP_IMPORT_AI_CONFIG.SCHEMA_VERSION,
 
       fingerprint:
         String(
@@ -235,7 +235,7 @@ function recevoirFichierBusinessPlan(payload) {
       preview:
         creerApercuTexteBusinessPlan_(
           texte,
-          BP_IMPORT_HOS_CONFIG.PREVIEW_CHARS
+          BP_IMPORT_AI_CONFIG.PREVIEW_CHARS
         ),
 
       importMeta:
@@ -272,50 +272,54 @@ function recevoirFichierBusinessPlan(payload) {
 
 
 /**
- * Appel HumbleOS.
+ * Extraction structurée via OpenAI.
  *
- * Le bridge appelerHumbleOS_ existe déjà dans votre projet.
+ * L'adapter AG24_OPENAI_extractBusinessPlan_ effectue un seul appel
+ * Responses API et renvoie uniquement les champs demandés.
  */
-function analyserBusinessPlanAvecHumbleOS_(
+function analyserBusinessPlanAvecOpenAI_(
   texteSource
 ) {
 
   if (
-    typeof appelerHumbleOS_ !==
+    typeof AG24_OPENAI_extractBusinessPlan_ !==
     "function"
   ) {
     throw new Error(
-      "Le bridge HumbleOS n’est pas disponible dans ce projet Apps Script."
+      "Le bridge OpenAI n’est pas disponible dans ce projet Apps Script."
     );
   }
 
   var result =
-    appelerHumbleOS_(
-      "/extract-business-plan",
-      "post",
-      {
-        documentType:
-          "BUSINESS_PLAN_IMPORT",
-
-        sourceText:
-          texteSource,
-
-        requiredFields:
-          BP_IMPORT_FIELDS.slice()
-      }
+    AG24_OPENAI_extractBusinessPlan_(
+      texteSource,
+      BP_IMPORT_FIELDS.slice()
     );
 
   if (
+    !result ||
     !result.content ||
     typeof result.content !== "object"
   ) {
     throw new Error(
-      "HumbleOS n’a pas retourné une extraction Business Plan exploitable."
+      "OpenAI n’a pas retourné une extraction Business Plan exploitable."
     );
   }
 
-  return normaliserResultatHumbleOSBusinessPlan_(
-    result.content,
+  var content =
+    Object.assign(
+      {},
+      result.content,
+      {
+        model:
+          String(
+            result.model || ""
+          )
+      }
+    );
+
+  return normaliserResultatOpenAIBusinessPlan_(
+    content,
     texteSource
   );
 }
@@ -323,9 +327,9 @@ function analyserBusinessPlanAvecHumbleOS_(
 
 /**
  * Contrôle local.
- * HumbleOS analyse, Apps Script décide du statut final.
+ * OpenAI analyse, Apps Script décide du statut final.
  */
-function normaliserResultatHumbleOSBusinessPlan_(
+function normaliserResultatOpenAIBusinessPlan_(
   content,
   texteSource
 ) {
@@ -369,7 +373,7 @@ function normaliserResultatHumbleOSBusinessPlan_(
 
   return {
     schemaVersion:
-      BP_IMPORT_HOS_CONFIG.SCHEMA_VERSION,
+      BP_IMPORT_AI_CONFIG.SCHEMA_VERSION,
 
     model:
       String(
@@ -444,7 +448,7 @@ function construireChampBusinessPlanVerifie_(
 
   /*
    * FOUND uniquement si :
-   * - HumbleOS propose une valeur ;
+   * - OpenAI propose une valeur ;
    * - l'extrait preuve existe réellement dans le document ;
    * - confiance >= 0.82.
    *
@@ -453,7 +457,7 @@ function construireChampBusinessPlanVerifie_(
   var status =
     evidenceVerified &&
     confidence >=
-      BP_IMPORT_HOS_CONFIG.FOUND_CONFIDENCE
+      BP_IMPORT_AI_CONFIG.FOUND_CONFIDENCE
       ? BP_IMPORT_STATUS.FOUND
       : BP_IMPORT_STATUS.TO_CONFIRM;
 
@@ -663,7 +667,7 @@ function evaluerQualiteImportBusinessPlan_(
 
 
 /**
- * Vérifie que l'extrait retourné par HumbleOS
+ * Vérifie que l'extrait retourné par OpenAI
  * existe vraiment dans le texte source.
  */
 function verifierPreuveBusinessPlan_(
@@ -736,7 +740,7 @@ function normaliserTexteVerificationBP_(
 
 /**
  * Normalise seulement les valeurs de listes attendues par le formulaire.
- * La preuve HumbleOS reste inchangée.
+ * La preuve OpenAI reste inchangée.
  */
 function normaliserValeurCanoniqueImportBP_(field, value) {
   var texte = nettoyerValeurImportBP_(value);
@@ -828,7 +832,7 @@ function validerEtConstruireBlobBusinessPlan_(
     );
 
   if (
-    BP_IMPORT_HOS_CONFIG
+    BP_IMPORT_AI_CONFIG
       .ALLOWED_EXTENSIONS
       .indexOf(extension) === -1
   ) {
@@ -845,7 +849,7 @@ function validerEtConstruireBlobBusinessPlan_(
   }
 
   if (
-    BP_IMPORT_HOS_CONFIG
+    BP_IMPORT_AI_CONFIG
       .ALLOWED_MIME_TYPES
       .indexOf(mimeType) === -1
   ) {
@@ -879,7 +883,7 @@ function validerEtConstruireBlobBusinessPlan_(
 
   if (
     size >
-    BP_IMPORT_HOS_CONFIG.MAX_FILE_BYTES
+    BP_IMPORT_AI_CONFIG.MAX_FILE_BYTES
   ) {
     throw new Error(
       "Le fichier dépasse la limite de 15 Mo."
@@ -1322,9 +1326,9 @@ function mimeDepuisExtensionBusinessPlan_(
 
 
 /**
- * Test direct du nouvel endpoint HumbleOS.
+ * Test direct du nouvel endpoint OpenAI.
  */
-function testerExtractionBusinessPlanHumbleOS_() {
+function testerExtractionBusinessPlanOpenAI_() {
 
   var texteTest = [
     "BUSINESS PLAN",
@@ -1341,7 +1345,7 @@ function testerExtractionBusinessPlanHumbleOS_() {
   ].join("\n");
 
   var resultat =
-    analyserBusinessPlanAvecHumbleOS_(
+    analyserBusinessPlanAvecOpenAI_(
       texteTest
     );
 

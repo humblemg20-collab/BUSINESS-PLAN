@@ -31,22 +31,35 @@ Le Web App reste public pour permettre l’accès utilisateur, mais les opérati
 
 - rate limiting ;
 - limites de payload ;
-- token obligatoire pour toutes les RPC Bancable sensibles ;
+- token obligatoire pour toutes les RPC d’analyse approfondie sensibles ;
 - fonctions admin/test privées via suffixe `_` ;
-- aucun secret HumbleOS codé dans Git ;
+- aucun secret OpenAI codé dans Git ;
 - PDF conservés privés dans Drive et délivrés via RPC contrôlée ;
-- brouillons locaux Bancable expirants ;
+- brouillons locaux d’analyse approfondie expirants ;
 - écriture CRM sérialisée et protection contre les formules Sheets.
 
-## Business Plan Bancable
+## Business Plan unique
 
-Le calcul financier reste déterministe :
+AfriGreen24 ne maintient plus une version Standard gratuite et une version Bancable payante. Le parcours produit est unique :
 
-`données → contrôles → modèle financier → audit → document`
+`données → contrôles → approfondissement conditionnel → modèle financier → audit → document → préparation au financement`
 
-Le moteur IA intervient uniquement pour l’extraction et la rédaction qualitative.
+Les anciens modules `BusinessPlanBancable*` sont conservés comme briques techniques de l’analyse approfondie, mais ils ne constituent plus une offre payante séparée.
 
-Le moteur de dette est partagé entre l’audit et la génération documentaire, et les seuils bancaires sont configurables via `AFRIGREEN24_BANKING_RULES_JSON`.
+Le calcul financier reste déterministe. Le moteur de dette est partagé entre l’audit et la génération documentaire, et les seuils bancaires sont configurables via `AFRIGREEN24_BANKING_RULES_JSON`.
+
+### IA OpenAI
+
+OpenAI est l’unique fournisseur IA du chemin Business Plan en production.
+
+- `OPENAI_API_KEY` — clé API stockée uniquement dans Apps Script Script Properties.
+- `OPENAI_MODEL` — modèle configurable ; défaut : `gpt-5.6-luna`.
+- Responses API + Structured Outputs.
+- `store:false`.
+- maximum un appel OpenAI par opération de génération narrative.
+- aucun retry automatique.
+- fallback déterministe SmartWriter / BusinessWriter si OpenAI est indisponible.
+- l’IA ne remplace jamais les données factuelles fournies par l’utilisateur.
 
 ## Release
 
@@ -72,7 +85,7 @@ Le déploiement nécessite les secrets GitHub décrits dans `docs/SECURITY_RUNBO
 
 Le parcours d’import de documents est traité comme un workflow complet :
 
-`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → HumbleOS → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
+`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → OpenAI Structured Outputs → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
 
 Le rendu est isolé dans `apps-script/ImportBusinessPlanV5.html` afin de ne pas alourdir davantage `Index.html`. Le moteur ajoute le glisser-déposer, une progression visible, un résumé du fichier, la méthode d’extraction, la qualité de lecture, un aperçu du texte extrait et une revue des informations déjà validées.
 

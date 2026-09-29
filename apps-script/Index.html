@@ -1346,7 +1346,7 @@
 
 
 
-    /* ===== ANALYSE IMPORT HUMBLEOS ===== */
+    /* ===== ANALYSE IMPORT OPENAI ===== */
 
     .bp-import-analysis {
       margin: 16px 0 18px;
@@ -3239,16 +3239,17 @@
         <div class="agp-bancable-card">
 
           <div class="agp-bancable-header">
-            <span class="agp-bancable-kicker">Préparez votre demande de financement</span>
+            <span class="agp-bancable-kicker">Analyse approfondie incluse</span>
 
             <h2 id="agpBancableTitle">
-              Passez au Business Plan Bancable
+              Renforcez maintenant votre Business Plan
             </h2>
 
             <p>
-              Votre Business Plan Standard présente votre projet de manière structurée.
-              Le Business Plan Bancable renforce votre dossier pour une présentation
-              auprès d’une banque, d’un investisseur ou d’un organisme de financement.
+              Vous restez dans le même dossier AfriGreen24. Les informations déjà
+              fournies sont reprises automatiquement et le moteur vous demande
+              uniquement les données complémentaires nécessaires pour vérifier
+              la cohérence financière, les risques et la préparation au financement.
             </p>
           </div>
 
@@ -3256,31 +3257,15 @@
             <table class="agp-comparison-table">
               <thead>
                 <tr>
-                  <th scope="col">Business Plan Standard</th>
-                  <th scope="col">Business Plan Bancable</th>
+                  <th scope="col">Analyse incluse dans votre Business Plan AfriGreen24</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Présentation complète du projet</td>
-                  <td>Audit de préparation bancaire</td>
-                </tr>
-                <tr>
-                  <td>Business Model</td>
-                  <td>Analyse de cohérence financière</td>
-                </tr>
-                <tr>
-                  <td>Étude de marché</td>
-                  <td>Analyse de la capacité de remboursement</td>
-                </tr>
-                <tr>
-                  <td>Prévisions financières</td>
-                  <td>Analyse des risques et scénarios</td>
-                </tr>
-                <tr>
-                  <td>PDF et Google Docs</td>
-                  <td>Rapport d’analyse et Business Plan final pour le financeur</td>
-                </tr>
+                <tr><td>Audit de cohérence du dossier et des hypothèses</td></tr>
+                <tr><td>Analyse financière et capacité de remboursement lorsque pertinente</td></tr>
+                <tr><td>Scénarios, risques et points de vigilance</td></tr>
+                <tr><td>Funding Readiness et informations manquantes</td></tr>
+                <tr><td>Business Plan final renforcé pour le financeur</td></tr>
               </tbody>
             </table>
           </div>
@@ -3288,15 +3273,14 @@
           <div class="agp-bancable-bottom">
             <div>
               <div class="agp-bancable-price">
-                <strong>5 €</strong>
-                <span>paiement unique</span>
+                <strong>Inclus</strong>
+                <span>aucun paiement supplémentaire</span>
               </div>
 
               <p class="agp-bancable-reassurance">
                 <strong>Vous ne recommencez pas votre dossier.</strong>
-                Les informations déjà renseignées seront reprises et seules les
-                informations complémentaires nécessaires à l’analyse bancaire
-                vous seront demandées.
+                Le moteur conserve vos données existantes et ne vous demande
+                que les informations nécessaires à l’étape suivante.
               </p>
             </div>
 
@@ -3310,19 +3294,12 @@
                 <svg aria-hidden="true">
                   <use href="#icon-arrow-right"></use>
                 </svg>
-                <span>Payer et continuer</span>
+                <span>Continuer l’analyse complète</span>
               </button>
 
               <div class="agp-bancable-email">
-                Après le paiement, saisissez votre numéro de commande Selar. L’accès sera activé après vérification manuelle.
+                Accès personnel sécurisé — sans paiement.
               </div>
-
-              <div
-                id="bancablePaymentStatus"
-                class="agp-payment-status"
-                role="status"
-                aria-live="polite"
-              ></div>
             </div>
           </div>
 
@@ -3347,7 +3324,6 @@
 
   <?!= include('Javascript'); ?>
   <?!= include('NavigationSauvegarde30'); ?>
-  <?!= include('PaiementManuel41'); ?>
 
 
   <script>
@@ -3506,13 +3482,6 @@
     })();
   </script>
 
-
-  <script>
-    function obtenirModulePaiementBancable_() {
-      var nomModule = ["Afri", "Green24", "Payment41"].join("");
-      return window[nomModule] || null;
-    }
-  </script>
 
   <script>
     (function() {
@@ -3738,18 +3707,15 @@ initialiserBridgeAfriGreen24_();
         preparerLienContactBancable();
 
         enregistrerTransitionStandardSiNecessaire()
-          .then(function() {
-            var modulePaiement =
-              obtenirModulePaiementBancable_();
-
-            if (modulePaiement) {
-              modulePaiement.prepare();
-              modulePaiement.restore();
-            }
+          .then(function(resultat) {
+            window.businessPlanAdvancedLink =
+              resultat && resultat.lienBancable
+                ? String(resultat.lienBancable)
+                : "";
           })
           .catch(function(erreur) {
             console.warn(
-              "Préparation du paiement manuel Bancable différée :",
+              "Préparation de l’analyse approfondie différée :",
               erreur && erreur.message ? erreur.message : erreur
             );
           });
@@ -3789,17 +3755,47 @@ initialiserBridgeAfriGreen24_();
 
       function preparerLienContactBancable() {
         var bouton = document.getElementById("bancableContactLink");
-        if (bouton) {
-          bouton.disabled = false;
-          bouton.setAttribute("aria-busy", "false");
+
+        if (!bouton) {
+          return;
         }
 
-        var modulePaiement =
-          obtenirModulePaiementBancable_();
+        bouton.disabled = false;
+        bouton.setAttribute("aria-busy", "false");
 
-        if (modulePaiement) {
-          modulePaiement.prepare();
-        }
+        bouton.onclick = function() {
+          bouton.disabled = true;
+          bouton.setAttribute("aria-busy", "true");
+
+          enregistrerTransitionStandardSiNecessaire()
+            .then(function(resultat) {
+              var lien =
+                resultat && resultat.lienBancable
+                  ? String(resultat.lienBancable)
+                  : String(window.businessPlanAdvancedLink || "");
+
+              if (!lien) {
+                throw new Error(
+                  "Le lien personnel de poursuite du Business Plan est indisponible."
+                );
+              }
+
+              window.businessPlanAdvancedLink = lien;
+              window.location.assign(lien);
+            })
+            .catch(function(erreur) {
+              bouton.disabled = false;
+              bouton.setAttribute("aria-busy", "false");
+
+              if (typeof afficherEchecGeneration === "function") {
+                afficherEchecGeneration(
+                  erreur && erreur.message
+                    ? erreur.message
+                    : "Impossible d’ouvrir l’analyse approfondie."
+                );
+              }
+            });
+        };
       }
 
       window.telechargerBusinessPlanPremium = function(silencieux) {
@@ -4343,7 +4339,7 @@ initialiserBridgeAfriGreen24_();
                         }
 
                         definirStatutImport_(
-                          "Analyse HumbleOS terminée. Les informations trouvées, à confirmer et manquantes ont été identifiées.",
+                          "Analyse OpenAI terminée. Les informations trouvées, à confirmer et manquantes ont été identifiées.",
                           false
                         );
 
@@ -4371,7 +4367,7 @@ initialiserBridgeAfriGreen24_();
                       } else {
 
                         definirStatutImport_(
-                          "Le document a été lu, mais HumbleOS n’a pas retourné l’analyse structurée attendue.",
+                          "Le document a été lu, mais OpenAI n’a pas retourné l’analyse structurée attendue.",
                           true
                         );
 
@@ -4379,7 +4375,7 @@ initialiserBridgeAfriGreen24_();
 
 
                       console.log(
-                        "IMPORT BUSINESS PLAN HUMBLEOS",
+                        "IMPORT BUSINESS PLAN OPENAI",
                         reponse
                       );
 
@@ -4835,7 +4831,7 @@ function bpValeurSelectValide_(field, value) {
 
       /*
        * IMPORTANT :
-       * Un select peut être déclaré FOUND par HumbleOS,
+       * Un select peut être déclaré FOUND par OpenAI,
        * mais rester incompatible avec les options techniques
        * du formulaire.
        *

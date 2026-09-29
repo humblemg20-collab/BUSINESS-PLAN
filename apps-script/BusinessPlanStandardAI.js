@@ -1,28 +1,24 @@
 /**
  * ============================================================
- * BUSINESS PLAN STANDARD AI ENGINE 5.2 — DATA SAFE + FAIL SAFE
+ * AFRIGREEN24 BUSINESS PLAN AI ENGINE 6.0 — OPENAI + FAIL SAFE
  * ============================================================
  *
- * PRINCIPES VERROUILLÉS
- *
- * 1. Les réponses du client restent la source de vérité factuelle.
- * 2. HumbleOS ne fait que reformuler/rédiger le narratif.
- * 3. Les données renvoyées par HumbleOS ne remplacent jamais
- *    les réponses originales.
- * 4. Une panne ou un timeout HumbleOS ne doit JAMAIS empêcher
- *    la génération du Google Docs et du PDF.
- * 5. Aucun retry automatique.
- * 6. Si la partie 1 échoue, la partie 2 n'est pas lancée :
- *    Astrid utilise immédiatement ses textes de fallback.
+ * Production policy:
+ * 1. User answers remain the factual source of truth.
+ * 2. Deterministic code handles rules, validation and calculations.
+ * 3. OpenAI is called only when the narrative quality detector says it adds value.
+ * 4. At most ONE OpenAI request is made for a complete Business Plan narrative.
+ * 5. OpenAI never replaces the original factual data.
+ * 6. Any OpenAI failure immediately falls back to local SmartWriter / BusinessWriter.
+ * 7. The Google Docs / PDF generation must remain available even when AI is unavailable.
  */
 
 var AG24_STANDARD_AI_52_CACHE = null;
 
 
 /**
- * ============================================================
- * FONCTION PRINCIPALE
- * ============================================================
+ * Prepares the optional narrative enrichment used by the document composer.
+ * Function name is preserved for compatibility with Code.js during migration.
  */
 function preparerBusinessPlanStandardIA52(data) {
   data = data || {};
@@ -39,82 +35,88 @@ function preparerBusinessPlanStandardIA52(data) {
     "N'attribue aucune qualité non démontrée au projet ou à l'équipe."
   ].join(" ");
 
-  var erreursHumbleOS = [];
-  var partie1 = {};
-  var partie2 = {};
+  var narratifFinal = {};
+  var openAIResult = {};
+  var openAIError = "";
+  var skipped = false;
+  var skipReason = "";
+  var qualityScore = null;
 
-  /*
-   * ------------------------------------------------------------
-   * PARTIE 1
-   * ------------------------------------------------------------
-   *
-   * Une seule tentative.
-   * Si timeout/erreur : on ne bloque pas le document et on ne lance
-   * pas la partie 2 afin d'éviter un second timeout inutile.
-   */
-  var resultatPartie1 =
-    executerPartieStandardHumbleOSSafe_(
-      donneesOriginales,
-      1,
-      instructions
-    );
-
-  if (resultatPartie1.success === true) {
-    partie1 =
-      resultatPartie1.resultat || {};
-  } else {
-    erreursHumbleOS.push(
-      resultatPartie1.error || "Erreur HumbleOS partie 1."
-    );
-  }
-
-  /*
-   * ------------------------------------------------------------
-   * PARTIE 2
-   * ------------------------------------------------------------
-   *
-   * Elle n'est lancée que si la partie 1 a réussi.
-   * Toujours à partir des données originales.
-   */
-  if (resultatPartie1.success === true) {
-    var resultatPartie2 =
-      executerPartieStandardHumbleOSSafe_(
-        donneesOriginales,
-        2,
-        instructions
-      );
-
-    if (resultatPartie2.success === true) {
-      partie2 =
-        resultatPartie2.resultat || {};
-    } else {
-      erreursHumbleOS.push(
-        resultatPartie2.error || "Erreur HumbleOS partie 2."
+  try {
+    if (
+      typeof AG24_OPENAI_generateStandardNarrative_ !==
+      "function"
+    ) {
+      throw new Error(
+        "OpenAIBridge.js n'est pas disponible dans le projet Apps Script."
       );
     }
-  } else {
-    console.warn(
-      "Business Plan Standard — partie 2 HumbleOS ignorée après échec de la partie 1."
-    );
-  }
 
-  /*
-   * Fusion uniquement des narratifs réellement disponibles.
-   * Si aucun narratif n'est disponible, le générateur utilisera
-   * automatiquement les fallback locaux via
-   * obtenirNarratifStandardIA52_().
-   */
-  var narratifFinal =
-    Object.assign(
-      {},
-      partie1.narratif || {},
-      partie2.narratif || {}
+    openAIResult =
+      AG24_OPENAI_generateStandardNarrative_(
+        clonerDonneesStandardIA52_(
+          donneesOriginales
+        ),
+        instructions
+      ) || {};
+
+    skipped =
+      openAIResult.skipped === true;
+
+    skipReason =
+      String(
+        openAIResult.reason || ""
+      );
+
+    qualityScore =
+      openAIResult.qualityScore !== undefined
+        ? Number(
+            openAIResult.qualityScore
+          )
+        : null;
+
+    narratifFinal =
+      openAIResult.narratif &&
+      typeof openAIResult.narratif ===
+      "object"
+        ? openAIResult.narratif
+        : {};
+
+  } catch (erreur) {
+    openAIError =
+      erreur && erreur.message
+        ? erreur.message
+        : String(erreur);
+
+    console.warn(
+      "Business Plan — OpenAI indisponible. " +
+      "Fallback déterministe conservé. " +
+      openAIError
     );
+
+    if (
+      typeof AG24_AUDIT_event_ ===
+      "function"
+    ) {
+      AG24_AUDIT_event_(
+        "OPENAI_NARRATIVE_FALLBACK_USED",
+        {
+          reason:
+            String(
+              openAIError || ""
+            ).slice(
+              0,
+              500
+            )
+        }
+      );
+    }
+  }
 
   AG24_STANDARD_AI_52_CACHE = {
     /*
      * SOURCE DE VÉRITÉ :
-     * données originales uniquement.
+     * toujours les données originales.
      */
     donnees:
       clonerDonneesStandardIA52_(
@@ -128,38 +130,56 @@ function preparerBusinessPlanStandardIA52(data) {
       new Date().toISOString(),
 
     model:
-      partie2.model ||
-      partie1.model ||
-      "",
+      String(
+        openAIResult.model || ""
+      ),
 
     durationSeconds:
       Number(
-        partie1.durationSeconds || 0
-      ) +
-      Number(
-        partie2.durationSeconds || 0
+        openAIResult.durationSeconds || 0
       ),
 
-    asyncJobs: [
-      partie1.jobId || "",
-      partie2.jobId || ""
-    ].filter(function(jobId) {
-      return !!jobId;
-    }),
+    openAI: {
+      called:
+        !skipped &&
+        !openAIError,
 
-    humbleOS: {
+      skipped:
+        skipped,
+
+      skipReason:
+        skipReason,
+
+      qualityScore:
+        qualityScore,
+
+      cacheHit:
+        openAIResult.cacheHit === true,
+
       success:
-        erreursHumbleOS.length === 0,
-
-      partial:
-        erreursHumbleOS.length > 0 &&
-        Object.keys(narratifFinal).length > 0,
+        !openAIError &&
+        (
+          skipped ||
+          Object.keys(
+            narratifFinal
+          ).length > 0
+        ),
 
       fallbackUsed:
-        erreursHumbleOS.length > 0,
+        Boolean(
+          openAIError
+        ),
 
-      errors:
-        erreursHumbleOS
+      error:
+        openAIError,
+
+      responseId:
+        String(
+          openAIResult.responseId || ""
+        ),
+
+      usage:
+        openAIResult.usage || {}
     }
   };
 
@@ -171,22 +191,54 @@ function preparerBusinessPlanStandardIA52(data) {
   console.log(
     JSON.stringify({
       event:
-        "standard_ai_humbleos_summary",
+        "business_plan_openai_summary",
+
+      ai_called:
+        AG24_STANDARD_AI_52_CACHE.openAI.called,
+
+      ai_skipped:
+        AG24_STANDARD_AI_52_CACHE.openAI.skipped,
+
+      skip_reason:
+        AG24_STANDARD_AI_52_CACHE.openAI.skipReason,
+
+      quality_score:
+        AG24_STANDARD_AI_52_CACHE.openAI.qualityScore,
 
       success:
-        AG24_STANDARD_AI_52_CACHE.humbleOS.success,
-
-      partial:
-        AG24_STANDARD_AI_52_CACHE.humbleOS.partial,
+        AG24_STANDARD_AI_52_CACHE.openAI.success,
 
       fallback_used:
-        AG24_STANDARD_AI_52_CACHE.humbleOS.fallbackUsed,
+        AG24_STANDARD_AI_52_CACHE.openAI.fallbackUsed,
+
+      cache_hit:
+        AG24_STANDARD_AI_52_CACHE.openAI.cacheHit,
+
+      model:
+        AG24_STANDARD_AI_52_CACHE.model,
 
       narrative_blocks:
-        Object.keys(narratifFinal).length,
+        Object.keys(
+          narratifFinal
+        ).length,
 
-      errors:
-        erreursHumbleOS
+      input_tokens:
+        Number(
+          (
+            AG24_STANDARD_AI_52_CACHE
+              .openAI
+              .usage || {}
+          ).input_tokens || 0
+        ),
+
+      output_tokens:
+        Number(
+          (
+            AG24_STANDARD_AI_52_CACHE
+              .openAI
+              .usage || {}
+          ).output_tokens || 0
+        )
     })
   );
 
@@ -195,67 +247,8 @@ function preparerBusinessPlanStandardIA52(data) {
 
 
 /**
- * ============================================================
- * APPEL HUMBLEOS SÉCURISÉ
- * ============================================================
- *
- * IMPORTANT :
- * - cette fonction ne fait aucun retry ;
- * - elle capture toute erreur/timeout du helper existant ;
- * - elle retourne toujours un objet exploitable par Astrid.
- */
-function executerPartieStandardHumbleOSSafe_(
-  donnees,
-  partie,
-  instructions
-) {
-  try {
-    var resultat =
-      genererBusinessPlanStandardPartieAsyncAvecHumbleOS_(
-        clonerDonneesStandardIA52_(donnees),
-        partie,
-        instructions
-      );
-
-    return {
-      success: true,
-      resultat:
-        resultat || {}
-    };
-
-  } catch (erreur) {
-    var message =
-      erreur && erreur.message
-        ? erreur.message
-        : String(erreur);
-
-    console.warn(
-      "Business Plan Standard — HumbleOS partie " +
-      partie +
-      " indisponible. Fallback Astrid conservé. " +
-      message
-    );
-
-    return {
-      success: false,
-      resultat: {},
-      error:
-        "PARTIE_" +
-        partie +
-        " : " +
-        message
-    };
-  }
-}
-
-
-/**
- * ============================================================
- * NARRATIF
- * ============================================================
- *
- * Si HumbleOS n'a pas produit le bloc demandé,
- * on garde le texte fallback construit par Astrid.
+ * Returns the OpenAI narrative block when available,
+ * otherwise preserves the deterministic local fallback.
  */
 function obtenirNarratifStandardIA52_(
   cle,
@@ -421,7 +414,7 @@ function journaliserPreservationDonneesStandardIA52_(
  * MICRO-TEST LOCAL — PRÉSERVATION DES DONNÉES
  * ============================================================
  *
- * Aucun appel HumbleOS.
+ * Aucun appel OpenAI.
  */
 function TEST_STANDARD_AI_52_PRESERVATION_LOCALE_() {
   var source = {
@@ -536,7 +529,7 @@ function TEST_STANDARD_AI_52_PRESERVATION_LOCALE_() {
  * MICRO-TEST LOCAL — FAIL SAFE
  * ============================================================
  *
- * Ce test ne contacte PAS HumbleOS.
+ * Ce test ne contacte PAS OpenAI.
  * Il vérifie seulement que le fallback narratif reste disponible
  * lorsqu'aucun narratif IA n'existe.
  */
@@ -549,12 +542,11 @@ function TEST_STANDARD_AI_52_FALLBACK_LOCAL_() {
 
     narratif: {},
 
-    humbleOS: {
+    openAI: {
       success: false,
       fallbackUsed: true,
-      errors: [
+      error:
         "Simulation timeout"
-      ]
     }
   };
 
