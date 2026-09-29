@@ -620,6 +620,14 @@ if import_backend.exists():
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
 
+# Index runtime scripts must not contain escaped newline tokens between JS statements.
+# This exact parser defect previously prevented the import completion controller from
+# being declared, leaving the review CTA without its canonical transition.
+if index_path.exists():
+    if "BP_IMPORT_FIELD_META = BP_IMPORT_FIELD_META;\\\\n" in index_text:
+        fail("Index.html contains escaped newline tokens in the import runtime script")
+
+
 import_frontend = APP / "ImportBusinessPlanV5.html"
 if not import_frontend.exists():
     fail("ImportBusinessPlanV5.html is required")
