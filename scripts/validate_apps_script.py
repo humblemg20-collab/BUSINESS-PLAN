@@ -682,6 +682,12 @@ if code.exists():
 
     if "AG24_BP_V2_renderDocument_(" not in code_text:
         fail("Standard Business Plan production path must use Design System V2")
+    if "AG24_BP_VISUAL_assertPdf_(" not in code_text:
+        fail("Standard generation must enforce PDF Visual Quality Gate V1")
+    if "STANDARD_PDF_VISUAL_GATE_PASSED" not in code_text:
+        fail("Visual quality success audit is missing")
+    if "STANDARD_PDF_VISUAL_GATE_FAILED" not in code_text:
+        fail("Visual quality failure audit is missing")
 
     for legacy_call in [
         "ajouterPageDeCouverture(body, data);",
@@ -720,6 +726,11 @@ else:
         "whiteLabel",
         "pageModelCount",
         "executiveMasterId",
+        "visualGateVersion",
+        "visualPreflightValid",
+        "physicalPdfPages",
+        "AG24_BP_VISUAL_assertPdf_(",
+        "AG24_BP_VISUAL_GATE_V1.EXPECTED_PAGE_COUNT",
         "AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT",
         "AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID",
         "creerPdfDansMemeDossier(",
