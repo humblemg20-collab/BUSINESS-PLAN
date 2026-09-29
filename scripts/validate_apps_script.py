@@ -614,7 +614,7 @@ else:
         "AG24_BP_V2_addMasterSectionPage_",
         "Risques & points de vigilance",
         "Trajectoire d’exécution",
-        '"pageModelCount":',
+        "pageModelCount:",
     ]:
         if marker not in design_system_text:
             fail(f"Business Plan Design System V2 marker missing: {marker}")
