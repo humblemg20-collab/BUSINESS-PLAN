@@ -31,22 +31,35 @@ Le Web App reste public pour permettre l’accès utilisateur, mais les opérati
 
 - rate limiting ;
 - limites de payload ;
-- token obligatoire pour toutes les RPC Bancable sensibles ;
+- token obligatoire pour toutes les RPC d’analyse approfondie sensibles ;
 - fonctions admin/test privées via suffixe `_` ;
 - aucun secret HumbleOS codé dans Git ;
 - PDF conservés privés dans Drive et délivrés via RPC contrôlée ;
-- brouillons locaux Bancable expirants ;
+- brouillons locaux d’analyse approfondie expirants ;
 - écriture CRM sérialisée et protection contre les formules Sheets.
 
-## Business Plan Bancable
+## Business Plan unique
 
-Le calcul financier reste déterministe :
+AfriGreen24 ne maintient plus une version Standard gratuite et une version Bancable payante. Le parcours produit est unique :
 
-`données → contrôles → modèle financier → audit → document`
+`données → contrôles → approfondissement conditionnel → modèle financier → audit → document → préparation au financement`
 
-Le moteur IA intervient uniquement pour l’extraction et la rédaction qualitative.
+Les anciens modules `BusinessPlanBancable*` sont conservés comme briques techniques de l’analyse approfondie, mais ils ne constituent plus une offre payante séparée.
 
-Le moteur de dette est partagé entre l’audit et la génération documentaire, et les seuils bancaires sont configurables via `AFRIGREEN24_BANKING_RULES_JSON`.
+Le calcul financier reste déterministe. Le moteur de dette est partagé entre l’audit et la génération documentaire, et les seuils bancaires sont configurables via `AFRIGREEN24_BANKING_RULES_JSON`.
+
+### IA OpenAI
+
+OpenAI est l’unique fournisseur IA du chemin Business Plan en production.
+
+- `OPENAI_API_KEY` — clé API stockée uniquement dans Apps Script Script Properties.
+- `OPENAI_MODEL` — modèle configurable ; défaut : `gpt-5.6-luna`.
+- Responses API + Structured Outputs.
+- `store:false`.
+- maximum un appel OpenAI par opération de génération narrative.
+- aucun retry automatique.
+- fallback déterministe SmartWriter / BusinessWriter si OpenAI est indisponible.
+- l’IA ne remplace jamais les données factuelles fournies par l’utilisateur.
 
 ## Release
 
