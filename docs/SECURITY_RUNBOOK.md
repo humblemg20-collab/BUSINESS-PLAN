@@ -17,7 +17,7 @@ Apps Script Script Properties must contain:
 
 The production adapter sets `store:false`, uses Structured Outputs, performs no automatic retry, and keeps deterministic fallbacks so an OpenAI outage does not block Business Plan generation.
 
-Legacy HumbleOS bridge files may remain temporarily for rollback archaeology, but production Business Plan generation, import extraction and funding-readiness narrative must not call them. CI enforces this contract.
+Legacy HumbleOS bridge and paid Business Plan modules have been removed from the deployable source. Git history remains the rollback archive. CI enforces the OpenAI-only, single-offer production contract.
 
 ## GitHub deployment secrets
 
