@@ -43,6 +43,16 @@ var BUSINESS_PLAN_THEME = {
  */
 function doGet(e) {
 
+  const openaiBootstrap =
+    typeof AG24_OPENAI_BOOTSTRAP_handleGet_ ===
+    'function'
+      ? AG24_OPENAI_BOOTSTRAP_handleGet_(e)
+      : null;
+
+  if (openaiBootstrap) {
+    return openaiBootstrap;
+  }
+
   const health =
     e && e.parameter
       ? String(
@@ -104,6 +114,25 @@ function doGet(e) {
       'width=device-width, initial-scale=1'
     );
 
+}
+
+
+/**
+ * POST entry point.
+ *
+ * Currently reserved for the editor-only OpenAI secret bootstrap.
+ */
+function doPost(e) {
+  if (
+    typeof AG24_OPENAI_BOOTSTRAP_handlePost_ !==
+    'function'
+  ) {
+    throw new Error(
+      'OpenAI bootstrap handler indisponible.'
+    );
+  }
+
+  return AG24_OPENAI_BOOTSTRAP_handlePost_(e);
 }
 
 
