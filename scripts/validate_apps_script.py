@@ -332,6 +332,10 @@ else:
     ):
         fail("OpenAI prefix must never be a migration delete prefix")
 
+    protected_prefix_section = migration_text.split("PROTECTED_PREFIXES", 1)[1].split("DELETE_EXACT", 1)[0]
+    if "AFRIGREEN24_OPENAI_" not in protected_prefix_section:
+        fail("OpenAI operational Script Properties namespace must remain protected")
+
     for required_protected_key in [
         "AFRIGREEN24_BPB_LOGO_ID",
         "AFRIGREEN24_BPB_OUTPUT_FOLDER_ID",
@@ -542,6 +546,44 @@ else:
         # Narrative content is validated in memory; only the compact report may be logged.
         if "JSON.stringify(\n      narrative" in narrative_test_text:
             fail("Narrative contract test must not log generated narrative content")
+
+
+# Full Business Plan isolated system test
+full_system_test_path = APP / "BusinessPlanFullSystemTest.js"
+if not full_system_test_path.exists():
+    fail("BusinessPlanFullSystemTest.js is required")
+else:
+    full_system_test_text = full_system_test_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1()",
+        "syntheticData: true",
+        "crmWritesAttempted: false",
+        "dashboardWritesAttempted: false",
+        "preparerBusinessPlanStandardIA52(",
+        "DocumentApp.create(",
+        "creerPdfDansMemeDossier(",
+        "AG24_DOC_issueCapability_(",
+        "telechargerPdfBusinessPlanStandard(",
+        "setTrashed(true)",
+        "cleanupSuccess",
+        "BUSINESS_PLAN_FULL_SYSTEM_TEST_PASSED",
+        "AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT",
+    ]:
+        if marker not in full_system_test_text:
+            fail(f"Full Business Plan system-test marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in full_system_test_text:
+        fail("Full Business Plan system test must use the canonical OpenAI bridge")
+
+    if full_system_test_text.count("preparerBusinessPlanStandardIA52(") != 1:
+        fail("Full Business Plan system test must invoke the Standard AI wrapper once")
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", full_system_test_text):
+        fail("Possible hard-coded OpenAI API key in full system test")
 
 
 # Import Engine V5 contract
