@@ -332,6 +332,29 @@ else:
     ):
         fail("OpenAI prefix must never be a migration delete prefix")
 
+    for required_protected_key in [
+        "AFRIGREEN24_BPB_LOGO_ID",
+        "AFRIGREEN24_BPB_OUTPUT_FOLDER_ID",
+        "AFRIGREEN24_BPB_WEB_APP_EXEC_URL",
+    ]:
+        protected_section = migration_text.split("PROTECTED_EXACT", 1)[1].split("PROTECTED_PREFIXES", 1)[0]
+        if required_protected_key not in protected_section:
+            fail(
+                "Live Business Plan Script Property must remain protected: "
+                + required_protected_key
+            )
+
+    for required_legacy_key in [
+        "AFRIGREEN24_BPB_PAYMENT_SPREADSHEET_ID",
+        "AFRIGREEN24_BPB_WEBHOOK_SECRET",
+    ]:
+        delete_section = migration_text.split("DELETE_EXACT", 1)[1].split("DELETE_PREFIXES", 1)[0]
+        if required_legacy_key not in delete_section:
+            fail(
+                "Confirmed legacy payment Script Property must remain explicitly deletable: "
+                + required_legacy_key
+            )
+
 
 # Import Engine V5 contract
 index_path = APP / "Index.html"
