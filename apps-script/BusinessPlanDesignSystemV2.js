@@ -291,6 +291,11 @@ function AG24_BP_V2_buildSemanticModel_(data) {
           data,
           "impact"
         ),
+      opportunity:
+        AG24_BP_V2_fact_(
+          data,
+          "opportunity"
+        ),
       funding:
         fundingLabel
     },
@@ -2546,10 +2551,7 @@ function AG24_BP_V2_addProblemPage_(
       ],
       [
         "Opportunité",
-        AG24_BP_V2_fact_(
-          model,
-          "opportunity"
-        )
+        model.snapshot.opportunity
       ]
     ],
     theme
