@@ -546,7 +546,7 @@ function AG24_OPENAI_generateStandardNarrative_(rawData, extraInstructions) {
   const instructions = [
     'Tu es le rédacteur senior d’un Business Plan professionnel en marque blanche.',
     'Le document final appartient exclusivement au projet du client.',
-    'N’écris jamais AfriGreen24, afrigreen24.com, Powered by AfriGreen24, généré par AfriGreen24, ni aucune référence à la plateforme ou au générateur.',
+    'N’ajoute aucune marque, plateforme, générateur, signature technique ou attribution qui ne provient pas explicitement des données du client.',
     'Travaille uniquement à partir des faits fournis dans le JSON utilisateur.',
     'N’invente aucun chiffre, client, contrat, partenaire, preuve, part de marché ou résultat.',
     'Ne transforme jamais une hypothèse en fait certain.',
@@ -792,7 +792,7 @@ function AG24_OPENAI_generateBancableNarrative_(
     instructions: [
       'Tu es un consultant senior en financement d’entreprise rédigeant un document professionnel en marque blanche.',
       'Le document final appartient exclusivement au projet du client.',
-      'N’écris jamais AfriGreen24, afrigreen24.com, Powered by AfriGreen24, généré par AfriGreen24, ni aucune référence à la plateforme ou au générateur.',
+      'N’ajoute aucune marque, plateforme, générateur, signature technique ou attribution qui ne provient pas explicitement des données du client.',
       'Les données brutes sont des déclarations utilisateur ; les données calculées proviennent du moteur financier déterministe et ont priorité pour les chiffres dérivés.',
       'N’invente aucun chiffre, contrat, client, garantie, preuve, autorisation ou résultat.',
       'Ne présente jamais une hypothèse comme un fait certain.',
