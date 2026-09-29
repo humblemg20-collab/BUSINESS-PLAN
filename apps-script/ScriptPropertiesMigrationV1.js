@@ -4,17 +4,20 @@
  * Safe maintenance engine for Apps Script Script Properties.
  *
  * SAFETY CONTRACT
- * - DRY_RUN is the default and never mutates Script Properties.
+ * - DRY_RUN is the default and never deletes Script Properties.
  * - APPLY deletes only exact keys or exact legacy prefixes listed below.
  * - Unknown properties are NEVER deleted.
  * - AFRIGREEN24_BPB:* dossier/business data are always protected.
  * - OPENAI_* configuration is always protected.
- * - A backup snapshot is persisted before APPLY.
+ * - Migration metadata is excluded from confirmation fingerprints.
+ * - Backup is selective: only properties scheduled for deletion are copied.
  * - APPLY requires an explicit confirmation token from a fresh DRY_RUN.
+ * - Rollback restores only deleted legacy properties; it never clears the store.
  */
 
 const AG24_PROPERTIES_MIGRATION_V1 = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '1.0.1',
+  INTERNAL_PREFIX: 'AFRIGREEN24_MIGRATION_',
   BACKUP_PREFIX: 'AFRIGREEN24_MIGRATION_BACKUP:',
   LAST_REPORT_KEY: 'AFRIGREEN24_MIGRATION_LAST_REPORT',
   PLAN_KEY: 'AFRIGREEN24_MIGRATION_PENDING_PLAN',
@@ -49,6 +52,12 @@ const AG24_PROPERTIES_MIGRATION_V1 = Object.freeze({
     'HUMBLEOS_'
   ])
 });
+
+function AG24_PROPERTIES_isInternalKeyV1_(key) {
+  return String(key || '').indexOf(
+    AG24_PROPERTIES_MIGRATION_V1.INTERNAL_PREFIX
+  ) === 0;
+}
 
 function AG24_PROPERTIES_classifyKeyV1_(key) {
   const value = String(key || '').trim();
@@ -139,19 +148,24 @@ function AG24_PROPERTIES_buildPlanV1_() {
   const keys =
     Object.keys(all).sort();
 
+  const canonicalKeys =
+    keys.filter(function(key) {
+      return !AG24_PROPERTIES_isInternalKeyV1_(key);
+    });
+
   const result = {
     version:
       AG24_PROPERTIES_MIGRATION_V1.VERSION,
     generatedAt:
       new Date().toISOString(),
     total:
-      keys.length,
+      canonicalKeys.length,
     delete: [],
     keep: [],
     review: []
   };
 
-  keys.forEach(function(key) {
+  canonicalKeys.forEach(function(key) {
     const classification =
       AG24_PROPERTIES_classifyKeyV1_(key);
 
@@ -169,13 +183,17 @@ function AG24_PROPERTIES_buildPlanV1_() {
     }
   });
 
+  /*
+   * Fingerprint only canonical/non-migration keys.
+   * DRY_RUN may safely persist PLAN/LAST_REPORT without invalidating its token.
+   */
   const fingerprintPayload =
     JSON.stringify({
       version: result.version,
       deleteKeys: result.delete.map(function(item) {
         return item.key;
       }),
-      allKeys: keys
+      canonicalKeys: canonicalKeys
     });
 
   result.confirmationToken =
@@ -186,7 +204,10 @@ function AG24_PROPERTIES_buildPlanV1_() {
   return result;
 }
 
-function AG24_PROPERTIES_publicReportV1_(plan, mode) {
+function AG24_PROPERTIES_compactReportV1_(
+  plan,
+  mode
+) {
   return {
     success: true,
     mode: mode,
@@ -197,10 +218,21 @@ function AG24_PROPERTIES_publicReportV1_(plan, mode) {
     keepCount: plan.keep.length,
     reviewCount: plan.review.length,
     delete: plan.delete,
-    keep: plan.keep,
     review: plan.review,
     confirmationToken: plan.confirmationToken
   };
+}
+
+function AG24_PROPERTIES_writeCompactLogV1_(
+  report
+) {
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
 }
 
 /**
@@ -208,6 +240,7 @@ function AG24_PROPERTIES_publicReportV1_(plan, mode) {
  *
  * Run this first from the Apps Script editor.
  * It NEVER deletes a property and NEVER prints property values.
+ * Output is compact by design: DELETE + REVIEW + confirmation token.
  */
 function AG24_PROPERTIES_DRY_RUN_V1() {
   const properties =
@@ -229,7 +262,7 @@ function AG24_PROPERTIES_DRY_RUN_V1() {
   );
 
   const report =
-    AG24_PROPERTIES_publicReportV1_(
+    AG24_PROPERTIES_compactReportV1_(
       plan,
       'DRY_RUN'
     );
@@ -239,12 +272,8 @@ function AG24_PROPERTIES_DRY_RUN_V1() {
     JSON.stringify(report)
   );
 
-  Logger.log(
-    JSON.stringify(
-      report,
-      null,
-      2
-    )
+  AG24_PROPERTIES_writeCompactLogV1_(
+    report
   );
 
   return report;
@@ -312,7 +341,8 @@ function AG24_PROPERTIES_APPLY_V1(
 
     /*
      * Rebuild immediately before mutation.
-     * If properties changed after DRY_RUN, the token changes and APPLY stops.
+     * Migration metadata does not affect the fingerprint.
+     * Any canonical property change invalidates the token.
      */
     const currentPlan =
       AG24_PROPERTIES_buildPlanV1_();
@@ -326,8 +356,39 @@ function AG24_PROPERTIES_APPLY_V1(
       );
     }
 
+    const expectedDeleteKeys =
+      (pending.deleteKeys || []).slice().sort();
+
+    const currentDeleteKeys =
+      currentPlan.delete.map(function(item) {
+        return item.key;
+      }).sort();
+
+    if (
+      JSON.stringify(expectedDeleteKeys) !==
+      JSON.stringify(currentDeleteKeys)
+    ) {
+      throw new Error(
+        'Le plan de suppression a changé depuis DRY_RUN. Aucun élément supprimé.'
+      );
+    }
+
     const allBefore =
       properties.getProperties();
+
+    const selectiveBackup = {};
+
+    currentDeleteKeys.forEach(function(key) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          allBefore,
+          key
+        )
+      ) {
+        selectiveBackup[key] =
+          allBefore[key];
+      }
+    });
 
     const backupKey =
       AG24_PROPERTIES_MIGRATION_V1.BACKUP_PREFIX +
@@ -336,7 +397,7 @@ function AG24_PROPERTIES_APPLY_V1(
         .replace(/[:.]/g, '-');
 
     /*
-     * Full rollback snapshot is stored inside Script Properties.
+     * Only deletion candidates are persisted in the rollback backup.
      * Values are never written to Logger.
      */
     properties.setProperty(
@@ -346,20 +407,20 @@ function AG24_PROPERTIES_APPLY_V1(
           AG24_PROPERTIES_MIGRATION_V1.VERSION,
         createdAt:
           new Date().toISOString(),
-        properties:
-          allBefore
+        deletedProperties:
+          selectiveBackup
       })
     );
 
     const deleted = [];
 
-    currentPlan.delete.forEach(function(item) {
+    currentDeleteKeys.forEach(function(key) {
       /*
        * Defense in depth: reclassify each key at deletion time.
        */
       const classification =
         AG24_PROPERTIES_classifyKeyV1_(
-          item.key
+          key
         );
 
       if (
@@ -368,16 +429,16 @@ function AG24_PROPERTIES_APPLY_V1(
       ) {
         throw new Error(
           'Suppression refusée pour la clé protégée/non whitelistée : ' +
-          item.key
+          key
         );
       }
 
       properties.deleteProperty(
-        item.key
+        key
       );
 
       deleted.push(
-        item.key
+        key
       );
     });
 
@@ -394,11 +455,11 @@ function AG24_PROPERTIES_APPLY_V1(
 
     if (stillPresent.length) {
       /*
-       * Rollback from in-memory pre-change snapshot.
+       * Targeted rollback: restore only deleted candidates.
+       * Never clear unrelated Script Properties.
        */
-      properties.deleteAllProperties();
       properties.setProperties(
-        allBefore,
+        selectiveBackup,
         false
       );
 
@@ -418,8 +479,10 @@ function AG24_PROPERTIES_APPLY_V1(
       backupKey: backupKey,
       deletedCount: deleted.length,
       deleted: deleted,
-      remainingCount:
-        Object.keys(after).length
+      reviewCount:
+        currentPlan.review.length,
+      remainingCanonicalCount:
+        currentPlan.total - deleted.length
     };
 
     properties.setProperty(
@@ -431,12 +494,8 @@ function AG24_PROPERTIES_APPLY_V1(
       AG24_PROPERTIES_MIGRATION_V1.PLAN_KEY
     );
 
-    Logger.log(
-      JSON.stringify(
-        report,
-        null,
-        2
-      )
+    AG24_PROPERTIES_writeCompactLogV1_(
+      report
     );
 
     return report;
@@ -448,7 +507,8 @@ function AG24_PROPERTIES_APPLY_V1(
 
 /**
  * Roll back the most recent or an explicitly named migration backup.
- * Values are restored but never logged.
+ * Only deleted legacy properties are restored.
+ * Existing/unrelated properties are never cleared.
  */
 function AG24_PROPERTIES_ROLLBACK_V1(
   backupKey
@@ -506,38 +566,78 @@ function AG24_PROPERTIES_ROLLBACK_V1(
 
     if (
       !payload ||
-      !payload.properties ||
-      typeof payload.properties !== 'object'
+      !payload.deletedProperties ||
+      typeof payload.deletedProperties !== 'object'
     ) {
       throw new Error(
         'Backup de migration invalide.'
       );
     }
 
-    properties.deleteAllProperties();
+    const restoreKeys =
+      Object.keys(
+        payload.deletedProperties
+      );
+
+    restoreKeys.forEach(function(key) {
+      const classification =
+        AG24_PROPERTIES_classifyKeyV1_(
+          key
+        );
+
+      if (
+        classification.action !==
+        'DELETE'
+      ) {
+        throw new Error(
+          'Rollback refusé pour une clé non legacy : ' +
+          key
+        );
+      }
+    });
+
     properties.setProperties(
-      payload.properties,
+      payload.deletedProperties,
       false
     );
+
+    const restoredState =
+      properties.getProperties();
+
+    const missing =
+      restoreKeys.filter(function(key) {
+        return !Object.prototype.hasOwnProperty.call(
+          restoredState,
+          key
+        );
+      });
+
+    if (missing.length) {
+      throw new Error(
+        'Rollback incomplet : ' +
+        missing.join(', ')
+      );
+    }
 
     const report = {
       success: true,
       mode: 'ROLLBACK',
       restoredFrom: selected,
       restoredCount:
-        Object.keys(
-          payload.properties
-        ).length,
+        restoreKeys.length,
+      restored:
+        restoreKeys,
       restoredAt:
         new Date().toISOString()
     };
 
-    Logger.log(
-      JSON.stringify(
-        report,
-        null,
-        2
-      )
+    properties.setProperty(
+      AG24_PROPERTIES_MIGRATION_V1.LAST_REPORT_KEY,
+      JSON.stringify(report)
+    );
+
+    AG24_PROPERTIES_writeCompactLogV1_(
+      report
     );
 
     return report;
