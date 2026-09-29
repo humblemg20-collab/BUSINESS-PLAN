@@ -209,6 +209,34 @@ if code.exists():
         fail("Standard PDF capability issuance is missing")
 
 
+# Unified Business Plan product contract
+index_path = APP / "Index.html"
+if index_path.exists():
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+
+    for forbidden in [
+        "Payer et continuer",
+        "paiement unique",
+        "include('PaiementManuel41')",
+        "obtenirModulePaiementBancable_",
+    ]:
+        if forbidden in index_text:
+            fail(f"Legacy paid Business Plan UI remains active: {forbidden}")
+
+    if "aucun paiement supplémentaire" not in index_text:
+        fail("Unified Business Plan UI must state that advanced analysis is included")
+
+activation_path = APP / "BusinessPlanBancableActivation.js"
+if activation_path.exists():
+    activation_text = activation_path.read_text(encoding="utf-8", errors="replace")
+
+    if "BUSINESS_PLAN_UNIQUE_INCLUS" not in activation_text:
+        fail("Advanced Business Plan access is not configured as included")
+
+    if "paiementRequis:" not in activation_text or "false" not in activation_text:
+        fail("Unified Business Plan transition must explicitly disable payment requirement")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
