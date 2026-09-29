@@ -355,6 +355,32 @@ else:
                 + required_legacy_key
             )
 
+    for entrypoint_marker in [
+        "APPROVED_DELETE_SET",
+        "function AG24_PROPERTIES_APPLY_APPROVED_V1()",
+        "currentPlan.review.length !== 0",
+        "le plan de suppression ne correspond pas exactement au jeu approuvé",
+        "return AG24_PROPERTIES_APPLY_V1(",
+    ]:
+        if entrypoint_marker not in migration_text:
+            fail(
+                "Zero-argument approved migration entrypoint marker missing: "
+                + entrypoint_marker
+            )
+
+    approved_section = migration_text.split("APPROVED_DELETE_SET", 1)[1].split("PROTECTED_EXACT", 1)[0]
+    for approved_key in [
+        "AFRIGREEN24_BPB_PAYMENT_SPREADSHEET_ID",
+        "AFRIGREEN24_BPB_WEBHOOK_SECRET",
+        "HUMBLEOS_GATEWAY_SECRET",
+        "HUMBLEOS_GATEWAY_URL",
+    ]:
+        if approved_key not in approved_section:
+            fail(
+                "Approved deletion set missing current reviewed key: "
+                + approved_key
+            )
+
 
 # Import Engine V5 contract
 index_path = APP / "Index.html"
