@@ -16,7 +16,7 @@
  */
 
 const AG24_PROPERTIES_MIGRATION_V1 = Object.freeze({
-  VERSION: '1.0.4',
+  VERSION: '1.0.5',
   INTERNAL_PREFIX: 'AFRIGREEN24_MIGRATION_',
   BACKUP_PREFIX: 'AFRIGREEN24_MIGRATION_BACKUP:',
   LAST_REPORT_KEY: 'AFRIGREEN24_MIGRATION_LAST_REPORT',
@@ -615,6 +615,208 @@ function AG24_PROPERTIES_APPLY_APPROVED_V1() {
  * Only deleted legacy properties are restored.
  * Existing/unrelated properties are never cleared.
  */
+/**
+ * Permanently purge validated migration backups after the canonical store
+ * has been re-verified clean.
+ *
+ * Safety:
+ * - refuses to run if any canonical DELETE or REVIEW remains;
+ * - validates every backup before deleting any backup;
+ * - each backed-up key must belong to the approved legacy delete set;
+ * - deletes only AFRIGREEN24_MIGRATION_BACKUP:* entries;
+ * - never logs backed-up values.
+ */
+function AG24_PROPERTIES_FINALIZE_LEGACY_BACKUPS_V1() {
+  const lock =
+    LockService.getScriptLock();
+
+  lock.waitLock(30000);
+
+  try {
+    const properties =
+      PropertiesService.getScriptProperties();
+
+    const currentPlan =
+      AG24_PROPERTIES_buildPlanV1_();
+
+    if (
+      currentPlan.delete.length !== 0 ||
+      currentPlan.review.length !== 0
+    ) {
+      throw new Error(
+        'FINALIZE refusé : le store canonique doit avoir DELETE=0 et REVIEW=0.'
+      );
+    }
+
+    const all =
+      properties.getProperties();
+
+    const backupKeys =
+      Object.keys(all)
+        .filter(function(key) {
+          return key.indexOf(
+            AG24_PROPERTIES_MIGRATION_V1.BACKUP_PREFIX
+          ) === 0;
+        })
+        .sort();
+
+    if (!backupKeys.length) {
+      const emptyReport = {
+        success: true,
+        mode: 'FINALIZE',
+        version:
+          AG24_PROPERTIES_MIGRATION_V1.VERSION,
+        finalizedAt:
+          new Date().toISOString(),
+        backupsPurged: 0,
+        backupKeys: [],
+        remainingBackups: 0
+      };
+
+      properties.setProperty(
+        AG24_PROPERTIES_MIGRATION_V1.LAST_REPORT_KEY,
+        JSON.stringify(emptyReport)
+      );
+
+      AG24_PROPERTIES_writeCompactLogV1_(
+        emptyReport
+      );
+
+      return emptyReport;
+    }
+
+    const approved =
+      AG24_PROPERTIES_MIGRATION_V1
+        .APPROVED_DELETE_SET
+        .slice();
+
+    backupKeys.forEach(function(backupKey) {
+      let payload;
+
+      try {
+        payload =
+          JSON.parse(
+            properties.getProperty(
+              backupKey
+            )
+          );
+      } catch (error) {
+        throw new Error(
+          'FINALIZE refusé : backup illisible ' +
+          backupKey
+        );
+      }
+
+      if (
+        !payload ||
+        !payload.deletedProperties ||
+        typeof payload.deletedProperties !== 'object'
+      ) {
+        throw new Error(
+          'FINALIZE refusé : backup invalide ' +
+          backupKey
+        );
+      }
+
+      const backedUpKeys =
+        Object.keys(
+          payload.deletedProperties
+        );
+
+      backedUpKeys.forEach(function(key) {
+        if (
+          approved.indexOf(
+            key
+          ) === -1
+        ) {
+          throw new Error(
+            'FINALIZE refusé : clé non approuvée dans backup ' +
+            key
+          );
+        }
+
+        const classification =
+          AG24_PROPERTIES_classifyKeyV1_(
+            key
+          );
+
+        if (
+          classification.action !==
+          'DELETE'
+        ) {
+          throw new Error(
+            'FINALIZE refusé : classification legacy modifiée pour ' +
+            key
+          );
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            all,
+            key
+          )
+        ) {
+          throw new Error(
+            'FINALIZE refusé : une clé legacy existe encore dans le store canonique : ' +
+            key
+          );
+        }
+      });
+    });
+
+    backupKeys.forEach(function(backupKey) {
+      properties.deleteProperty(
+        backupKey
+      );
+    });
+
+    const remainingBackups =
+      Object.keys(
+        properties.getProperties()
+      )
+        .filter(function(key) {
+          return key.indexOf(
+            AG24_PROPERTIES_MIGRATION_V1.BACKUP_PREFIX
+          ) === 0;
+        });
+
+    if (remainingBackups.length) {
+      throw new Error(
+        'FINALIZE incomplet : des backups de migration subsistent.'
+      );
+    }
+
+    const report = {
+      success: true,
+      mode: 'FINALIZE',
+      version:
+        AG24_PROPERTIES_MIGRATION_V1.VERSION,
+      finalizedAt:
+        new Date().toISOString(),
+      backupsPurged:
+        backupKeys.length,
+      backupKeys:
+        backupKeys,
+      remainingBackups: 0
+    };
+
+    properties.setProperty(
+      AG24_PROPERTIES_MIGRATION_V1.LAST_REPORT_KEY,
+      JSON.stringify(report)
+    );
+
+    AG24_PROPERTIES_writeCompactLogV1_(
+      report
+    );
+
+    return report;
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
 function AG24_PROPERTIES_ROLLBACK_V1(
   backupKey
 ) {
