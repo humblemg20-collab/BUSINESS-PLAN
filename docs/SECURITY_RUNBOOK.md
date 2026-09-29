@@ -6,16 +6,18 @@
 
 `business plan.zip` is an archive only. Updating the ZIP must never overwrite the canonical source.
 
-## HumbleOS credential
+## OpenAI credential
 
-The gateway credential must exist only in Apps Script Script Properties under:
+The Business Plan production AI path uses the OpenAI Responses API directly.
 
-- `HUMBLEOS_GATEWAY_URL`
-- `HUMBLEOS_GATEWAY_SECRET`
+Apps Script Script Properties must contain:
 
-No credential value is allowed in Git.
+- `OPENAI_API_KEY` — OpenAI API key. Never commit it to Git.
+- `OPENAI_MODEL` — optional model override. Default in the adapter: `gpt-5.6-luna`.
 
-Because an earlier repository revision contained a credential value, that old credential must be revoked at the HumbleOS gateway and replaced with a new value before the hardened release is promoted.
+The production adapter sets `store:false`, uses Structured Outputs, performs no automatic retry, and keeps deterministic fallbacks so an OpenAI outage does not block Business Plan generation.
+
+Legacy HumbleOS bridge files may remain temporarily for rollback archaeology, but production Business Plan generation, import extraction and funding-readiness narrative must not call them. CI enforces this contract.
 
 ## GitHub deployment secrets
 
