@@ -382,6 +382,58 @@ else:
             )
 
 
+# OpenAI secure secret bootstrap contract
+bootstrap_path = APP / "OpenAISecretBootstrap.js"
+if not bootstrap_path.exists():
+    fail("OpenAISecretBootstrap.js is required")
+else:
+    bootstrap_text = bootstrap_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "function AG24_OPENAI_BOOTSTRAP_START_V1()",
+        "function AG24_OPENAI_BOOTSTRAP_handleGet_(e)",
+        "function AG24_OPENAI_BOOTSTRAP_handlePost_(e)",
+        "TOKEN_HASH_PROPERTY",
+        "EXPIRES_AT_PROPERTY",
+        "TTL_MS: 10 * 60 * 1000",
+        "type=\"password\"",
+        "AG24_OPENAI_CONFIG.API_KEY_PROPERTY",
+        "deleteProperty(",
+        "AG24_OPENAI_getHealthStatus_()",
+    ]:
+        if marker not in bootstrap_text:
+            fail(f"OpenAI secret bootstrap marker missing: {marker}")
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", bootstrap_text):
+        fail("Possible hard-coded OpenAI API key in OpenAISecretBootstrap.js")
+
+    if re.search(
+        r"Logger\.log\s*\([^)]*apiKey",
+        bootstrap_text,
+        flags=re.S,
+    ):
+        fail("OpenAI bootstrap must never log the API key")
+
+    if "OPENAI_API_KEY" in bootstrap_text and "API_KEY_PROPERTY" not in bootstrap_text:
+        fail("OpenAI bootstrap must use the canonical API key property contract")
+
+if code_path.exists():
+    code_text = code_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    for marker in [
+        "AG24_OPENAI_BOOTSTRAP_handleGet_",
+        "function doPost(e)",
+        "AG24_OPENAI_BOOTSTRAP_handlePost_",
+    ]:
+        if marker not in code_text:
+            fail(f"OpenAI bootstrap routing marker missing from Code.js: {marker}")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
