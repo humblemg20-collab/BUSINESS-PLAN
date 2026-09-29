@@ -139,6 +139,25 @@ openai_bridge = APP / "OpenAIBridge.js"
 if openai_bridge.exists():
     text = openai_bridge.read_text(encoding="utf-8", errors="replace")
 
+    required_white_label_ai = [
+        "ag24_bp_narrative_v3",
+        "AG24_OPENAI_assertWhiteLabelNarrative_",
+        "OPENAI_WHITE_LABEL_CONTAMINATION",
+        "Business Plan professionnel en marque blanche",
+        "document final appartient exclusivement au projet du client",
+    ]
+    for marker in required_white_label_ai:
+        if marker not in text:
+            fail(f"OpenAI white-label contract marker missing: {marker}")
+
+    legacy_brand_prompts = [
+        "rédacteur senior du Business Plan AfriGreen24",
+        "consultant senior en financement d’entreprise pour AfriGreen24",
+    ]
+    for marker in legacy_brand_prompts:
+        if marker in text:
+            fail(f"Legacy branded AI prompt remains: {marker}")
+
     if "OPENAI_API_KEY" not in text:
         fail("OpenAI bridge must read OPENAI_API_KEY from Script Properties")
 
