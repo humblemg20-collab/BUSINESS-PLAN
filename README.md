@@ -33,7 +33,7 @@ Le Web App reste public pour permettre l’accès utilisateur, mais les opérati
 - limites de payload ;
 - token obligatoire pour toutes les RPC d’analyse approfondie sensibles ;
 - fonctions admin/test privées via suffixe `_` ;
-- aucun secret HumbleOS codé dans Git ;
+- aucun secret OpenAI codé dans Git ;
 - PDF conservés privés dans Drive et délivrés via RPC contrôlée ;
 - brouillons locaux d’analyse approfondie expirants ;
 - écriture CRM sérialisée et protection contre les formules Sheets.
@@ -85,7 +85,7 @@ Le déploiement nécessite les secrets GitHub décrits dans `docs/SECURITY_RUNBO
 
 Le parcours d’import de documents est traité comme un workflow complet :
 
-`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → HumbleOS → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
+`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → OpenAI Structured Outputs → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
 
 Le rendu est isolé dans `apps-script/ImportBusinessPlanV5.html` afin de ne pas alourdir davantage `Index.html`. Le moteur ajoute le glisser-déposer, une progression visible, un résumé du fichier, la méthode d’extraction, la qualité de lecture, un aperçu du texte extrait et une revue des informations déjà validées.
 
