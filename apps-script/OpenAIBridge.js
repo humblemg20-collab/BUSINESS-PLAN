@@ -21,7 +21,7 @@ const AG24_OPENAI_CONFIG = Object.freeze({
   MAX_OUTPUT_TOKENS_NARRATIVE: 5200,
   MAX_OUTPUT_TOKENS_IMPORT: 6500,
   CACHE_TTL_SECONDS: 21600,
-  NARRATIVE_SCHEMA_VERSION: 'ag24_bp_narrative_v2',
+  NARRATIVE_SCHEMA_VERSION: 'ag24_bp_narrative_v3',
   IMPORT_SCHEMA_VERSION: 'ag24_bp_import_openai_v1'
 });
 
@@ -432,6 +432,43 @@ function AG24_OPENAI_assessNarrativeNeed_(rawData) {
   };
 }
 
+function AG24_OPENAI_assertWhiteLabelNarrative_(content) {
+  const serialized =
+    JSON.stringify(
+      content || {}
+    )
+      .toLowerCase();
+
+  const forbidden = [
+    'afrigreen24',
+    'afrigreen24.com',
+    'powered by afrigreen',
+    'généré par afrigreen',
+    'genere par afrigreen'
+  ];
+
+  const found =
+    forbidden.filter(
+      function(marker) {
+        return (
+          serialized.indexOf(
+            marker
+          ) !== -1
+        );
+      }
+    );
+
+  if (found.length) {
+    throw new Error(
+      'OPENAI_WHITE_LABEL_CONTAMINATION: ' +
+      found.join(', ')
+    );
+  }
+
+  return true;
+}
+
+
 function AG24_OPENAI_narrativeSchema_() {
   const properties = {};
   const required = [];
@@ -484,6 +521,10 @@ function AG24_OPENAI_generateStandardNarrative_(rawData, extraInstructions) {
     try {
       const parsed = JSON.parse(cached);
 
+      AG24_OPENAI_assertWhiteLabelNarrative_(
+        parsed.narratif || {}
+      );
+
       console.log(JSON.stringify({
         event: 'openai_narrative_cache_hit',
         cache_key: cacheKey.slice(-16)
@@ -503,7 +544,9 @@ function AG24_OPENAI_generateStandardNarrative_(rawData, extraInstructions) {
   }
 
   const instructions = [
-    'Tu es le rédacteur senior du Business Plan AfriGreen24.',
+    'Tu es le rédacteur senior d’un Business Plan professionnel en marque blanche.',
+    'Le document final appartient exclusivement au projet du client.',
+    'N’écris jamais AfriGreen24, afrigreen24.com, Powered by AfriGreen24, généré par AfriGreen24, ni aucune référence à la plateforme ou au générateur.',
     'Travaille uniquement à partir des faits fournis dans le JSON utilisateur.',
     'N’invente aucun chiffre, client, contrat, partenaire, preuve, part de marché ou résultat.',
     'Ne transforme jamais une hypothèse en fait certain.',
@@ -526,6 +569,10 @@ function AG24_OPENAI_generateStandardNarrative_(rawData, extraInstructions) {
     reasoningEffort: 'low',
     maxOutputTokens: AG24_OPENAI_CONFIG.MAX_OUTPUT_TOKENS_NARRATIVE
   });
+
+  AG24_OPENAI_assertWhiteLabelNarrative_(
+    result.content || {}
+  );
 
   const value = {
     skipped: false,
@@ -743,7 +790,9 @@ function AG24_OPENAI_generateBancableNarrative_(
     schemaName: 'ag24_bp_funding_narrative_v1',
     schema: AG24_OPENAI_bancableNarrativeSchema_(),
     instructions: [
-      'Tu es un consultant senior en financement d’entreprise pour AfriGreen24.',
+      'Tu es un consultant senior en financement d’entreprise rédigeant un document professionnel en marque blanche.',
+      'Le document final appartient exclusivement au projet du client.',
+      'N’écris jamais AfriGreen24, afrigreen24.com, Powered by AfriGreen24, généré par AfriGreen24, ni aucune référence à la plateforme ou au générateur.',
       'Les données brutes sont des déclarations utilisateur ; les données calculées proviennent du moteur financier déterministe et ont priorité pour les chiffres dérivés.',
       'N’invente aucun chiffre, contrat, client, garantie, preuve, autorisation ou résultat.',
       'Ne présente jamais une hypothèse comme un fait certain.',
@@ -761,6 +810,10 @@ function AG24_OPENAI_generateBancableNarrative_(
     reasoningEffort: 'low',
     maxOutputTokens: AG24_OPENAI_CONFIG.MAX_OUTPUT_TOKENS_NARRATIVE
   });
+
+  AG24_OPENAI_assertWhiteLabelNarrative_(
+    result.content || {}
+  );
 
   return {
     skipped: false,
