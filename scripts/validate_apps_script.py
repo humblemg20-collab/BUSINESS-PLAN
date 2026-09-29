@@ -279,6 +279,43 @@ if deploy_workflow.exists():
             fail(f"OpenAI production release gate marker missing: {marker}")
 
 
+# Script Properties Migration V1 safety contract
+migration_path = APP / "ScriptPropertiesMigrationV1.js"
+if not migration_path.exists():
+    fail("ScriptPropertiesMigrationV1.js is required")
+else:
+    migration_text = migration_path.read_text(encoding="utf-8", errors="replace")
+
+    for marker in [
+        "function AG24_PROPERTIES_DRY_RUN_V1()",
+        "function AG24_PROPERTIES_APPLY_V1(",
+        "function AG24_PROPERTIES_ROLLBACK_V1(",
+        "UNKNOWN_NOT_DELETED",
+        "AFRIGREEN24_BPB:",
+        "OPENAI_",
+        "confirmationToken",
+        "BACKUP_PREFIX",
+        "Rollback automatique effectué",
+    ]:
+        if marker not in migration_text:
+            fail(f"Script Properties migration safety marker missing: {marker}")
+
+    if "properties.deleteAllProperties();" not in migration_text:
+        fail("Script Properties migration rollback restore contract is missing")
+
+    if re.search(
+        r"DELETE_PREFIXES[\s\S]{0,500}AFRIGREEN24_BPB:",
+        migration_text,
+    ):
+        fail("Business dossier prefix must never be a migration delete prefix")
+
+    if re.search(
+        r"DELETE_PREFIXES[\s\S]{0,500}OPENAI_",
+        migration_text,
+    ):
+        fail("OpenAI prefix must never be a migration delete prefix")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
