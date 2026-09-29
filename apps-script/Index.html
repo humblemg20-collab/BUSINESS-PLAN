@@ -1346,7 +1346,7 @@
 
 
 
-    /* ===== ANALYSE IMPORT HUMBLEOS ===== */
+    /* ===== ANALYSE IMPORT OPENAI ===== */
 
     .bp-import-analysis {
       margin: 16px 0 18px;
@@ -4339,7 +4339,7 @@ initialiserBridgeAfriGreen24_();
                         }
 
                         definirStatutImport_(
-                          "Analyse HumbleOS terminée. Les informations trouvées, à confirmer et manquantes ont été identifiées.",
+                          "Analyse OpenAI terminée. Les informations trouvées, à confirmer et manquantes ont été identifiées.",
                           false
                         );
 
@@ -4367,7 +4367,7 @@ initialiserBridgeAfriGreen24_();
                       } else {
 
                         definirStatutImport_(
-                          "Le document a été lu, mais HumbleOS n’a pas retourné l’analyse structurée attendue.",
+                          "Le document a été lu, mais OpenAI n’a pas retourné l’analyse structurée attendue.",
                           true
                         );
 
@@ -4375,7 +4375,7 @@ initialiserBridgeAfriGreen24_();
 
 
                       console.log(
-                        "IMPORT BUSINESS PLAN HUMBLEOS",
+                        "IMPORT BUSINESS PLAN OPENAI",
                         reponse
                       );
 
@@ -4831,7 +4831,7 @@ function bpValeurSelectValide_(field, value) {
 
       /*
        * IMPORTANT :
-       * Un select peut être déclaré FOUND par HumbleOS,
+       * Un select peut être déclaré FOUND par OpenAI,
        * mais rester incompatible avec les options techniques
        * du formulaire.
        *
