@@ -15,7 +15,9 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.0.0",
+  VERSION: "2.1.0",
+  MASTER_PAGE_COUNT: 15,
+  EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
   DEFAULT_THEME: "executive_premium",
   ALLOWED_THEMES: Object.freeze([
     "executive_premium",
@@ -598,23 +600,108 @@ function AG24_BP_V2_buildSemanticModel_(data) {
             )
           ]
         ]
-      },
-      {
-        number: "11",
-        id: "risks",
-        title: "Risques et points de vigilance",
-        narrative: "",
-        cards: [
-          [
-            "Risque déclaré",
-            AG24_BP_V2_fact_(
-              data,
-              "risks"
-            )
-          ]
-        ]
       }
     ],
+
+    commercial: {
+      acquisition:
+        AG24_BP_V2_fact_(
+          data,
+          "acquisitionStrategy"
+        ),
+      conversion:
+        AG24_BP_V2_fact_(
+          data,
+          "conversionStrategy"
+        ),
+      sales:
+        AG24_BP_V2_fact_(
+          data,
+          "salesProcess"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "salesChannels"
+        ),
+      retention:
+        AG24_BP_V2_fact_(
+          data,
+          "retentionStrategy"
+        )
+    },
+
+    impactPillars: {
+      economic:
+        AG24_BP_V2_fact_(
+          data,
+          "economicImpact"
+        ),
+      social:
+        AG24_BP_V2_fact_(
+          data,
+          "socialImpact"
+        ),
+      environmental:
+        AG24_BP_V2_fact_(
+          data,
+          "environmentalImpact"
+        )
+    },
+
+    risks: {
+      raw:
+        AG24_BP_V2_fact_(
+          data,
+          "risks"
+        ),
+      levels:
+        data.riskLevels &&
+        typeof data.riskLevels === "object"
+          ? data.riskLevels
+          : {},
+      mitigations:
+        data.riskMitigations &&
+        typeof data.riskMitigations === "object"
+          ? data.riskMitigations
+          : {},
+      control:
+        AG24_BP_V2_fact_(
+          data,
+          "riskControl"
+        )
+    },
+
+    roadmap: {
+      now:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmapNow"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "stage"
+        ),
+      sixMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap6Months"
+        ),
+      twelveMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap12Months"
+        ),
+      twentyFourMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap24Months"
+        ),
+      objective:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmapObjective"
+        )
+    },
 
     closing: {
       valueProposition:
@@ -628,6 +715,8 @@ function AG24_BP_V2_buildSemanticModel_(data) {
         ),
       funding:
         fundingLabel,
+      fundingType:
+        fundingType,
       promoter:
         AG24_BP_V2_fact_(
           data,
@@ -637,6 +726,11 @@ function AG24_BP_V2_buildSemanticModel_(data) {
         AG24_BP_V2_fact_(
           data,
           "email"
+        ),
+      phone:
+        AG24_BP_V2_fact_(
+          data,
+          "phone"
         )
     }
   };
