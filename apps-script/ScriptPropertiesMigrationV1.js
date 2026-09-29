@@ -16,11 +16,18 @@
  */
 
 const AG24_PROPERTIES_MIGRATION_V1 = Object.freeze({
-  VERSION: '1.0.2',
+  VERSION: '1.0.3',
   INTERNAL_PREFIX: 'AFRIGREEN24_MIGRATION_',
   BACKUP_PREFIX: 'AFRIGREEN24_MIGRATION_BACKUP:',
   LAST_REPORT_KEY: 'AFRIGREEN24_MIGRATION_LAST_REPORT',
   PLAN_KEY: 'AFRIGREEN24_MIGRATION_PENDING_PLAN',
+
+  APPROVED_DELETE_SET: Object.freeze([
+    'AFRIGREEN24_BPB_PAYMENT_SPREADSHEET_ID',
+    'AFRIGREEN24_BPB_WEBHOOK_SECRET',
+    'HUMBLEOS_GATEWAY_SECRET',
+    'HUMBLEOS_GATEWAY_URL'
+  ]),
 
   PROTECTED_EXACT: Object.freeze([
     'OPENAI_API_KEY',
@@ -508,6 +515,98 @@ function AG24_PROPERTIES_APPLY_V1(
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Apps Script editor entry point with no arguments.
+ *
+ * Running this function is the explicit approval action.
+ * It still refuses to mutate unless:
+ * - a fresh DRY_RUN plan exists;
+ * - reviewCount is zero;
+ * - the pending/current delete set is exactly the approved four-key set;
+ * - the pending token matches the rebuilt current plan.
+ */
+function AG24_PROPERTIES_APPLY_APPROVED_V1() {
+  const properties =
+    PropertiesService.getScriptProperties();
+
+  const pendingRaw =
+    properties.getProperty(
+      AG24_PROPERTIES_MIGRATION_V1.PLAN_KEY
+    );
+
+  if (!pendingRaw) {
+    throw new Error(
+      'Aucun plan DRY_RUN disponible. Relancez AG24_PROPERTIES_DRY_RUN_V1().'
+    );
+  }
+
+  let pending;
+
+  try {
+    pending = JSON.parse(pendingRaw);
+  } catch (error) {
+    throw new Error(
+      'Plan DRY_RUN illisible. Relancez AG24_PROPERTIES_DRY_RUN_V1().'
+    );
+  }
+
+  const currentPlan =
+    AG24_PROPERTIES_buildPlanV1_();
+
+  if (currentPlan.review.length !== 0) {
+    throw new Error(
+      'APPLY refusé : des propriétés restent en REVIEW.'
+    );
+  }
+
+  const approved =
+    AG24_PROPERTIES_MIGRATION_V1
+      .APPROVED_DELETE_SET
+      .slice()
+      .sort();
+
+  const pendingDelete =
+    (pending.deleteKeys || [])
+      .slice()
+      .sort();
+
+  const currentDelete =
+    currentPlan.delete
+      .map(function(item) {
+        return item.key;
+      })
+      .sort();
+
+  if (
+    JSON.stringify(pendingDelete) !==
+      JSON.stringify(approved) ||
+    JSON.stringify(currentDelete) !==
+      JSON.stringify(approved)
+  ) {
+    throw new Error(
+      'APPLY refusé : le plan de suppression ne correspond pas exactement au jeu approuvé.'
+    );
+  }
+
+  const token =
+    String(
+      pending.confirmationToken || ''
+    ).trim();
+
+  if (
+    !token ||
+    currentPlan.confirmationToken !== token
+  ) {
+    throw new Error(
+      'APPLY refusé : le DRY_RUN n’est plus frais. Relancez AG24_PROPERTIES_DRY_RUN_V1().'
+    );
+  }
+
+  return AG24_PROPERTIES_APPLY_V1(
+    token
+  );
 }
 
 /**
