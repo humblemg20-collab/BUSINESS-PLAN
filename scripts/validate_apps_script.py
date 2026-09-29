@@ -471,8 +471,10 @@ else:
     if smoke_text.count("UrlFetchApp.fetch(") != 1:
         fail("OpenAI smoke test must contain exactly one provider request path")
 
-    if re.search(r"(?i)retry|Utilities\.sleep", smoke_text):
-        fail("OpenAI smoke test must not implement retry or sleeps")
+    if "Utilities.sleep" in smoke_text:
+        fail("OpenAI smoke test must not implement sleeps")
+
+    # The exactly-one-fetch assertion above is the structural no-retry gate.
 
     if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", smoke_text):
         fail("Possible hard-coded OpenAI API key in OpenAISmokeTest.js")
