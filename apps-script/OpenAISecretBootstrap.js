@@ -14,7 +14,7 @@
  */
 
 const AG24_OPENAI_BOOTSTRAP = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '1.1.0',
   TOKEN_HASH_PROPERTY: 'AFRIGREEN24_OPENAI_BOOTSTRAP_TOKEN_HASH',
   EXPIRES_AT_PROPERTY: 'AFRIGREEN24_OPENAI_BOOTSTRAP_EXPIRES_AT',
   CONFIGURED_AT_PROPERTY: 'AFRIGREEN24_OPENAI_CONFIGURED_AT',
@@ -228,6 +228,7 @@ function AG24_OPENAI_BOOTSTRAP_renderForm_(token) {
     .createHtmlOutput(
       '<!doctype html>' +
       '<html><head>' +
+      '<base target="_top">' +
       '<meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<meta name="referrer" content="no-referrer">' +
@@ -238,20 +239,53 @@ function AG24_OPENAI_BOOTSTRAP_renderForm_(token) {
       'label{display:block;font-weight:700;margin:18px 0 8px}' +
       'input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid #cad3ce;border-radius:10px;font-size:16px}' +
       'button{margin-top:22px;border:0;border-radius:10px;padding:13px 18px;background:#0b6b3a;color:#fff;font-weight:700;cursor:pointer}' +
+      'button[disabled]{opacity:.6;cursor:wait}' +
       '.note{font-size:14px;color:#56635c;line-height:1.5}' +
+      '.status{margin-top:18px;padding:12px 14px;border-radius:10px;display:none}' +
+      '.ok{display:block;background:#e8f5ec;color:#0b6b3a}' +
+      '.err{display:block;background:#fdecec;color:#8a1c1c}' +
       '</style>' +
       '</head><body>' +
       '<div class="card">' +
       '<h2>Configurer OpenAI pour AfriGreen24</h2>' +
-      '<p class="note">Cette page est réservée au déploiement de test /dev. La clé est envoyée directement au serveur Apps Script et n’est jamais affichée dans les logs.</p>' +
-      '<form method="post" autocomplete="off">' +
-      '<input type="hidden" name="action" value="openai-bootstrap-save">' +
-      '<input type="hidden" name="token" value="' + safeToken + '">' +
+      '<p class="note">Cette page est réservée au déploiement de test /dev. La clé est transmise au serveur Apps Script via google.script.run et n’est jamais affichée dans les logs.</p>' +
       '<label for="apiKey">OPENAI_API_KEY</label>' +
-      '<input id="apiKey" name="apiKey" type="password" required autocomplete="new-password" spellcheck="false">' +
-      '<button type="submit">Enregistrer la clé</button>' +
-      '</form>' +
+      '<input id="apiKey" type="password" required autocomplete="new-password" spellcheck="false">' +
+      '<button id="saveBtn" type="button" onclick="saveKey()">Enregistrer la clé</button>' +
+      '<div id="status" class="status"></div>' +
       '</div>' +
+      '<script>' +
+      'const SETUP_TOKEN="' + safeToken + '";' +
+      'function setStatus(message,ok){' +
+      'const el=document.getElementById("status");' +
+      'el.textContent=message;' +
+      'el.className="status "+(ok?"ok":"err");' +
+      '}' +
+      'function saveKey(){' +
+      'const input=document.getElementById("apiKey");' +
+      'const button=document.getElementById("saveBtn");' +
+      'const key=String(input.value||"").trim();' +
+      'if(!key){setStatus("Clé API obligatoire.",false);return;}' +
+      'button.disabled=true;' +
+      'setStatus("Enregistrement sécurisé en cours…",true);' +
+      'google.script.run' +
+      '.withSuccessHandler(function(result){' +
+      'button.disabled=false;' +
+      'input.value="";' +
+      'if(result&&result.success&&result.configured){' +
+      'setStatus("Configuration enregistrée. OPENAI_API_KEY est active et le jeton a été invalidé.",true);' +
+      '}else{' +
+      'setStatus("La configuration n’a pas été confirmée.",false);' +
+      '}' +
+      '})' +
+      '.withFailureHandler(function(error){' +
+      'button.disabled=false;' +
+      'input.value="";' +
+      'setStatus(error&&error.message?error.message:"Échec de configuration.",false);' +
+      '})' +
+      '.AG24_OPENAI_BOOTSTRAP_SAVE_V1(SETUP_TOKEN,key);' +
+      '}' +
+      '</script>' +
       '</body></html>'
     )
     .setTitle(
@@ -316,6 +350,82 @@ function AG24_OPENAI_BOOTSTRAP_handleGet_(e) {
   );
 }
 
+function AG24_OPENAI_BOOTSTRAP_SAVE_V1(
+  token,
+  apiKey
+) {
+  const validation =
+    AG24_OPENAI_BOOTSTRAP_validateToken_(
+      token
+    );
+
+  if (!validation.valid) {
+    throw new Error(
+      'Jeton de configuration invalide ou expiré : ' +
+      validation.reason
+    );
+  }
+
+  const normalizedKey =
+    String(
+      apiKey || ''
+    ).trim();
+
+  if (
+    normalizedKey.length <
+      AG24_OPENAI_BOOTSTRAP.MIN_KEY_LENGTH ||
+    normalizedKey.length >
+      AG24_OPENAI_BOOTSTRAP.MAX_KEY_LENGTH ||
+    /\s/.test(normalizedKey)
+  ) {
+    throw new Error(
+      'Format OPENAI_API_KEY invalide.'
+    );
+  }
+
+  const properties =
+    PropertiesService.getScriptProperties();
+
+  properties.setProperty(
+    AG24_OPENAI_CONFIG.API_KEY_PROPERTY,
+    normalizedKey
+  );
+
+  properties.setProperty(
+    AG24_OPENAI_BOOTSTRAP.CONFIGURED_AT_PROPERTY,
+    new Date().toISOString()
+  );
+
+  const health =
+    AG24_OPENAI_getHealthStatus_();
+
+  if (!health.configured) {
+    properties.deleteProperty(
+      AG24_OPENAI_CONFIG.API_KEY_PROPERTY
+    );
+
+    throw new Error(
+      'La configuration OpenAI n’a pas été persistée.'
+    );
+  }
+
+  properties.deleteProperty(
+    AG24_OPENAI_BOOTSTRAP.TOKEN_HASH_PROPERTY
+  );
+
+  properties.deleteProperty(
+    AG24_OPENAI_BOOTSTRAP.EXPIRES_AT_PROPERTY
+  );
+
+  return {
+    success: true,
+    configured: true,
+    provider: health.provider,
+    model: health.model,
+    store: health.store
+  };
+}
+
 function AG24_OPENAI_BOOTSTRAP_handlePost_(e) {
   const params =
     e && e.parameter
@@ -333,70 +443,20 @@ function AG24_OPENAI_BOOTSTRAP_handlePost_(e) {
     );
   }
 
-  const token =
-    String(
-      params.token || ''
-    ).trim();
-
-  const validation =
-    AG24_OPENAI_BOOTSTRAP_validateToken_(
-      token
+  try {
+    AG24_OPENAI_BOOTSTRAP_SAVE_V1(
+      params.token,
+      params.apiKey
     );
 
-  if (!validation.valid) {
+    return AG24_OPENAI_BOOTSTRAP_renderSuccess_();
+  } catch (error) {
     return AG24_OPENAI_BOOTSTRAP_renderDenied_(
-      validation.reason
+      error && error.message
+        ? error.message
+        : 'SAVE_FAILED'
     );
   }
-
-  const apiKey =
-    String(
-      params.apiKey || ''
-    ).trim();
-
-  if (
-    apiKey.length <
-      AG24_OPENAI_BOOTSTRAP.MIN_KEY_LENGTH ||
-    apiKey.length >
-      AG24_OPENAI_BOOTSTRAP.MAX_KEY_LENGTH ||
-    /\s/.test(apiKey)
-  ) {
-    return AG24_OPENAI_BOOTSTRAP_renderDenied_(
-      'INVALID_KEY_FORMAT'
-    );
-  }
-
-  const properties =
-    PropertiesService.getScriptProperties();
-
-  properties.setProperty(
-    AG24_OPENAI_CONFIG.API_KEY_PROPERTY,
-    apiKey
-  );
-
-  properties.setProperty(
-    AG24_OPENAI_BOOTSTRAP.CONFIGURED_AT_PROPERTY,
-    new Date().toISOString()
-  );
-
-  properties.deleteProperty(
-    AG24_OPENAI_BOOTSTRAP.TOKEN_HASH_PROPERTY
-  );
-
-  properties.deleteProperty(
-    AG24_OPENAI_BOOTSTRAP.EXPIRES_AT_PROPERTY
-  );
-
-  const health =
-    AG24_OPENAI_getHealthStatus_();
-
-  if (!health.configured) {
-    throw new Error(
-      'La configuration OpenAI n’a pas été persistée.'
-    );
-  }
-
-  return AG24_OPENAI_BOOTSTRAP_renderSuccess_();
 }
 
 function AG24_OPENAI_BOOTSTRAP_STATUS_V1() {
