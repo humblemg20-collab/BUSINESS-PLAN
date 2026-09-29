@@ -9,7 +9,7 @@
  */
 
 const AG24_BP_SYSTEM_TEST_V1 = Object.freeze({
-  VERSION: '2.1.0',
+  VERSION: '2.2.0',
   LAST_REPORT_PROPERTY:
     'AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT',
   MIN_PDF_BYTES: 5000,
@@ -229,6 +229,15 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
     whiteLabel: false,
     pageModelCount: 0,
     executiveMasterId: '',
+    visualGateVersion: '',
+    visualPreflightValid: false,
+    visualPreflightClassification: '',
+    maxDensityRatio: 0,
+    sparsePageCount: 0,
+    visualPdfValid: false,
+    physicalPdfPages: 0,
+    pdfPageCountMethod: '',
+    pdfPageCountConfidence: '',
     docCreated: false,
     docMimeValid: false,
     docMarkersValid: false,
@@ -433,6 +442,46 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
         ''
       );
 
+    const visualPreflight =
+      designResult &&
+      designResult.visualQualityPreflight
+        ? designResult.visualQualityPreflight
+        : null;
+
+    report.visualGateVersion =
+      String(
+        visualPreflight &&
+        visualPreflight.version ||
+        ''
+      );
+
+    report.visualPreflightValid =
+      Boolean(
+        visualPreflight &&
+        visualPreflight.success === true
+      );
+
+    report.visualPreflightClassification =
+      String(
+        visualPreflight &&
+        visualPreflight.classification ||
+        ''
+      );
+
+    report.maxDensityRatio =
+      Number(
+        visualPreflight &&
+        visualPreflight.maxDensityRatio ||
+        0
+      );
+
+    report.sparsePageCount =
+      Number(
+        visualPreflight &&
+        visualPreflight.sparsePageCount ||
+        0
+      );
+
     document.saveAndClose();
 
     Utilities.sleep(
@@ -484,6 +533,51 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
           projectName +
           '.pdf'
         );
+
+    if (
+      typeof AG24_BP_VISUAL_assertPdf_ !==
+      'function'
+    ) {
+      throw new Error(
+        'PDF Visual Quality Gate V1 unavailable.'
+      );
+    }
+
+    const visualPdf =
+      AG24_BP_VISUAL_assertPdf_(
+        blobPdf,
+        {
+          expectedPageCount:
+            report.pageModelCount
+        }
+      );
+
+    report.visualPdfValid =
+      Boolean(
+        visualPdf &&
+        visualPdf.success === true
+      );
+
+    report.physicalPdfPages =
+      Number(
+        visualPdf &&
+        visualPdf.physicalPageCount ||
+        0
+      );
+
+    report.pdfPageCountMethod =
+      String(
+        visualPdf &&
+        visualPdf.pageCountMethod ||
+        ''
+      );
+
+    report.pdfPageCountConfidence =
+      String(
+        visualPdf &&
+        visualPdf.pageCountConfidence ||
+        ''
+      );
 
     const pdfFile =
       creerPdfDansMemeDossier(
@@ -547,10 +641,16 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
       report.pageModelCount !==
         AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT ||
       report.executiveMasterId !==
-        AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID
+        AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID ||
+      !report.visualPreflightValid ||
+      report.visualGateVersion !==
+        AG24_BP_VISUAL_GATE_V1.VERSION ||
+      !report.visualPdfValid ||
+      report.physicalPdfPages !==
+        AG24_BP_VISUAL_GATE_V1.EXPECTED_PAGE_COUNT
     ) {
       throw new Error(
-        'Design System V2.1 master contract failed.'
+        'Design + Visual Quality Gate contract failed.'
       );
     }
 

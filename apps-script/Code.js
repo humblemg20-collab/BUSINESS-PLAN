@@ -154,6 +154,11 @@ function include(nomFichier) {
  * @return {Object} Résultat de la génération.
  */
 function genererBusinessPlan_(data) {
+  var documentId = "";
+  var pdfId = "";
+  var pdfAccessToken = "";
+  var visualQualityPdf = null;
+
   try {
     verifierDonneesGeneration_(data);
 
@@ -199,7 +204,7 @@ function genererBusinessPlan_(data) {
      * Création du Google Docs.
      */
     var document = DocumentApp.create(nomDocument);
-    var documentId = document.getId();
+    documentId = document.getId();
     var body = document.getBody();
 
     /*
@@ -251,6 +256,64 @@ function genererBusinessPlan_(data) {
       .setName(nomDocument + ".pdf");
 
     /*
+     * PDF Visual Quality Gate V1.
+     * The physical PDF must keep the canonical 15-page contract.
+     */
+    if (
+      typeof AG24_BP_VISUAL_assertPdf_ !==
+      "function"
+    ) {
+      throw new Error(
+        "VISUAL_QUALITY_GATE_UNAVAILABLE"
+      );
+    }
+
+    visualQualityPdf =
+      AG24_BP_VISUAL_assertPdf_(
+        blobPdf,
+        {
+          expectedPageCount:
+            designResult &&
+            designResult.pageModelCount
+              ? designResult.pageModelCount
+              : 15
+        }
+      );
+
+    if (
+      typeof AG24_AUDIT_event_ ===
+      "function"
+    ) {
+      AG24_AUDIT_event_(
+        "STANDARD_PDF_VISUAL_GATE_PASSED",
+        {
+          expectedPageCount:
+            visualQualityPdf.expectedPageCount,
+          physicalPageCount:
+            visualQualityPdf.physicalPageCount,
+          pageCountMethod:
+            visualQualityPdf.pageCountMethod,
+          pdfBytes:
+            visualQualityPdf.pdfBytes,
+          maxDensityRatio:
+            designResult &&
+            designResult.visualQualityPreflight
+              ? designResult
+                  .visualQualityPreflight
+                  .maxDensityRatio
+              : null,
+          sparsePageCount:
+            designResult &&
+            designResult.visualQualityPreflight
+              ? designResult
+                  .visualQualityPreflight
+                  .sparsePageCount
+              : null
+        }
+      );
+    }
+
+    /*
      * Le PDF est créé dans le même dossier que le document,
      * lorsque cela est possible.
      */
@@ -259,9 +322,9 @@ function genererBusinessPlan_(data) {
       blobPdf
     );
 
-    var pdfId = fichierPdf.getId();
+    pdfId = fichierPdf.getId();
 
-    var pdfAccessToken =
+    pdfAccessToken =
       AG24_DOC_issueCapability_(
         pdfId,
         'STANDARD',
@@ -420,6 +483,16 @@ actualiserDashboardCommercial_();
       projectName: nomProjet,
       documentDesign:
         designResult || null,
+      visualQuality:
+        {
+          preflight:
+            designResult &&
+            designResult.visualQualityPreflight
+              ? designResult.visualQualityPreflight
+              : null,
+          pdf:
+            visualQualityPdf
+        },
       promoterName: nettoyerTexte(
         data.promoterName,
         "Porteur du projet"
@@ -429,6 +502,94 @@ actualiserDashboardCommercial_();
     };
 
   } catch (erreur) {
+    var messageErreur =
+      erreur && erreur.message
+        ? String(erreur.message)
+        : String(erreur);
+
+    var qualityFailure =
+      /^(VISUAL_|WHITE_LABEL_)/.test(
+        messageErreur
+      );
+
+    if (qualityFailure) {
+      try {
+        if (
+          pdfId &&
+          typeof AG24_DOCUMENT_ACCESS !==
+            "undefined"
+        ) {
+          var capabilityKey =
+            AG24_DOCUMENT_ACCESS
+              .CAPABILITY_PREFIX +
+            AG24_SEC_sha256_(
+              pdfId
+            ).slice(
+              0,
+              40
+            );
+
+          PropertiesService
+            .getScriptProperties()
+            .deleteProperty(
+              capabilityKey
+            );
+
+          DriveApp
+            .getFileById(
+              pdfId
+            )
+            .setTrashed(true);
+        }
+      } catch (
+        pdfCleanupError
+      ) {
+        console.warn(
+          "Visual gate PDF cleanup failed:",
+          pdfCleanupError
+        );
+      }
+
+      try {
+        if (documentId) {
+          DriveApp
+            .getFileById(
+              documentId
+            )
+            .setTrashed(true);
+        }
+      } catch (
+        documentCleanupError
+      ) {
+        console.warn(
+          "Visual gate document cleanup failed:",
+          documentCleanupError
+        );
+      }
+
+      if (
+        typeof AG24_AUDIT_event_ ===
+        "function"
+      ) {
+        try {
+          AG24_AUDIT_event_(
+            "STANDARD_PDF_VISUAL_GATE_FAILED",
+            {
+              error:
+                messageErreur.slice(
+                  0,
+                  240
+                )
+            }
+          );
+        } catch (
+          auditError
+        ) {
+          // Quality failure remains authoritative.
+        }
+      }
+    }
+
     console.error(
       "Erreur genererBusinessPlan :",
       erreur
@@ -437,11 +598,11 @@ actualiserDashboardCommercial_();
     return {
       success: false,
       message:
-        "Une erreur est survenue pendant la génération du Business Plan.",
+        qualityFailure
+          ? "Le Business Plan n’a pas passé le contrôle qualité visuel."
+          : "Une erreur est survenue pendant la génération du Business Plan.",
       error:
-        erreur && erreur.message
-          ? erreur.message
-          : String(erreur)
+        messageErreur
     };
   }
 }

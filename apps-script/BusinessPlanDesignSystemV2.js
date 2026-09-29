@@ -1455,6 +1455,18 @@ function AG24_BP_V2_addParagraphs_(
       .replace(/\r/g, "")
       .trim();
 
+  var layout =
+    typeof AG24_BP_VISUAL_getTextLayout_ ===
+      "function"
+      ? AG24_BP_VISUAL_getTextLayout_(
+          source
+        )
+      : {
+          fontSize: 10.2,
+          lineSpacing: 1.32,
+          spacingAfter: 10
+        };
+
   var paragraphs =
     source.split(
       /\n\s*\n/
@@ -1487,9 +1499,21 @@ function AG24_BP_V2_addParagraphs_(
         .setFontFamily(
           theme.bodyFont
         )
-        .setFontSize(10.2)
-        .setLineSpacing(1.32)
-        .setSpacingAfter(10)
+        .setFontSize(
+          Number(
+            layout.fontSize || 10.2
+          )
+        )
+        .setLineSpacing(
+          Number(
+            layout.lineSpacing || 1.32
+          )
+        )
+        .setSpacingAfter(
+          Number(
+            layout.spacingAfter || 10
+          )
+        )
         .setAlignment(
           DocumentApp.HorizontalAlignment.JUSTIFY
         );
@@ -3427,6 +3451,20 @@ function AG24_BP_V2_renderDocument_(
       data
     );
 
+  if (
+    typeof AG24_BP_VISUAL_assertPreflight_ !==
+    "function"
+  ) {
+    throw new Error(
+      "VISUAL_QUALITY_GATE_UNAVAILABLE"
+    );
+  }
+
+  var visualPreflight =
+    AG24_BP_VISUAL_assertPreflight_(
+      model
+    );
+
   var body =
     document.getBody();
 
@@ -3518,6 +3556,8 @@ function AG24_BP_V2_renderDocument_(
       "Roadmap",
       "Closing"
     ],
+    visualQualityPreflight:
+      visualPreflight,
     whiteLabel:
       true
   };

@@ -29,6 +29,7 @@ required = [
     APP / "ImportBusinessPlanV5.html",
     APP / "BusinessPlanDesignSystemV2.js",
     APP / "BusinessPlanDesignV2.html",
+    APP / "BusinessPlanVisualQualityGateV1.js",
 ]
 
 for path in required:
@@ -612,6 +613,8 @@ else:
         "AG24_BP_V2_addRoadmapPage_",
         "AG24_BP_V2_addClosing_",
         "AG24_BP_V2_addMasterSectionPage_",
+        "AG24_BP_VISUAL_assertPreflight_(",
+        "visualQualityPreflight",
         "Risques & points de vigilance",
         "Trajectoire d’exécution",
         "pageModelCount:",
@@ -621,6 +624,34 @@ else:
 
     if "UrlFetchApp.fetch(" in design_system_text:
         fail("Document Design System must remain deterministic and must not call external AI/APIs")
+
+visual_gate_path = APP / "BusinessPlanVisualQualityGateV1.js"
+if not visual_gate_path.exists():
+    fail("BusinessPlanVisualQualityGateV1.js is required")
+else:
+    visual_gate_text = visual_gate_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        "EXPECTED_PAGE_COUNT: 15",
+        "MAX_SINGLE_BLOCK_CHARS",
+        "function AG24_BP_VISUAL_preflight_",
+        "function AG24_BP_VISUAL_assertPreflight_",
+        "function AG24_BP_VISUAL_getTextLayout_",
+        "function AG24_BP_VISUAL_countPdfPages_",
+        "function AG24_BP_VISUAL_postflightPdf_",
+        "function AG24_BP_VISUAL_assertPdf_",
+        "PDF_PAGE_COUNT_UNREADABLE",
+        "PHYSICAL_PAGE_COUNT_",
+    ]:
+        if marker not in visual_gate_text:
+            fail(f"PDF Visual Quality Gate V1 marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in visual_gate_text:
+        fail("PDF Visual Quality Gate must remain deterministic and offline")
 
 design_ui_path = APP / "BusinessPlanDesignV2.html"
 if not design_ui_path.exists():
@@ -651,6 +682,12 @@ if code.exists():
 
     if "AG24_BP_V2_renderDocument_(" not in code_text:
         fail("Standard Business Plan production path must use Design System V2")
+    if "AG24_BP_VISUAL_assertPdf_(" not in code_text:
+        fail("Standard generation must enforce PDF Visual Quality Gate V1")
+    if "STANDARD_PDF_VISUAL_GATE_PASSED" not in code_text:
+        fail("Visual quality success audit is missing")
+    if "STANDARD_PDF_VISUAL_GATE_FAILED" not in code_text:
+        fail("Visual quality failure audit is missing")
 
     for legacy_call in [
         "ajouterPageDeCouverture(body, data);",
@@ -689,6 +726,11 @@ else:
         "whiteLabel",
         "pageModelCount",
         "executiveMasterId",
+        "visualGateVersion",
+        "visualPreflightValid",
+        "physicalPdfPages",
+        "AG24_BP_VISUAL_assertPdf_(",
+        "AG24_BP_VISUAL_GATE_V1.EXPECTED_PAGE_COUNT",
         "AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT",
         "AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID",
         "creerPdfDansMemeDossier(",
