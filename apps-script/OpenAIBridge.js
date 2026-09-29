@@ -658,6 +658,91 @@ function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields) {
   return value;
 }
 
+function AG24_OPENAI_bancableNarrativeSchema_() {
+  const keys = [
+    'resumeExecutif',
+    'problemeSolution',
+    'marchePositionnement',
+    'modeleStrategie',
+    'operations',
+    'analyseFinanciere',
+    'conclusion'
+  ];
+
+  const properties = {};
+  keys.forEach(function(key) {
+    properties[key] = {
+      type: 'string'
+    };
+  });
+
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: properties,
+    required: keys
+  };
+}
+
+function AG24_OPENAI_generateBancableNarrative_(
+  rawData,
+  calculatedData,
+  extraInstructions
+) {
+  rawData = rawData || {};
+  calculatedData = calculatedData || {};
+
+  const factualChars =
+    JSON.stringify(rawData).length +
+    JSON.stringify(calculatedData).length;
+
+  if (factualChars < 320) {
+    return {
+      skipped: true,
+      reason: 'INSUFFICIENT_FACTS',
+      narratif: {},
+      model: '',
+      usage: {},
+      durationSeconds: 0
+    };
+  }
+
+  const result = AG24_OPENAI_requestStructured_({
+    operation: 'business_plan_funding_readiness_narrative',
+    schemaName: 'ag24_bp_funding_narrative_v1',
+    schema: AG24_OPENAI_bancableNarrativeSchema_(),
+    instructions: [
+      'Tu es un consultant senior en financement d’entreprise pour AfriGreen24.',
+      'Les données brutes sont des déclarations utilisateur ; les données calculées proviennent du moteur financier déterministe et ont priorité pour les chiffres dérivés.',
+      'N’invente aucun chiffre, contrat, client, garantie, preuve, autorisation ou résultat.',
+      'Ne présente jamais une hypothèse comme un fait certain.',
+      'Analyse avec prudence la cohérence financière, le marché, l’exécution et la capacité de financement.',
+      'Rédige en français professionnel, précis, sobre et utile à un financeur.',
+      'Évite les répétitions et les superlatifs.',
+      String(extraInstructions || '')
+    ].filter(Boolean).join(' '),
+    input: JSON.stringify({
+      sourceOfTruth: {
+        rawData: rawData,
+        calculatedData: calculatedData
+      }
+    }),
+    reasoningEffort: 'low',
+    maxOutputTokens: AG24_OPENAI_CONFIG.MAX_OUTPUT_TOKENS_NARRATIVE
+  });
+
+  return {
+    skipped: false,
+    reason: 'FUNDING_READINESS_ANALYSIS',
+    narratif: result.content || {},
+    model: result.model || '',
+    responseId: result.responseId || '',
+    usage: result.usage || {},
+    durationSeconds: Number(result.durationSeconds || 0)
+  };
+}
+
+
 function TEST_OPENAI_BRIDGE_CONFIG_() {
   const cfg = AG24_OPENAI_getConfig_();
 
