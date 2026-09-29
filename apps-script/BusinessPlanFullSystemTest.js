@@ -9,7 +9,7 @@
  */
 
 const AG24_BP_SYSTEM_TEST_V1 = Object.freeze({
-  VERSION: '2.0.0',
+  VERSION: '2.1.0',
   LAST_REPORT_PROPERTY:
     'AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT',
   MIN_PDF_BYTES: 5000,
@@ -25,7 +25,9 @@ const AG24_BP_SYSTEM_TEST_V1 = Object.freeze({
     'Équipe et organisation opérationnelle',
     'Financement',
     'Impact',
-    'Risques et points de vigilance'
+    'Risques & points de vigilance',
+    'Roadmap',
+    'Trajectoire d’exécution'
   ])
 });
 
@@ -225,6 +227,8 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
     designSystemVersion: '',
     themeId: '',
     whiteLabel: false,
+    pageModelCount: 0,
+    executiveMasterId: '',
     docCreated: false,
     docMimeValid: false,
     docMarkersValid: false,
@@ -415,6 +419,20 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
         designResult.whiteLabel === true
       );
 
+    report.pageModelCount =
+      Number(
+        designResult &&
+        designResult.pageModelCount ||
+        0
+      );
+
+    report.executiveMasterId =
+      String(
+        designResult &&
+        designResult.executiveMasterId ||
+        ''
+      );
+
     document.saveAndClose();
 
     Utilities.sleep(
@@ -525,10 +543,14 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
         AG24_BP_DESIGN_V2.VERSION ||
       report.themeId !==
         data.documentTheme ||
-      !report.whiteLabel
+      !report.whiteLabel ||
+      report.pageModelCount !==
+        AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT ||
+      report.executiveMasterId !==
+        AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID
     ) {
       throw new Error(
-        'Design System V2 contract failed.'
+        'Design System V2.1 master contract failed.'
       );
     }
 
