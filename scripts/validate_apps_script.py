@@ -437,6 +437,63 @@ if code_path.exists():
             fail(f"OpenAI bootstrap routing marker missing from Code.js: {marker}")
 
 
+# OpenAI smoke-test contract
+smoke_path = APP / "OpenAISmokeTest.js"
+if not smoke_path.exists():
+    fail("OpenAISmokeTest.js is required")
+else:
+    smoke_text = smoke_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "function AG24_OPENAI_SMOKE_TEST_V1()",
+        "EXPECTED_TEXT: 'AG24_OPENAI_SMOKE_OK'",
+        "store: false",
+        "reasoning: {",
+        "effort: 'none'",
+        "max_output_tokens:",
+        "muteHttpExceptions: true",
+        "classification =",
+        "'AUTH'",
+        "'MODEL_OR_ENDPOINT'",
+        "'QUOTA_OR_RATE_LIMIT'",
+        "'TRANSPORT'",
+        "'PARSE'",
+        "'RESPONSE_MISMATCH'",
+        "AG24_OPENAI_SMOKE_LAST_REPORT_V1",
+        "AFRIGREEN24_OPENAI_SMOKE_LAST_REPORT",
+    ]:
+        if marker not in smoke_text:
+            fail(f"OpenAI smoke-test marker missing: {marker}")
+
+    if smoke_text.count("UrlFetchApp.fetch(") != 1:
+        fail("OpenAI smoke test must contain exactly one provider request path")
+
+    if re.search(r"(?i)retry|Utilities\.sleep", smoke_text):
+        fail("OpenAI smoke test must not implement retry or sleeps")
+
+    if re.search(r"(?i)sk-[A-Za-z0-9_-]{16,}", smoke_text):
+        fail("Possible hard-coded OpenAI API key in OpenAISmokeTest.js")
+
+    for forbidden in [
+        "projectName",
+        "promoterName",
+        "fundingNeed",
+        "targetCustomers",
+        "BusinessPlanImport",
+    ]:
+        if forbidden in smoke_text:
+            fail(
+                "OpenAI smoke test must not include Business Plan/customer fields: "
+                + forbidden
+            )
+
+    if "Logger.log(\n      raw" in smoke_text or "console.log(raw" in smoke_text:
+        fail("OpenAI smoke test must not log raw provider responses")
+
+
 # Import Engine V5 contract
 index_path = APP / "Index.html"
 if index_path.exists():
