@@ -15,7 +15,9 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.0.0",
+  VERSION: "2.1.0",
+  MASTER_PAGE_COUNT: 15,
+  EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
   DEFAULT_THEME: "executive_premium",
   ALLOWED_THEMES: Object.freeze([
     "executive_premium",
@@ -288,6 +290,11 @@ function AG24_BP_V2_buildSemanticModel_(data) {
         AG24_BP_V2_fact_(
           data,
           "impact"
+        ),
+      opportunity:
+        AG24_BP_V2_fact_(
+          data,
+          "opportunity"
         ),
       funding:
         fundingLabel
@@ -598,23 +605,108 @@ function AG24_BP_V2_buildSemanticModel_(data) {
             )
           ]
         ]
-      },
-      {
-        number: "11",
-        id: "risks",
-        title: "Risques et points de vigilance",
-        narrative: "",
-        cards: [
-          [
-            "Risque déclaré",
-            AG24_BP_V2_fact_(
-              data,
-              "risks"
-            )
-          ]
-        ]
       }
     ],
+
+    commercial: {
+      acquisition:
+        AG24_BP_V2_fact_(
+          data,
+          "acquisitionStrategy"
+        ),
+      conversion:
+        AG24_BP_V2_fact_(
+          data,
+          "conversionStrategy"
+        ),
+      sales:
+        AG24_BP_V2_fact_(
+          data,
+          "salesProcess"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "salesChannels"
+        ),
+      retention:
+        AG24_BP_V2_fact_(
+          data,
+          "retentionStrategy"
+        )
+    },
+
+    impactPillars: {
+      economic:
+        AG24_BP_V2_fact_(
+          data,
+          "economicImpact"
+        ),
+      social:
+        AG24_BP_V2_fact_(
+          data,
+          "socialImpact"
+        ),
+      environmental:
+        AG24_BP_V2_fact_(
+          data,
+          "environmentalImpact"
+        )
+    },
+
+    risks: {
+      raw:
+        AG24_BP_V2_fact_(
+          data,
+          "risks"
+        ),
+      levels:
+        data.riskLevels &&
+        typeof data.riskLevels === "object"
+          ? data.riskLevels
+          : {},
+      mitigations:
+        data.riskMitigations &&
+        typeof data.riskMitigations === "object"
+          ? data.riskMitigations
+          : {},
+      control:
+        AG24_BP_V2_fact_(
+          data,
+          "riskControl"
+        )
+    },
+
+    roadmap: {
+      now:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmapNow"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "stage"
+        ),
+      sixMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap6Months"
+        ),
+      twelveMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap12Months"
+        ),
+      twentyFourMonths:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmap24Months"
+        ),
+      objective:
+        AG24_BP_V2_fact_(
+          data,
+          "roadmapObjective"
+        )
+    },
 
     closing: {
       valueProposition:
@@ -628,6 +720,8 @@ function AG24_BP_V2_buildSemanticModel_(data) {
         ),
       funding:
         fundingLabel,
+      fundingType:
+        fundingType,
       promoter:
         AG24_BP_V2_fact_(
           data,
@@ -637,6 +731,11 @@ function AG24_BP_V2_buildSemanticModel_(data) {
         AG24_BP_V2_fact_(
           data,
           "email"
+        ),
+      phone:
+        AG24_BP_V2_fact_(
+          data,
+          "phone"
         )
     }
   };
@@ -1225,6 +1324,12 @@ function AG24_BP_V2_addCover_(
     .setFontSize(8.5)
     .setSpacingAfter(10);
 
+  AG24_BP_V2_addPageLabel_(
+    body,
+    1,
+    theme
+  );
+
   AG24_BP_V2_addAccentBar_(
     body,
     theme
@@ -1711,6 +1816,1349 @@ function AG24_BP_V2_addSnapshot_(
     theme
   );
 
+  AG24_BP_V2_addPageLabel_(
+    body,
+    2,
+    theme
+  );
+
+  body.appendPageBreak();
+}
+
+
+function AG24_BP_V2_valueOrDash_(value) {
+  var clean =
+    AG24_BP_V2_text_(
+      value
+    );
+
+  return clean || "—";
+}
+
+
+function AG24_BP_V2_findFact_(
+  section,
+  label
+) {
+  var facts =
+    section &&
+    Array.isArray(
+      section.facts
+    )
+      ? section.facts
+      : [];
+
+  for (
+    var index = 0;
+    index < facts.length;
+    index++
+  ) {
+    if (
+      facts[index] &&
+      facts[index][0] === label
+    ) {
+      return AG24_BP_V2_text_(
+        facts[index][1]
+      );
+    }
+  }
+
+  return "";
+}
+
+
+function AG24_BP_V2_findCard_(
+  section,
+  label
+) {
+  var cards =
+    section &&
+    Array.isArray(
+      section.cards
+    )
+      ? section.cards
+      : [];
+
+  for (
+    var index = 0;
+    index < cards.length;
+    index++
+  ) {
+    if (
+      cards[index] &&
+      cards[index][0] === label
+    ) {
+      return AG24_BP_V2_text_(
+        cards[index][1]
+      );
+    }
+  }
+
+  return "";
+}
+
+
+function AG24_BP_V2_addPageLabel_(
+  body,
+  pageNumber,
+  theme
+) {
+  var label =
+    body.appendParagraph(
+      String(pageNumber) +
+      " / " +
+      String(
+        AG24_BP_DESIGN_V2
+          .MASTER_PAGE_COUNT
+      )
+    );
+
+  label
+    .setAlignment(
+      DocumentApp.HorizontalAlignment.RIGHT
+    )
+    .setForegroundColor(
+      theme.muted
+    )
+    .setFontFamily(
+      theme.bodyFont
+    )
+    .setFontSize(7)
+    .setSpacingBefore(7)
+    .setSpacingAfter(0);
+
+  return label;
+}
+
+
+function AG24_BP_V2_addCallout_(
+  body,
+  title,
+  value,
+  theme
+) {
+  var clean =
+    AG24_BP_V2_text_(
+      value
+    );
+
+  if (!clean) {
+    return null;
+  }
+
+  var table =
+    body.appendTable([
+      [""]
+    ]);
+
+  table
+    .setBorderColor(
+      theme.border
+    )
+    .setBorderWidth(1);
+
+  var cell =
+    table.getCell(
+      0,
+      0
+    );
+
+  cell.setBackgroundColor(
+    theme.soft
+  );
+
+  var heading =
+    cell
+      .getChild(0)
+      .asParagraph();
+
+  heading.setText(
+    AG24_BP_V2_text_(
+      title
+    )
+  );
+
+  heading
+    .setForegroundColor(
+      theme.accent
+    )
+    .setBold(true)
+    .setFontFamily(
+      theme.headingFont
+    )
+    .setFontSize(8)
+    .setSpacingBefore(7)
+    .setSpacingAfter(5);
+
+  cell
+    .appendParagraph(
+      clean
+    )
+    .setForegroundColor(
+      theme.text
+    )
+    .setFontFamily(
+      theme.bodyFont
+    )
+    .setFontSize(10)
+    .setLineSpacing(1.2)
+    .setSpacingAfter(7);
+
+  table.setColumnWidth(
+    0,
+    476
+  );
+
+  body
+    .appendParagraph("")
+    .setSpacingAfter(6);
+
+  return table;
+}
+
+
+function AG24_BP_V2_addHeroMetric_(
+  body,
+  label,
+  value,
+  theme
+) {
+  var clean =
+    AG24_BP_V2_text_(
+      value
+    );
+
+  if (!clean) {
+    return null;
+  }
+
+  var table =
+    body.appendTable([
+      [""]
+    ]);
+
+  table
+    .setBorderColor(
+      theme.primary
+    )
+    .setBorderWidth(0);
+
+  var cell =
+    table.getCell(
+      0,
+      0
+    );
+
+  cell.setBackgroundColor(
+    theme.primary
+  );
+
+  var title =
+    cell
+      .getChild(0)
+      .asParagraph();
+
+  title.setText(
+    AG24_BP_V2_text_(
+      label
+    )
+      .toUpperCase()
+  );
+
+  title
+    .setForegroundColor(
+      theme.accent
+    )
+    .setBold(true)
+    .setFontFamily(
+      theme.headingFont
+    )
+    .setFontSize(8)
+    .setSpacingBefore(10)
+    .setSpacingAfter(6);
+
+  cell
+    .appendParagraph(
+      clean
+    )
+    .setForegroundColor(
+      theme.white
+    )
+    .setBold(true)
+    .setFontFamily(
+      theme.headingFont
+    )
+    .setFontSize(22)
+    .setSpacingAfter(11);
+
+  table.setColumnWidth(
+    0,
+    476
+  );
+
+  body
+    .appendParagraph("")
+    .setSpacingAfter(8);
+
+  return table;
+}
+
+
+function AG24_BP_V2_addProcessFlow_(
+  body,
+  steps,
+  theme
+) {
+  var usable =
+    (steps || [])
+      .filter(
+        function(step) {
+          return (
+            step &&
+            AG24_BP_V2_text_(
+              step[0]
+            )
+          );
+        }
+      );
+
+  if (!usable.length) {
+    return null;
+  }
+
+  var row =
+    usable.map(
+      function() {
+        return "";
+      }
+    );
+
+  var table =
+    body.appendTable([
+      row
+    ]);
+
+  table
+    .setBorderColor(
+      theme.border
+    )
+    .setBorderWidth(1);
+
+  var width =
+    Math.floor(
+      476 /
+      usable.length
+    );
+
+  usable.forEach(
+    function(step, index) {
+      var cell =
+        table.getCell(
+          0,
+          index
+        );
+
+      cell.setBackgroundColor(
+        index % 2 === 0
+          ? theme.soft
+          : theme.softAlt
+      );
+
+      var heading =
+        cell
+          .getChild(0)
+          .asParagraph();
+
+      heading.setText(
+        AG24_BP_V2_text_(
+          step[0]
+        )
+      );
+
+      heading
+        .setForegroundColor(
+          theme.primary
+        )
+        .setBold(true)
+        .setFontFamily(
+          theme.headingFont
+        )
+        .setFontSize(7.5)
+        .setSpacingBefore(7)
+        .setSpacingAfter(5);
+
+      cell
+        .appendParagraph(
+          AG24_BP_V2_valueOrDash_(
+            step[1]
+          )
+        )
+        .setForegroundColor(
+          theme.text
+        )
+        .setFontFamily(
+          theme.bodyFont
+        )
+        .setFontSize(8.5)
+        .setLineSpacing(1.15)
+        .setSpacingAfter(7);
+
+      table.setColumnWidth(
+        index,
+        width
+      );
+    }
+  );
+
+  body
+    .appendParagraph("")
+    .setSpacingAfter(7);
+
+  return table;
+}
+
+
+function AG24_BP_V2_splitRisks_(
+  raw
+) {
+  var text =
+    String(
+      raw || ""
+    )
+      .replace(
+        /[•●▪]/g,
+        ";"
+      )
+      .replace(
+        /\r?\n/g,
+        ";"
+      )
+      .trim();
+
+  if (!text) {
+    return [];
+  }
+
+  var parts =
+    text
+      .split(";")
+      .map(
+        function(item) {
+          return AG24_BP_V2_text_(
+            item
+          );
+        }
+      )
+      .filter(Boolean);
+
+  if (!parts.length) {
+    return [];
+  }
+
+  return parts.slice(
+    0,
+    4
+  );
+}
+
+
+function AG24_BP_V2_addRiskRegister_(
+  body,
+  risks,
+  theme
+) {
+  risks = risks || {};
+
+  var items =
+    AG24_BP_V2_splitRisks_(
+      risks.raw
+    );
+
+  if (!items.length) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Point de contrôle",
+      "Les risques spécifiques et leurs mesures de réponse restent à formaliser avant présentation externe.",
+      theme
+    );
+    return;
+  }
+
+  var rows = [
+    [
+      "RISQUE",
+      "NIVEAU",
+      "MESURE DE RÉPONSE"
+    ]
+  ];
+
+  items.forEach(
+    function(item, index) {
+      var key =
+        String(index);
+
+      var level =
+        risks.levels &&
+        (
+          risks.levels[key] ||
+          risks.levels[index]
+        );
+
+      var mitigation =
+        risks.mitigations &&
+        (
+          risks.mitigations[key] ||
+          risks.mitigations[index]
+        );
+
+      rows.push([
+        item,
+        AG24_BP_V2_valueOrDash_(
+          level
+        ),
+        AG24_BP_V2_valueOrDash_(
+          mitigation
+        )
+      ]);
+    }
+  );
+
+  var table =
+    body.appendTable(
+      rows
+    );
+
+  table
+    .setBorderColor(
+      theme.border
+    )
+    .setBorderWidth(1);
+
+  for (
+    var rowIndex = 0;
+    rowIndex < table.getNumRows();
+    rowIndex++
+  ) {
+    for (
+      var columnIndex = 0;
+      columnIndex < 3;
+      columnIndex++
+    ) {
+      var cell =
+        table.getCell(
+          rowIndex,
+          columnIndex
+        );
+
+      cell.setBackgroundColor(
+        rowIndex === 0
+          ? theme.primary
+          : (
+              rowIndex % 2 === 0
+                ? theme.softAlt
+                : theme.white
+            )
+      );
+
+      AG24_BP_V2_styleCellText_(
+        cell,
+        theme,
+        {
+          color:
+            rowIndex === 0
+              ? theme.white
+              : (
+                  columnIndex === 0
+                    ? theme.text
+                    : theme.muted
+                ),
+          bold:
+            rowIndex === 0,
+          size:
+            rowIndex === 0
+              ? 8
+              : 8.5
+        }
+      );
+    }
+  }
+
+  table.setColumnWidth(
+    0,
+    205
+  );
+
+  table.setColumnWidth(
+    1,
+    85
+  );
+
+  table.setColumnWidth(
+    2,
+    186
+  );
+
+  body
+    .appendParagraph("")
+    .setSpacingAfter(7);
+
+  if (
+    AG24_BP_V2_text_(
+      risks.control
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Point de contrôle",
+      risks.control,
+      theme
+    );
+  }
+}
+
+
+function AG24_BP_V2_addExecutiveSummaryPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    section.cards,
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Pourquoi ce projet mérite l’attention",
+    model.snapshot.valueProposition,
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addProjectPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addFactsGrid_(
+    body,
+    section.facts,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Positionnement",
+    model.snapshot.valueProposition,
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addProblemPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  var affected =
+    AG24_BP_V2_findCard_(
+      section,
+      "Population concernée"
+    );
+
+  var urgency =
+    AG24_BP_V2_findCard_(
+      section,
+      "Pourquoi maintenant"
+    );
+
+  AG24_BP_V2_addCards_(
+    body,
+    [
+      [
+        "PROBLÈME",
+        model.snapshot.problem
+      ],
+      [
+        "POPULATION CONCERNÉE",
+        affected
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Pourquoi maintenant",
+    urgency,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addProcessFlow_(
+    body,
+    [
+      [
+        "Situation",
+        model.snapshot.problem
+      ],
+      [
+        "Conséquence",
+        urgency
+      ],
+      [
+        "Opportunité",
+        model.snapshot.opportunity
+      ]
+    ],
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addSolutionPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Notre réponse",
+    model.snapshot.solution,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    section.cards,
+    theme
+  );
+
+  AG24_BP_V2_addProcessFlow_(
+    body,
+    [
+      [
+        "Besoin",
+        model.snapshot.problem
+      ],
+      [
+        "Solution",
+        model.snapshot.solution
+      ],
+      [
+        "Bénéfice",
+        AG24_BP_V2_findCard_(
+          section,
+          "Bénéfice concret"
+        )
+      ]
+    ],
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addMarketPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    section.cards,
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Positionnement",
+    model.snapshot.valueProposition,
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addBusinessModelPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addProcessFlow_(
+    body,
+    [
+      [
+        "Qui paie ?",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Pour quoi ?",
+        model.snapshot.solution
+      ],
+      [
+        "Comment ?",
+        AG24_BP_V2_findCard_(
+          section,
+          "Sources de revenus"
+        )
+      ],
+      [
+        "Combien ?",
+        AG24_BP_V2_findCard_(
+          section,
+          "Tarification"
+        )
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    section.cards,
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addStrategyPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addProcessFlow_(
+    body,
+    [
+      [
+        "Acquisition",
+        model.commercial.acquisition
+      ],
+      [
+        "Conversion",
+        model.commercial.conversion
+      ],
+      [
+        "Vente",
+        model.commercial.sales
+      ],
+      [
+        "Fidélisation",
+        model.commercial.retention
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    [
+      [
+        "Canaux",
+        AG24_BP_V2_findCard_(
+          section,
+          "Canaux"
+        )
+      ],
+      [
+        "Segment prioritaire",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Zone de lancement",
+        model.snapshot.marketArea
+      ]
+    ],
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addOperationsPage_(
+  body,
+  section,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    section.cards,
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addFundingPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  var fundingNeed =
+    AG24_BP_V2_findFact_(
+      section,
+      "Montant recherché"
+    );
+
+  AG24_BP_V2_addHeroMetric_(
+    body,
+    "Montant recherché",
+    fundingNeed,
+    theme
+  );
+
+  AG24_BP_V2_addFactsGrid_(
+    body,
+    [
+      [
+        "Type de financement",
+        AG24_BP_V2_findFact_(
+          section,
+          "Type"
+        )
+      ],
+      [
+        "Utilisation des fonds",
+        AG24_BP_V2_findFact_(
+          section,
+          "Utilisation prévue"
+        )
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCallout_(
+    body,
+    "Objectif financé",
+    AG24_BP_V2_findFact_(
+      section,
+      "Utilisation prévue"
+    ),
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addImpactPage_(
+  body,
+  section,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    section.number,
+    section.title,
+    theme
+  );
+
+  AG24_BP_V2_addParagraphs_(
+    body,
+    section.narrative,
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    [
+      [
+        "Impact déclaré",
+        AG24_BP_V2_findCard_(
+          section,
+          "Impact déclaré"
+        )
+      ],
+      [
+        "Impact économique",
+        model.impactPillars.economic
+      ],
+      [
+        "Impact social",
+        model.impactPillars.social
+      ],
+      [
+        "Impact environnemental",
+        model.impactPillars.environmental
+      ]
+    ],
+    theme
+  );
+}
+
+
+function AG24_BP_V2_addMasterSectionPage_(
+  body,
+  section,
+  model,
+  theme,
+  pageNumber
+) {
+  switch (
+    section.id
+  ) {
+    case "executive-summary":
+      AG24_BP_V2_addExecutiveSummaryPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "project":
+      AG24_BP_V2_addProjectPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "problem":
+      AG24_BP_V2_addProblemPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "solution":
+      AG24_BP_V2_addSolutionPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "market":
+      AG24_BP_V2_addMarketPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "business-model":
+      AG24_BP_V2_addBusinessModelPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "go-to-market":
+      AG24_BP_V2_addStrategyPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "operations":
+      AG24_BP_V2_addOperationsPage_(
+        body,
+        section,
+        theme
+      );
+      break;
+
+    case "funding":
+      AG24_BP_V2_addFundingPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    case "impact":
+      AG24_BP_V2_addImpactPage_(
+        body,
+        section,
+        model,
+        theme
+      );
+      break;
+
+    default:
+      AG24_BP_V2_addSection_(
+        body,
+        section,
+        theme,
+        false
+      );
+      return;
+  }
+
+  AG24_BP_V2_addPageLabel_(
+    body,
+    pageNumber,
+    theme
+  );
+
+  body.appendPageBreak();
+}
+
+
+function AG24_BP_V2_addRiskPage_(
+  body,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    "11",
+    "Risques & points de vigilance",
+    theme
+  );
+
+  var intro =
+    body.appendParagraph(
+      "Les principaux facteurs à surveiller et les réponses prévues."
+    );
+
+  intro
+    .setForegroundColor(
+      theme.muted
+    )
+    .setFontFamily(
+      theme.bodyFont
+    )
+    .setFontSize(9)
+    .setSpacingAfter(12);
+
+  AG24_BP_V2_addRiskRegister_(
+    body,
+    model.risks,
+    theme
+  );
+
+  AG24_BP_V2_addPageLabel_(
+    body,
+    13,
+    theme
+  );
+
+  body.appendPageBreak();
+}
+
+
+function AG24_BP_V2_addRoadmapPage_(
+  body,
+  model,
+  theme
+) {
+  AG24_BP_V2_addSectionTitle_(
+    body,
+    "12",
+    "Roadmap",
+    theme
+  );
+
+  var subtitle =
+    body.appendParagraph(
+      "Trajectoire d’exécution"
+    );
+
+  subtitle
+    .setForegroundColor(
+      theme.muted
+    )
+    .setFontFamily(
+      theme.bodyFont
+    )
+    .setFontSize(9)
+    .setSpacingAfter(12);
+
+  if (
+    AG24_BP_V2_text_(
+      model.roadmap.objective
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Objectif de trajectoire",
+      model.roadmap.objective,
+      theme
+    );
+  }
+
+  AG24_BP_V2_addProcessFlow_(
+    body,
+    [
+      [
+        "AUJOURD’HUI",
+        model.roadmap.now
+      ],
+      [
+        "6 MOIS",
+        model.roadmap.sixMonths
+      ],
+      [
+        "12 MOIS",
+        model.roadmap.twelveMonths
+      ],
+      [
+        "24 MOIS",
+        model.roadmap.twentyFourMonths
+      ]
+    ],
+    theme
+  );
+
+  if (
+    !AG24_BP_V2_text_(
+      model.roadmap.sixMonths
+    ) &&
+    !AG24_BP_V2_text_(
+      model.roadmap.twelveMonths
+    ) &&
+    !AG24_BP_V2_text_(
+      model.roadmap.twentyFourMonths
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Jalons à formaliser",
+      "Les objectifs à 6, 12 et 24 mois n’ont pas encore été détaillés dans les données du projet.",
+      theme
+    );
+  }
+
+  AG24_BP_V2_addPageLabel_(
+    body,
+    14,
+    theme
+  );
+
   body.appendPageBreak();
 }
 
@@ -1772,8 +3220,6 @@ function AG24_BP_V2_addClosing_(
   data,
   theme
 ) {
-  body.appendPageBreak();
-
   AG24_BP_V2_addAccentBar_(
     body,
     theme
@@ -1781,7 +3227,7 @@ function AG24_BP_V2_addClosing_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(28);
+    .setSpacingAfter(30);
 
   var logo =
     body.appendParagraph("");
@@ -1796,6 +3242,23 @@ function AG24_BP_V2_addClosing_(
     96
   );
 
+  var type =
+    body.appendParagraph(
+      "BUSINESS PLAN"
+    );
+
+  type
+    .setForegroundColor(
+      theme.accent
+    )
+    .setBold(true)
+    .setFontFamily(
+      theme.headingFont
+    )
+    .setFontSize(9)
+    .setSpacingBefore(20)
+    .setSpacingAfter(10);
+
   var name =
     body.appendParagraph(
       model.project.name
@@ -1809,9 +3272,8 @@ function AG24_BP_V2_addClosing_(
     .setFontFamily(
       theme.headingFont
     )
-    .setFontSize(26)
-    .setSpacingBefore(24)
-    .setSpacingAfter(14);
+    .setFontSize(27)
+    .setSpacingAfter(12);
 
   if (
     model.closing.valueProposition
@@ -1826,10 +3288,18 @@ function AG24_BP_V2_addClosing_(
       .setFontFamily(
         theme.bodyFont
       )
-      .setFontSize(12)
+      .setFontSize(11.5)
       .setLineSpacing(1.25)
-      .setSpacingAfter(28);
+      .setSpacingAfter(26);
   }
+
+  var contact =
+    [
+      model.closing.email,
+      model.closing.phone
+    ]
+      .filter(Boolean)
+      .join(" • ");
 
   AG24_BP_V2_addFactsGrid_(
     body,
@@ -1844,7 +3314,11 @@ function AG24_BP_V2_addClosing_(
       ],
       [
         "Contact",
-        model.closing.email
+        contact
+      ],
+      [
+        "Type de financement",
+        model.closing.fundingType
       ]
     ],
     theme
@@ -1852,7 +3326,13 @@ function AG24_BP_V2_addClosing_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(28);
+    .setSpacingAfter(26);
+
+  AG24_BP_V2_addPageLabel_(
+    body,
+    15,
+    theme
+  );
 
   AG24_BP_V2_addAccentBar_(
     body,
@@ -1976,14 +3456,26 @@ function AG24_BP_V2_renderDocument_(
 
   model.sections.forEach(
     function(section, index) {
-      AG24_BP_V2_addSection_(
+      AG24_BP_V2_addMasterSectionPage_(
         body,
         section,
+        model,
         theme,
-        index ===
-        model.sections.length - 1
+        index + 3
       );
     }
+  );
+
+  AG24_BP_V2_addRiskPage_(
+    body,
+    model,
+    theme
+  );
+
+  AG24_BP_V2_addRoadmapPage_(
+    body,
+    model,
+    theme
   );
 
   AG24_BP_V2_addClosing_(
@@ -2005,10 +3497,27 @@ function AG24_BP_V2_renderDocument_(
       theme.id,
     themeLabel:
       theme.label,
+    executiveMasterId:
+      AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID,
     pageModelCount:
-      2 +
-      model.sections.length +
-      1,
+      AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT,
+    pagePlan: [
+      "Cover",
+      "Executive Snapshot",
+      "Résumé exécutif",
+      "Présentation du projet",
+      "Problème et opportunité",
+      "Solution et proposition de valeur",
+      "Marché et clientèle",
+      "Modèle économique",
+      "Stratégie commerciale",
+      "Équipe et organisation opérationnelle",
+      "Financement",
+      "Impact",
+      "Risques & points de vigilance",
+      "Roadmap",
+      "Closing"
+    ],
     whiteLabel:
       true
   };

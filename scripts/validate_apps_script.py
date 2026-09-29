@@ -595,6 +595,9 @@ else:
     )
 
     for marker in [
+        'VERSION: "2.1.0"',
+        'MASTER_PAGE_COUNT: 15',
+        'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
         'DEFAULT_THEME: "executive_premium"',
         '"institutional_banking"',
         '"modern_minimal"',
@@ -605,7 +608,13 @@ else:
         '"afrigreen24"',
         "AG24_BP_V2_addCover_",
         "AG24_BP_V2_addSnapshot_",
+        "AG24_BP_V2_addRiskPage_",
+        "AG24_BP_V2_addRoadmapPage_",
         "AG24_BP_V2_addClosing_",
+        "AG24_BP_V2_addMasterSectionPage_",
+        "Risques & points de vigilance",
+        "Trajectoire d’exécution",
+        "pageModelCount:",
     ]:
         if marker not in design_system_text:
             fail(f"Business Plan Design System V2 marker missing: {marker}")
@@ -678,6 +687,10 @@ else:
         "AG24_BP_V2_renderDocument_(",
         "designSystemVersion",
         "whiteLabel",
+        "pageModelCount",
+        "executiveMasterId",
+        "AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT",
+        "AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID",
         "creerPdfDansMemeDossier(",
         "AG24_DOC_issueCapability_(",
         "telechargerPdfBusinessPlanStandard(",
