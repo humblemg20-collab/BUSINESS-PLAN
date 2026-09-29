@@ -14,7 +14,7 @@ const BPB_CONFIG = Object.freeze({
   VERSION: '1.2.0',
   PREFIXE_STOCKAGE: 'AFRIGREEN24_BPB',
   TAILLE_CHUNK: 7500,
-  TITRE_INTERFACE: 'Business Plan Bancable AfriGreen24'
+  TITRE_INTERFACE: 'Business Plan AfriGreen24 — Analyse approfondie'
 });
 
 /**
@@ -26,7 +26,7 @@ function creerIdentifiantDossierBancable() {
 
 /**
  * Enregistre le socle Standard afin que l'extension Bancable le réutilise.
- * À appeler depuis le parcours Standard au moment où l'utilisateur passe au Premium.
+ * À appeler lorsque l’utilisateur poursuit vers l’analyse approfondie du Business Plan unique.
  */
 function enregistrerReponsesStandardPourBancable(dossierId, reponsesStandard) {
   const id = BPB_normaliserDossierId_(dossierId);
@@ -239,7 +239,7 @@ function confirmerDossierBusinessPlanBancable(dossierId, jetonAcces) {
     statut: 'PRET_POUR_GENERATION',
     message: (audit.alertes || []).some(function (a) { return a.niveau === 'ATTENTION'; })
       ? 'Dossier validé avec recommandations. La génération du Business Plan est autorisée.'
-      : 'Dossier validé et prêt pour la génération du Business Plan Bancable.'
+      : 'Dossier validé et prêt pour la génération du Business Plan AfriGreen24.'
   };
 }
 
