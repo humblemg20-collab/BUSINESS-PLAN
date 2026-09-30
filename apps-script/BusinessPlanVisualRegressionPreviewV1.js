@@ -819,11 +819,22 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_LAST_REPORT_V1() {
   var report =
     AG24_BP_VISUAL_PREVIEW_readLast_();
 
-  return report || {
-    success: false,
-    classification:
-      "NO_PREVIEW_BATCH"
-  };
+  var result =
+    report || {
+      success: false,
+      classification:
+        "NO_PREVIEW_BATCH"
+    };
+
+  Logger.log(
+    JSON.stringify(
+      result,
+      null,
+      2
+    )
+  );
+
+  return result;
 }
 
 
