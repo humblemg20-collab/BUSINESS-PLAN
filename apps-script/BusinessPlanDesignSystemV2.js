@@ -4094,6 +4094,8 @@ function AG24_BP_V2_renderDocument_(
       theme.id,
     themeLabel:
       theme.label,
+    layoutGrammar:
+      theme.grammar,
     executiveMasterId:
       AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID,
     pageModelCount:
@@ -4133,6 +4135,7 @@ function AG24_BP_V2_getThemeCatalog_() {
         return {
           id: theme.id,
           label: theme.label,
+          grammar: theme.grammar,
           primary: theme.primary,
           secondary: theme.secondary,
           accent: theme.accent
