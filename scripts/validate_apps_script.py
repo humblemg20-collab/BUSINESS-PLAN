@@ -885,7 +885,7 @@ else:
         "enregistrerBrandingProjetAvantGeneration_",
         ".AG24_BP_PROJECT_BRANDING_GET_V1(",
         ".AG24_BP_PROJECT_BRANDING_SAVE_V1(",
-        '"logoAction"',
+        "logoAction:",
         '"replace"',
         '"remove"',
     ]:
