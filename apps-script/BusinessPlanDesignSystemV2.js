@@ -1388,6 +1388,11 @@ function AG24_BP_V2_addSectionTitle_(
   title,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var table =
     body.appendTable([
       [
@@ -1395,12 +1400,6 @@ function AG24_BP_V2_addSectionTitle_(
         title || ""
       ]
     ]);
-
-  table
-    .setBorderColor(
-      theme.white
-    )
-    .setBorderWidth(0);
 
   var numberCell =
     table.getCell(
@@ -1414,21 +1413,83 @@ function AG24_BP_V2_addSectionTitle_(
       1
     );
 
-  numberCell.setBackgroundColor(
-    theme.primary
-  );
+  if (
+    grammar === "minimal"
+  ) {
+    table
+      .setBorderColor(
+        theme.border
+      )
+      .setBorderWidth(0.5);
 
-  titleCell.setBackgroundColor(
-    theme.soft
-  );
+    numberCell.setBackgroundColor(
+      theme.white
+    );
+
+    titleCell.setBackgroundColor(
+      theme.white
+    );
+  } else if (
+    grammar === "banking"
+  ) {
+    table
+      .setBorderColor(
+        theme.primary
+      )
+      .setBorderWidth(1);
+
+    numberCell.setBackgroundColor(
+      theme.primaryDark
+    );
+
+    titleCell.setBackgroundColor(
+      theme.white
+    );
+  } else if (
+    grammar === "impact"
+  ) {
+    table
+      .setBorderColor(
+        theme.border
+      )
+      .setBorderWidth(0);
+
+    numberCell.setBackgroundColor(
+      theme.primary
+    );
+
+    titleCell.setBackgroundColor(
+      theme.soft
+    );
+  } else {
+    table
+      .setBorderColor(
+        theme.white
+      )
+      .setBorderWidth(0);
+
+    numberCell.setBackgroundColor(
+      theme.primary
+    );
+
+    titleCell.setBackgroundColor(
+      theme.soft
+    );
+  }
 
   AG24_BP_V2_styleCellText_(
     numberCell,
     theme,
     {
-      color: theme.white,
+      color:
+        grammar === "minimal"
+          ? theme.accent
+          : theme.white,
       bold: true,
-      size: 9
+      size:
+        grammar === "minimal"
+          ? 8
+          : 9
     }
   );
 
@@ -1436,9 +1497,15 @@ function AG24_BP_V2_addSectionTitle_(
     titleCell,
     theme,
     {
-      color: theme.primaryDark,
+      color:
+        grammar === "banking"
+          ? theme.primary
+          : theme.primaryDark,
       bold: true,
-      size: 16,
+      size:
+        grammar === "minimal"
+          ? 17
+          : 16,
       font: theme.headingFont
     }
   );
@@ -1449,31 +1516,55 @@ function AG24_BP_V2_addSectionTitle_(
     .setAlignment(
       DocumentApp.HorizontalAlignment.CENTER
     )
-    .setSpacingBefore(8)
-    .setSpacingAfter(8);
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 6
+        : 8
+    );
 
   titleCell
     .getChild(0)
     .asParagraph()
-    .setSpacingBefore(8)
-    .setSpacingAfter(8)
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
     .setHeading(
       DocumentApp.ParagraphHeading.HEADING1
     );
 
   table.setColumnWidth(
     0,
-    52
+    grammar === "minimal"
+      ? 38
+      : 52
   );
 
   table.setColumnWidth(
     1,
-    428
+    grammar === "minimal"
+      ? 442
+      : 428
   );
 
   body
     .appendParagraph("")
-    .setSpacingAfter(8);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 12
+        : 8
+    );
 }
 
 
