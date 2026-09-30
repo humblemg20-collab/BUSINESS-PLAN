@@ -699,10 +699,13 @@ function AG24_BP_BRANDING_publicRecord_(
       AG24_BP_PROJECT_BRANDING_V1
         .VERSION,
     hasLogo:
-      Boolean(
-        logoUpload ||
-        metadata.logoFileId
-      ),
+      includeLogo
+        ? Boolean(
+            logoUpload
+          )
+        : Boolean(
+            metadata.logoFileId
+          ),
     logoUpload:
       logoUpload,
     slogan:
