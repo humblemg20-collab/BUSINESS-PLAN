@@ -1061,6 +1061,33 @@ function AG24_BP_V2_addAccentBar_(
   body,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
+  var leftColor =
+    grammar === "minimal"
+      ? theme.primaryDark
+      : theme.primary;
+
+  var rightColor =
+    grammar === "banking"
+      ? theme.secondary
+      : theme.accent;
+
+  var leftWidth =
+    grammar === "minimal"
+      ? 435
+      : (
+          grammar === "banking"
+            ? 390
+            : 410
+        );
+
+  var rightWidth =
+    480 - leftWidth;
+
   var table =
     body.appendTable([
       ["", ""]
@@ -1075,23 +1102,23 @@ function AG24_BP_V2_addAccentBar_(
   table
     .getCell(0, 0)
     .setBackgroundColor(
-      theme.primary
+      leftColor
     );
 
   table
     .getCell(0, 1)
     .setBackgroundColor(
-      theme.accent
+      rightColor
     );
 
   table.setColumnWidth(
     0,
-    410
+    leftWidth
   );
 
   table.setColumnWidth(
     1,
-    70
+    rightWidth
   );
 
   for (
@@ -1103,9 +1130,21 @@ function AG24_BP_V2_addAccentBar_(
       .getCell(0, index)
       .getChild(0)
       .asParagraph()
-      .setFontSize(1)
-      .setSpacingBefore(1)
-      .setSpacingAfter(1);
+      .setFontSize(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      )
+      .setSpacingBefore(
+        grammar === "impact"
+          ? 2
+          : 1
+      )
+      .setSpacingAfter(
+        grammar === "impact"
+          ? 2
+          : 1
+      );
   }
 
   return table;
