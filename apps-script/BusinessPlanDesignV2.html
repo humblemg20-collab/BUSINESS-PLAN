@@ -252,6 +252,66 @@
     line-height: 1.45;
   }
 
+  .bp-design-branding-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    margin: 10px 0 0;
+    padding: 7px 10px;
+    color: #66717d;
+    font-size: .69rem;
+    font-weight: 800;
+    background: #f7f8fa;
+    border: 1px solid #e4e7ea;
+    border-radius: 10px;
+  }
+
+  .bp-design-branding-status.is-saved {
+    color: #20593f;
+    background: #f0f7f3;
+    border-color: #d7e9df;
+  }
+
+  .bp-design-branding-status.is-pending {
+    color: #765923;
+    background: #fbf7ec;
+    border-color: #ece1c4;
+  }
+
+  .bp-design-branding-status.is-error {
+    color: #8d342d;
+    background: #fff3f1;
+    border-color: #f1d1cd;
+  }
+
+  .bp-design-logo-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 9px;
+  }
+
+  .bp-design-logo-remove {
+    display: none;
+    min-height: 32px;
+    padding: 0 10px;
+    color: #7b4540;
+    font: inherit;
+    font-size: .7rem;
+    font-weight: 800;
+    background: #fff;
+    border: 1px solid #ead3d0;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .bp-design-logo-remove.is-visible {
+    display: inline-flex;
+    align-items: center;
+  }
+
   .bp-design-actions {
     display: flex;
     justify-content: space-between;
@@ -406,7 +466,15 @@
           <div id="bpDocumentLogoPreview" class="bp-design-logo-preview">Aucun logo</div>
           <div style="min-width:0;flex:1">
             <input id="bpDocumentLogo" type="file" accept="image/png,image/jpeg">
-            <p class="bp-design-help">PNG ou JPEG, 2 Mo maximum. Les proportions sont conservées automatiquement.</p>
+            <div class="bp-design-logo-actions">
+              <button id="bpDocumentLogoRemove" type="button" class="bp-design-logo-remove">
+                Retirer le logo enregistré
+              </button>
+            </div>
+            <p class="bp-design-help">PNG ou JPEG, 2 Mo maximum. Le logo est enregistré une seule fois pour ce projet puis réutilisé automatiquement.</p>
+            <div id="bpProjectBrandingStatus" class="bp-design-branding-status" role="status" aria-live="polite">
+              Recherche de l’identité visuelle du projet…
+            </div>
           </div>
         </div>
       </div>

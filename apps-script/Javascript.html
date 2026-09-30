@@ -379,11 +379,289 @@
     origin: "questionnaire",
     themeId: "executive_premium",
     logoUpload: null,
-    slogan: ""
+    slogan: "",
+    projectBrandingToken: "",
+    brandingLocalKey: "",
+    brandingLoaded: false,
+    brandingLoading: false,
+    logoDirty: false
   };
 
   window.AG24BusinessPlanDesign =
     AG24_BP_DESIGN_STATE;
+
+  function AG24_BP_BRANDING_normalizeLocal_(
+    value
+  ) {
+    let text =
+      String(
+        value || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    try {
+      text =
+        text
+          .normalize("NFD")
+          .replace(
+            /[\u0300-\u036f]/g,
+            ""
+          );
+    } catch (error) {
+      // Normalization is an optimization only.
+    }
+
+    return text
+      .replace(
+        /[^a-z0-9]+/g,
+        "-"
+      )
+      .replace(
+        /^-+|-+$/g,
+        ""
+      );
+  }
+
+  function AG24_BP_BRANDING_localHash_(
+    value
+  ) {
+    const text =
+      String(
+        value || ""
+      );
+
+    let left =
+      0x811c9dc5;
+
+    let right =
+      0x9e3779b9;
+
+    for (
+      let index = 0;
+      index < text.length;
+      index += 1
+    ) {
+      const code =
+        text.charCodeAt(
+          index
+        );
+
+      left ^=
+        code;
+
+      left =
+        Math.imul(
+          left,
+          0x01000193
+        );
+
+      right ^=
+        code +
+        index;
+
+      right =
+        Math.imul(
+          right,
+          0x85ebca6b
+        );
+    }
+
+    return (
+      (left >>> 0)
+        .toString(16)
+        .padStart(8, "0") +
+      (right >>> 0)
+        .toString(16)
+        .padStart(8, "0")
+    );
+  }
+
+  function AG24_BP_BRANDING_projectIdentity_() {
+    let data = {};
+
+    try {
+      data =
+        typeof collecterDonneesFormulaire ===
+          "function"
+          ? collecterDonneesFormulaire()
+          : {};
+    } catch (error) {
+      data = {};
+    }
+
+    return {
+      projectName:
+        String(
+          data.projectName || ""
+        ).trim(),
+      promoterName:
+        String(
+          data.promoterName || ""
+        ).trim(),
+      country:
+        String(
+          data.country || ""
+        ).trim()
+    };
+  }
+
+  function AG24_BP_BRANDING_localKey_() {
+    const identity =
+      AG24_BP_BRANDING_projectIdentity_();
+
+    if (!identity.projectName) {
+      return "";
+    }
+
+    const canonical =
+      [
+        identity.projectName,
+        identity.promoterName,
+        identity.country
+      ]
+        .map(
+          AG24_BP_BRANDING_normalizeLocal_
+        )
+        .join("|");
+
+    return (
+      "ag24:bp:branding:v1:" +
+      AG24_BP_BRANDING_localHash_(
+        canonical
+      )
+    );
+  }
+
+  function AG24_BP_BRANDING_readLocalToken_(
+    key
+  ) {
+    if (!key) {
+      return "";
+    }
+
+    try {
+      return String(
+        window.localStorage
+          .getItem(
+            key
+          ) || ""
+      ).trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function AG24_BP_BRANDING_writeLocalToken_(
+    key,
+    token
+  ) {
+    if (!key) {
+      return;
+    }
+
+    try {
+      if (token) {
+        window.localStorage
+          .setItem(
+            key,
+            String(token)
+          );
+      } else {
+        window.localStorage
+          .removeItem(
+            key
+          );
+      }
+    } catch (error) {
+      // Browser persistence may be unavailable in private browsing.
+    }
+  }
+
+  function afficherStatutBrandingProjet_(
+    message,
+    state
+  ) {
+    const status =
+      obtenirElement(
+        "bpProjectBrandingStatus"
+      );
+
+    if (!status) {
+      return;
+    }
+
+    status.classList.remove(
+      "is-saved",
+      "is-pending",
+      "is-error"
+    );
+
+    if (
+      state === "saved"
+    ) {
+      status.classList.add(
+        "is-saved"
+      );
+    } else if (
+      state === "pending"
+    ) {
+      status.classList.add(
+        "is-pending"
+      );
+    } else if (
+      state === "error"
+    ) {
+      status.classList.add(
+        "is-error"
+      );
+    }
+
+    status.textContent =
+      String(
+        message || ""
+      );
+  }
+
+  function mettreAJourActionRetraitLogo_() {
+    const removeButton =
+      obtenirElement(
+        "bpDocumentLogoRemove"
+      );
+
+    if (!removeButton) {
+      return;
+    }
+
+    removeButton.classList.toggle(
+      "is-visible",
+      Boolean(
+        AG24_BP_DESIGN_STATE.logoUpload &&
+        AG24_BP_DESIGN_STATE.logoUpload.dataUrl
+      )
+    );
+  }
+
+  function definirBrandingBusy_(
+    busy
+  ) {
+    AG24_BP_DESIGN_STATE.brandingLoading =
+      Boolean(
+        busy
+      );
+
+    const generateButton =
+      obtenirElement(
+        "bpDesignGenerateButton"
+      );
+
+    if (generateButton) {
+      generateButton.disabled =
+        Boolean(
+          busy
+        );
+    }
+  }
 
   function lireLogoDesignBusinessPlan_(file) {
     return new Promise(function(resolve, reject) {
@@ -461,6 +739,8 @@
     ) {
       preview.textContent =
         "Aucun logo";
+
+      mettreAJourActionRetraitLogo_();
       return;
     }
 
@@ -479,6 +759,408 @@
     preview.appendChild(
       image
     );
+
+    mettreAJourActionRetraitLogo_();
+  }
+
+  function chargerBrandingProjetBusinessPlan_() {
+    const localKey =
+      AG24_BP_BRANDING_localKey_();
+
+    if (!localKey) {
+      AG24_BP_DESIGN_STATE.brandingLocalKey =
+        "";
+
+      AG24_BP_DESIGN_STATE.projectBrandingToken =
+        "";
+
+      AG24_BP_DESIGN_STATE.brandingLoaded =
+        false;
+
+      afficherStatutBrandingProjet_(
+        "Le logo pourra être enregistré dès que le projet est identifié.",
+        ""
+      );
+
+      return;
+    }
+
+    if (
+      AG24_BP_DESIGN_STATE.brandingLocalKey ===
+        localKey &&
+      (
+        AG24_BP_DESIGN_STATE.brandingLoaded ||
+        AG24_BP_DESIGN_STATE.logoDirty
+      )
+    ) {
+      return;
+    }
+
+    if (
+      AG24_BP_DESIGN_STATE.brandingLocalKey &&
+      AG24_BP_DESIGN_STATE.brandingLocalKey !==
+        localKey
+    ) {
+      AG24_BP_DESIGN_STATE.projectBrandingToken =
+        "";
+
+      AG24_BP_DESIGN_STATE.logoUpload =
+        null;
+
+      AG24_BP_DESIGN_STATE.slogan =
+        "";
+
+      AG24_BP_DESIGN_STATE.logoDirty =
+        false;
+
+      AG24_BP_DESIGN_STATE.brandingLoaded =
+        false;
+
+      const sloganField =
+        obtenirElement(
+          "bpDocumentSlogan"
+        );
+
+      if (sloganField) {
+        sloganField.value =
+          "";
+      }
+
+      afficherApercuLogoDesignBusinessPlan_(
+        null
+      );
+    }
+
+    AG24_BP_DESIGN_STATE.brandingLocalKey =
+      localKey;
+
+    const token =
+      AG24_BP_BRANDING_readLocalToken_(
+        localKey
+      );
+
+    if (!token) {
+      AG24_BP_DESIGN_STATE.projectBrandingToken =
+        "";
+
+      AG24_BP_DESIGN_STATE.brandingLoaded =
+        true;
+
+      afficherStatutBrandingProjet_(
+        "Aucun logo enregistré pour ce projet. Ajoutez-en un une seule fois.",
+        ""
+      );
+
+      return;
+    }
+
+    if (
+      typeof google === "undefined" ||
+      !google.script ||
+      !google.script.run
+    ) {
+      afficherStatutBrandingProjet_(
+        "Impossible de charger le logo enregistré dans cet aperçu.",
+        "error"
+      );
+
+      return;
+    }
+
+    definirBrandingBusy_(
+      true
+    );
+
+    afficherStatutBrandingProjet_(
+      "Chargement du logo déjà enregistré…",
+      "pending"
+    );
+
+    const requestedKey =
+      localKey;
+
+    google.script.run
+      .withSuccessHandler(
+        function(result) {
+          if (
+            AG24_BP_DESIGN_STATE.brandingLocalKey !==
+            requestedKey
+          ) {
+            definirBrandingBusy_(
+              false
+            );
+            return;
+          }
+
+          if (
+            !result ||
+            result.success !== true ||
+            result.found !== true
+          ) {
+            AG24_BP_BRANDING_writeLocalToken_(
+              requestedKey,
+              ""
+            );
+
+            AG24_BP_DESIGN_STATE.projectBrandingToken =
+              "";
+
+            AG24_BP_DESIGN_STATE.logoUpload =
+              null;
+
+            AG24_BP_DESIGN_STATE.brandingLoaded =
+              true;
+
+            AG24_BP_DESIGN_STATE.logoDirty =
+              false;
+
+            afficherApercuLogoDesignBusinessPlan_(
+              null
+            );
+
+            afficherStatutBrandingProjet_(
+              "Aucun logo enregistré pour ce projet. Ajoutez-en un une seule fois.",
+              ""
+            );
+
+            definirBrandingBusy_(
+              false
+            );
+            return;
+          }
+
+          AG24_BP_DESIGN_STATE.projectBrandingToken =
+            token;
+
+          AG24_BP_DESIGN_STATE.logoUpload =
+            result.logoUpload ||
+            null;
+
+          AG24_BP_DESIGN_STATE.slogan =
+            String(
+              result.slogan || ""
+            ).trim();
+
+          AG24_BP_DESIGN_STATE.logoDirty =
+            false;
+
+          AG24_BP_DESIGN_STATE.brandingLoaded =
+            true;
+
+          const sloganField =
+            obtenirElement(
+              "bpDocumentSlogan"
+            );
+
+          if (sloganField) {
+            sloganField.value =
+              AG24_BP_DESIGN_STATE.slogan;
+          }
+
+          afficherApercuLogoDesignBusinessPlan_(
+            AG24_BP_DESIGN_STATE.logoUpload
+          );
+
+          afficherStatutBrandingProjet_(
+            result.hasLogo
+              ? "Logo du projet déjà enregistré — il sera utilisé automatiquement."
+              : "Identité du projet déjà enregistrée. Vous pouvez ajouter un logo.",
+            "saved"
+          );
+
+          definirBrandingBusy_(
+            false
+          );
+        }
+      )
+      .withFailureHandler(
+        function(error) {
+          AG24_BP_DESIGN_STATE.brandingLoaded =
+            false;
+
+          afficherStatutBrandingProjet_(
+            error &&
+            error.message
+              ? error.message
+              : "Impossible de charger le logo enregistré.",
+            "error"
+          );
+
+          definirBrandingBusy_(
+            false
+          );
+        }
+      )
+      .AG24_BP_PROJECT_BRANDING_GET_V1(
+        token
+      );
+  }
+
+  function enregistrerBrandingProjetAvantGeneration_(
+    onSuccess
+  ) {
+    const identity =
+      AG24_BP_BRANDING_projectIdentity_();
+
+    const localKey =
+      AG24_BP_BRANDING_localKey_();
+
+    const sloganField =
+      obtenirElement(
+        "bpDocumentSlogan"
+      );
+
+    AG24_BP_DESIGN_STATE.slogan =
+      sloganField
+        ? String(
+            sloganField.value || ""
+          ).trim()
+        : "";
+
+    const needsPersistence =
+      Boolean(
+        AG24_BP_DESIGN_STATE.projectBrandingToken ||
+        AG24_BP_DESIGN_STATE.logoUpload ||
+        AG24_BP_DESIGN_STATE.slogan ||
+        AG24_BP_DESIGN_STATE.logoDirty
+      );
+
+    if (!needsPersistence) {
+      onSuccess();
+      return;
+    }
+
+    if (
+      !identity.projectName ||
+      !localKey
+    ) {
+      afficherStatutBrandingProjet_(
+        "Le projet doit être identifié avant d’enregistrer son logo.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      typeof google === "undefined" ||
+      !google.script ||
+      !google.script.run
+    ) {
+      afficherStatutBrandingProjet_(
+        "Le service d’enregistrement du logo est indisponible.",
+        "error"
+      );
+      return;
+    }
+
+    const logoAction =
+      AG24_BP_DESIGN_STATE.logoDirty
+        ? (
+            AG24_BP_DESIGN_STATE.logoUpload
+              ? "replace"
+              : "remove"
+          )
+        : "keep";
+
+    const request = {
+      token:
+        AG24_BP_DESIGN_STATE.projectBrandingToken ||
+        "",
+      slogan:
+        AG24_BP_DESIGN_STATE.slogan,
+      logoAction:
+        logoAction,
+      projectIdentity:
+        identity
+    };
+
+    if (
+      logoAction === "replace"
+    ) {
+      request.logoUpload =
+        AG24_BP_DESIGN_STATE.logoUpload;
+    }
+
+    definirBrandingBusy_(
+      true
+    );
+
+    afficherStatutBrandingProjet_(
+      "Enregistrement de l’identité visuelle du projet…",
+      "pending"
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function(result) {
+          if (
+            !result ||
+            result.success !== true ||
+            !result.token
+          ) {
+            afficherStatutBrandingProjet_(
+              "L’identité visuelle n’a pas pu être enregistrée.",
+              "error"
+            );
+
+            definirBrandingBusy_(
+              false
+            );
+
+            return;
+          }
+
+          AG24_BP_DESIGN_STATE.projectBrandingToken =
+            String(
+              result.token
+            );
+
+          AG24_BP_DESIGN_STATE.brandingLocalKey =
+            localKey;
+
+          AG24_BP_DESIGN_STATE.brandingLoaded =
+            true;
+
+          AG24_BP_DESIGN_STATE.logoDirty =
+            false;
+
+          AG24_BP_BRANDING_writeLocalToken_(
+            localKey,
+            AG24_BP_DESIGN_STATE.projectBrandingToken
+          );
+
+          afficherStatutBrandingProjet_(
+            result.hasLogo
+              ? "Logo enregistré — il sera réutilisé automatiquement pour ce projet."
+              : "Identité du projet enregistrée.",
+            "saved"
+          );
+
+          definirBrandingBusy_(
+            false
+          );
+
+          onSuccess();
+        }
+      )
+      .withFailureHandler(
+        function(error) {
+          afficherStatutBrandingProjet_(
+            error &&
+            error.message
+              ? error.message
+              : "Impossible d’enregistrer l’identité visuelle du projet.",
+            "error"
+          );
+
+          definirBrandingBusy_(
+            false
+          );
+        }
+      )
+      .AG24_BP_PROJECT_BRANDING_SAVE_V1(
+        request
+      );
   }
 
   function selectionnerThemeBusinessPlan_(
@@ -569,12 +1251,20 @@
     afficherPage(
       "businessPlanDesignPage"
     );
+
+    chargerBrandingProjetBusinessPlan_();
   }
 
   window.ouvrirChoixDesignBusinessPlan =
     ouvrirChoixDesignBusinessPlan;
 
   function confirmerDesignEtGenererBusinessPlan_() {
+    if (
+      AG24_BP_DESIGN_STATE.brandingLoading
+    ) {
+      return;
+    }
+
     const checked =
       document.querySelector(
         'input[name="bpDocumentTheme"]:checked'
@@ -599,7 +1289,9 @@
             .trim()
         : "";
 
-    lancerGeneration();
+    enregistrerBrandingProjetAvantGeneration_(
+      lancerGeneration
+    );
   }
 
   function retourDepuisDesignBusinessPlan_() {
@@ -670,30 +1362,91 @@
                 AG24_BP_DESIGN_STATE.logoUpload =
                   logoUpload;
 
+                AG24_BP_DESIGN_STATE.logoDirty =
+                  true;
+
                 afficherApercuLogoDesignBusinessPlan_(
                   logoUpload
+                );
+
+                afficherStatutBrandingProjet_(
+                  "Nouveau logo sélectionné — il sera enregistré avec ce projet.",
+                  "pending"
                 );
               }
             )
             .catch(
               function(error) {
-                AG24_BP_DESIGN_STATE.logoUpload =
-                  null;
-
                 logoInput.value = "";
 
-                afficherApercuLogoDesignBusinessPlan_(
-                  null
-                );
-
-                window.alert(
+                afficherStatutBrandingProjet_(
                   error &&
                   error.message
                     ? error.message
-                    : "Logo invalide."
+                    : "Logo invalide.",
+                  "error"
                 );
               }
             );
+        }
+      );
+    }
+
+    const removeLogoButton =
+      obtenirElement(
+        "bpDocumentLogoRemove"
+      );
+
+    if (removeLogoButton) {
+      removeLogoButton.addEventListener(
+        "click",
+        function() {
+          AG24_BP_DESIGN_STATE.logoUpload =
+            null;
+
+          AG24_BP_DESIGN_STATE.logoDirty =
+            true;
+
+          if (logoInput) {
+            logoInput.value =
+              "";
+          }
+
+          afficherApercuLogoDesignBusinessPlan_(
+            null
+          );
+
+          afficherStatutBrandingProjet_(
+            "Le logo enregistré sera retiré lors de la génération.",
+            "pending"
+          );
+        }
+      );
+    }
+
+    const sloganInput =
+      obtenirElement(
+        "bpDocumentSlogan"
+      );
+
+    if (sloganInput) {
+      sloganInput.addEventListener(
+        "input",
+        function() {
+          AG24_BP_DESIGN_STATE.slogan =
+            String(
+              sloganInput.value || ""
+            ).trim();
+
+          if (
+            AG24_BP_DESIGN_STATE.projectBrandingToken ||
+            AG24_BP_DESIGN_STATE.logoUpload
+          ) {
+            afficherStatutBrandingProjet_(
+              "Les modifications d’identité seront enregistrées avec ce projet.",
+              "pending"
+            );
+          }
         }
       );
     }
@@ -721,6 +1474,8 @@
         retourDepuisDesignBusinessPlan_
       );
     }
+
+    mettreAJourActionRetraitLogo_();
   }
 
   if (
@@ -765,7 +1520,18 @@
         documentDesign.slogan || ""
       ).trim();
 
-    if (
+    const projectBrandingToken =
+      String(
+        documentDesign.projectBrandingToken ||
+        ""
+      ).trim();
+
+    if (projectBrandingToken) {
+      donnees.projectBrandingToken =
+        projectBrandingToken;
+
+      delete donnees.logoUpload;
+    } else if (
       documentDesign.logoUpload &&
       documentDesign.logoUpload.dataUrl
     ) {
