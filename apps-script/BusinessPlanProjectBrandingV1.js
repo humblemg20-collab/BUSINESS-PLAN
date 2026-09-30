@@ -1238,6 +1238,7 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
     loaded: false,
     logoRoundTrip: false,
     sloganRoundTrip: false,
+    productionResolverValid: false,
     logoRemoved: false,
     cleanupSuccess: false,
     failureCode: ""
@@ -1318,6 +1319,39 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
           "Synthetic project slogan"
       );
 
+    if (
+      typeof extraireBrandingBusinessPlan_ !==
+      "function"
+    ) {
+      throw new Error(
+        "PROJECT_BRANDING_PRODUCTION_RESOLVER_UNAVAILABLE"
+      );
+    }
+
+    var resolved =
+      extraireBrandingBusinessPlan_({
+        projectBrandingToken:
+          token,
+        documentTheme:
+          "executive_premium"
+      });
+
+    report.productionResolverValid =
+      Boolean(
+        resolved &&
+        resolved.logoUpload &&
+        String(
+          resolved.logoUpload.dataUrl ||
+          ""
+        ).indexOf(
+          "data:image/png;base64,"
+        ) === 0 &&
+        resolved.slogan ===
+          "Synthetic project slogan" &&
+        resolved.projectBrandingToken ===
+          token
+      );
+
     AG24_BP_PROJECT_BRANDING_SAVE_V1({
       token:
         token,
@@ -1346,6 +1380,7 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
       report.loaded &&
       report.logoRoundTrip &&
       report.sloganRoundTrip &&
+      report.productionResolverValid &&
       report.logoRemoved;
 
     if (!report.success) {
