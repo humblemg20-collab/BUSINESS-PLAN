@@ -31,6 +31,7 @@ required = [
     APP / "BusinessPlanDesignV2.html",
     APP / "BusinessPlanVisualQualityGateV1.js",
     APP / "BusinessPlanVisualRegressionPreviewV1.js",
+    APP / "BusinessPlanProjectBrandingV1.js",
 ]
 
 for path in required:
@@ -586,6 +587,48 @@ else:
             fail("Narrative contract test must not log generated narrative content")
 
 
+# Business Plan Project Branding Store V1 contract
+project_branding_path = APP / "BusinessPlanProjectBrandingV1.js"
+if not project_branding_path.exists():
+    fail("BusinessPlanProjectBrandingV1.js is required")
+else:
+    project_branding_text = project_branding_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        'ROOT_FOLDER_NAME:',
+        'MAX_LOGO_BYTES:',
+        "function AG24_BP_PROJECT_BRANDING_GET_V1(",
+        "function AG24_BP_PROJECT_BRANDING_SAVE_V1(",
+        "function AG24_BP_PROJECT_BRANDING_resolveForGeneration_(",
+        "function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1()",
+        "PROJECT_BRANDING_CAPABILITY_INVALID",
+        "PROJECT_BRANDING_LOGO_SIGNATURE_INVALID",
+        "AG24_SEC_sha256_(",
+        "projectIdentityHash",
+        "logoAction",
+        "PROJECT_BRANDING_SYSTEM_TEST_PASSED",
+    ]:
+        if marker not in project_branding_text:
+            fail(f"Project Branding V1 marker missing: {marker}")
+
+    if "DriveApp.Access.ANYONE_WITH_LINK" in project_branding_text:
+        fail("Project Branding logo assets must remain private")
+
+    if "UrlFetchApp.fetch(" in project_branding_text:
+        fail("Project Branding store must remain deterministic and offline")
+
+    if "token:" in project_branding_text and "AG24_AUDIT_event_(" in project_branding_text:
+        audit_region = project_branding_text[
+            project_branding_text.find("AG24_AUDIT_event_("):
+        ]
+        if "token:" in audit_region[:2500]:
+            fail("Project Branding capability token must never be written to audit logs")
+
+
 # Business Plan Design System V2 contract
 design_system_path = APP / "BusinessPlanDesignSystemV2.js"
 if not design_system_path.exists():
@@ -678,6 +721,8 @@ else:
         'value="modern_minimal"',
         'value="impact_sustainability"',
         'id="bpDocumentLogo"',
+        'id="bpDocumentLogoRemove"',
+        'id="bpProjectBrandingStatus"',
         'id="bpDesignGenerateButton"',
     ]:
         if marker not in design_ui_text:
@@ -691,6 +736,10 @@ if code.exists():
 
     if "AG24_BP_V2_renderDocument_(" not in code_text:
         fail("Standard Business Plan production path must use Design System V2")
+    if "AG24_BP_PROJECT_BRANDING_resolveForGeneration_(" not in code_text:
+        fail("Standard Business Plan production path must resolve canonical project branding")
+    if 'cle === "projectBrandingToken"' not in code_text:
+        fail("Project Branding capability must be excluded from the OpenAI payload")
     if "AG24_BP_VISUAL_assertPdf_(" not in code_text:
         fail("Standard generation must enforce PDF Visual Quality Gate V1")
     if "STANDARD_PDF_VISUAL_GATE_PASSED" not in code_text:
@@ -815,6 +864,38 @@ else:
 
     if "genererBusinessPlan_(" in visual_preview_text:
         fail("Visual regression preview must bypass production persistence and CRM/dashboard writes")
+
+
+# Project Branding browser integration contract
+javascript_path = APP / "Javascript.html"
+if not javascript_path.exists():
+    fail("Javascript.html is required")
+else:
+    javascript_text = javascript_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "projectBrandingToken",
+        "AG24_BP_BRANDING_localKey_",
+        "AG24_BP_BRANDING_readLocalToken_",
+        "AG24_BP_BRANDING_writeLocalToken_",
+        "chargerBrandingProjetBusinessPlan_",
+        "enregistrerBrandingProjetAvantGeneration_",
+        ".AG24_BP_PROJECT_BRANDING_GET_V1(",
+        ".AG24_BP_PROJECT_BRANDING_SAVE_V1(",
+        '"logoAction"',
+        '"replace"',
+        '"remove"',
+    ]:
+        if marker not in javascript_text:
+            fail(f"Project Branding browser marker missing: {marker}")
+
+    if "localStorage.setItem" in javascript_text and "projectName" in javascript_text:
+        # The storage value is an opaque token; project identity is hashed into the key.
+        if 'ag24:bp:branding:v1:' not in javascript_text:
+            fail("Project Branding local storage must use the opaque hashed-key namespace")
 
 
 # Import Engine V5 contract
