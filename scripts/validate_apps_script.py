@@ -611,6 +611,8 @@ else:
         "projectIdentityHash",
         "logoAction",
         "PROJECT_BRANDING_SYSTEM_TEST_PASSED",
+        "productionResolverValid",
+        "extraireBrandingBusinessPlan_(",
     ]:
         if marker not in project_branding_text:
             fail(f"Project Branding V1 marker missing: {marker}")
