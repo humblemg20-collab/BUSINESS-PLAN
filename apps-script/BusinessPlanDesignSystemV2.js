@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.1.0",
+  VERSION: "2.2.0",
   MASTER_PAGE_COUNT: 15,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
   DEFAULT_THEME: "executive_premium",
@@ -32,6 +32,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   executive_premium: Object.freeze({
     id: "executive_premium",
     label: "Executive Premium",
+    grammar: "executive",
     primary: "#16263D",
     primaryDark: "#0D1726",
     secondary: "#B78B43",
@@ -49,6 +50,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   institutional_banking: Object.freeze({
     id: "institutional_banking",
     label: "Institutional Banking",
+    grammar: "banking",
     primary: "#15324B",
     primaryDark: "#0B2235",
     secondary: "#557A8B",
@@ -66,6 +68,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   modern_minimal: Object.freeze({
     id: "modern_minimal",
     label: "Modern Minimal",
+    grammar: "minimal",
     primary: "#20252B",
     primaryDark: "#111418",
     secondary: "#5B6570",
@@ -83,6 +86,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   impact_sustainability: Object.freeze({
     id: "impact_sustainability",
     label: "Impact & Sustainability",
+    grammar: "impact",
     primary: "#25483C",
     primaryDark: "#173229",
     secondary: "#6D846B",
