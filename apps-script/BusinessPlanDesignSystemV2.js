@@ -2228,6 +2228,11 @@ function AG24_BP_V2_addCallout_(
     return null;
   }
 
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var table =
     body.appendTable([
       [""]
@@ -2235,9 +2240,19 @@ function AG24_BP_V2_addCallout_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "minimal"
+        ? theme.accent
+        : (
+            grammar === "banking"
+              ? theme.secondary
+              : theme.border
+          )
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.75
+        : 1
+    );
 
   var cell =
     table.getCell(
@@ -2246,7 +2261,13 @@ function AG24_BP_V2_addCallout_(
     );
 
   cell.setBackgroundColor(
-    theme.soft
+    grammar === "minimal"
+      ? theme.white
+      : (
+          grammar === "banking"
+            ? theme.softAlt
+            : theme.soft
+        )
   );
 
   var heading =
@@ -2262,14 +2283,24 @@ function AG24_BP_V2_addCallout_(
 
   heading
     .setForegroundColor(
-      theme.accent
+      grammar === "minimal"
+        ? theme.accent
+        : (
+            grammar === "banking"
+              ? theme.primary
+              : theme.accent
+          )
     )
     .setBold(true)
     .setFontFamily(
       theme.headingFont
     )
     .setFontSize(8)
-    .setSpacingBefore(7)
+    .setSpacingBefore(
+      grammar === "impact"
+        ? 9
+        : 7
+    )
     .setSpacingAfter(5);
 
   cell
@@ -2282,9 +2313,21 @@ function AG24_BP_V2_addCallout_(
     .setFontFamily(
       theme.bodyFont
     )
-    .setFontSize(10)
-    .setLineSpacing(1.2)
-    .setSpacingAfter(7);
+    .setFontSize(
+      grammar === "minimal"
+        ? 9.5
+        : 10
+    )
+    .setLineSpacing(
+      grammar === "minimal"
+        ? 1.25
+        : 1.2
+    )
+    .setSpacingAfter(
+      grammar === "impact"
+        ? 9
+        : 7
+    );
 
   table.setColumnWidth(
     0,
@@ -2293,7 +2336,11 @@ function AG24_BP_V2_addCallout_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(6);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 9
+        : 6
+    );
 
   return table;
 }
@@ -2391,6 +2438,11 @@ function AG24_BP_V2_addProcessFlow_(
   steps,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (steps || [])
       .filter(
@@ -2422,9 +2474,15 @@ function AG24_BP_V2_addProcessFlow_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "banking"
+        ? theme.secondary
+        : theme.border
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.5
+        : 1
+    );
 
   var width =
     Math.floor(
@@ -2440,10 +2498,27 @@ function AG24_BP_V2_addProcessFlow_(
           index
         );
 
-      cell.setBackgroundColor(
+      var background =
         index % 2 === 0
           ? theme.soft
-          : theme.softAlt
+          : theme.softAlt;
+
+      if (
+        grammar === "minimal"
+      ) {
+        background =
+          theme.white;
+      } else if (
+        grammar === "banking"
+      ) {
+        background =
+          index === 0
+            ? theme.soft
+            : theme.white;
+      }
+
+      cell.setBackgroundColor(
+        background
       );
 
       var heading =
@@ -2459,14 +2534,20 @@ function AG24_BP_V2_addProcessFlow_(
 
       heading
         .setForegroundColor(
-          theme.primary
+          grammar === "minimal"
+            ? theme.accent
+            : theme.primary
         )
         .setBold(true)
         .setFontFamily(
           theme.headingFont
         )
         .setFontSize(7.5)
-        .setSpacingBefore(7)
+        .setSpacingBefore(
+          grammar === "impact"
+            ? 10
+            : 7
+        )
         .setSpacingAfter(5);
 
       cell
@@ -2481,9 +2562,21 @@ function AG24_BP_V2_addProcessFlow_(
         .setFontFamily(
           theme.bodyFont
         )
-        .setFontSize(8.5)
-        .setLineSpacing(1.15)
-        .setSpacingAfter(7);
+        .setFontSize(
+          grammar === "minimal"
+            ? 8.2
+            : 8.5
+        )
+        .setLineSpacing(
+          grammar === "minimal"
+            ? 1.2
+            : 1.15
+        )
+        .setSpacingAfter(
+          grammar === "impact"
+            ? 10
+            : 7
+        );
 
       table.setColumnWidth(
         index,
@@ -2494,7 +2587,11 @@ function AG24_BP_V2_addProcessFlow_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(7);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 9
+        : 7
+    );
 
   return table;
 }
