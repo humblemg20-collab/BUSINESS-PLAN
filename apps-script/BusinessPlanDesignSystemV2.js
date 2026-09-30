@@ -1157,6 +1157,11 @@ function AG24_BP_V2_addCover_(
   data,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   AG24_BP_V2_addAccentBar_(
     body,
     theme
@@ -1164,7 +1169,11 @@ function AG24_BP_V2_addCover_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(28);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 36
+        : 28
+    );
 
   var logoParagraph =
     body.appendParagraph("");
@@ -1176,7 +1185,9 @@ function AG24_BP_V2_addCover_(
   AG24_BP_V2_insertClientLogo_(
     logoParagraph,
     data,
-    118
+    grammar === "minimal"
+      ? 102
+      : 118
   );
 
   var type =
@@ -1186,15 +1197,29 @@ function AG24_BP_V2_addCover_(
 
   type
     .setForegroundColor(
-      theme.accent
+      grammar === "banking"
+        ? theme.primary
+        : theme.accent
     )
     .setBold(true)
     .setFontFamily(
       theme.headingFont
     )
-    .setFontSize(10)
-    .setSpacingBefore(28)
-    .setSpacingAfter(12);
+    .setFontSize(
+      grammar === "minimal"
+        ? 9
+        : 10
+    )
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 34
+        : 28
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 16
+        : 12
+    );
 
   var title =
     body.appendParagraph(
@@ -1209,9 +1234,25 @@ function AG24_BP_V2_addCover_(
     .setFontFamily(
       theme.headingFont
     )
-    .setFontSize(30)
-    .setLineSpacing(1.05)
-    .setSpacingAfter(12);
+    .setFontSize(
+      grammar === "minimal"
+        ? 32
+        : (
+            grammar === "banking"
+              ? 28
+              : 30
+          )
+    )
+    .setLineSpacing(
+      grammar === "minimal"
+        ? 1.0
+        : 1.05
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 18
+        : 12
+    );
 
   if (
     model.project.slogan
@@ -1228,13 +1269,21 @@ function AG24_BP_V2_addCover_(
       .setFontFamily(
         theme.bodyFont
       )
-      .setFontSize(12)
+      .setFontSize(
+        grammar === "minimal"
+          ? 11
+          : 12
+      )
       .setLineSpacing(1.2)
       .setSpacingAfter(30);
   } else {
     body
       .appendParagraph("")
-      .setSpacingAfter(18);
+      .setSpacingAfter(
+        grammar === "minimal"
+          ? 24
+          : 18
+      );
   }
 
   var facts = [
@@ -1283,9 +1332,15 @@ function AG24_BP_V2_addCover_(
 
     factsTable
       .setBorderColor(
-        theme.border
+        grammar === "banking"
+          ? theme.secondary
+          : theme.border
       )
-      .setBorderWidth(1);
+      .setBorderWidth(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      );
 
     for (
       var rowIndex = 0;
@@ -1305,23 +1360,53 @@ function AG24_BP_V2_addCover_(
           1
         );
 
-      labelCell.setBackgroundColor(
-        theme.primary
-      );
+      if (
+        grammar === "minimal"
+      ) {
+        labelCell.setBackgroundColor(
+          theme.white
+        );
 
-      valueCell.setBackgroundColor(
-        rowIndex % 2 === 0
-          ? theme.soft
-          : theme.softAlt
-      );
+        valueCell.setBackgroundColor(
+          theme.white
+        );
+      } else if (
+        grammar === "banking"
+      ) {
+        labelCell.setBackgroundColor(
+          theme.primaryDark
+        );
+
+        valueCell.setBackgroundColor(
+          rowIndex % 2 === 0
+            ? theme.white
+            : theme.softAlt
+        );
+      } else {
+        labelCell.setBackgroundColor(
+          theme.primary
+        );
+
+        valueCell.setBackgroundColor(
+          rowIndex % 2 === 0
+            ? theme.soft
+            : theme.softAlt
+        );
+      }
 
       AG24_BP_V2_styleCellText_(
         labelCell,
         theme,
         {
-          color: theme.white,
+          color:
+            grammar === "minimal"
+              ? theme.accent
+              : theme.white,
           bold: true,
-          size: 8
+          size:
+            grammar === "minimal"
+              ? 7.5
+              : 8
         }
       );
 
@@ -1330,25 +1415,36 @@ function AG24_BP_V2_addCover_(
         theme,
         {
           color: theme.text,
-          size: 9.5
+          size:
+            grammar === "minimal"
+              ? 9
+              : 9.5
         }
       );
     }
 
     factsTable.setColumnWidth(
       0,
-      130
+      grammar === "minimal"
+        ? 112
+        : 130
     );
 
     factsTable.setColumnWidth(
       1,
-      350
+      grammar === "minimal"
+        ? 368
+        : 350
     );
   }
 
   body
     .appendParagraph("")
-    .setSpacingAfter(34);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 44
+        : 34
+    );
 
   var date =
     body.appendParagraph(
