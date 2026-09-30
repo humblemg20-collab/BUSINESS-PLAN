@@ -773,6 +773,8 @@ else:
         '"impact_sustainability"',
         "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1()",
         "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_LAST_REPORT_V1()",
+        "Logger.log(",
+        "JSON.stringify(",
         "function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_CLEANUP_V1()",
         "AG24_BP_VISUAL_PREVIEW_cleanupPrevious_",
         "AG24_BP_VISUAL_PREVIEW_renderTheme_",
