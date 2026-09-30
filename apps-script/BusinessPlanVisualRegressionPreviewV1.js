@@ -754,8 +754,31 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1() {
         }
       );
 
+    var grammarSet = {};
+
+    report.themes.forEach(
+      function(item) {
+        if (
+          item &&
+          item.layoutGrammar
+        ) {
+          grammarSet[
+            String(
+              item.layoutGrammar
+            )
+          ] = true;
+        }
+      }
+    );
+
     report.success =
       report.themes.length ===
+        AG24_BP_VISUAL_PREVIEW_V1
+          .THEMES
+          .length &&
+      Object.keys(
+        grammarSet
+      ).length ===
         AG24_BP_VISUAL_PREVIEW_V1
           .THEMES
           .length &&
@@ -763,6 +786,12 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1() {
         function(item) {
           return (
             item.success === true &&
+            item.layoutGrammar ===
+              AG24_BP_V2_resolveTheme_(
+                item.themeId
+              ).grammar &&
+            item.visualGateVersion ===
+              AG24_BP_VISUAL_GATE_V1.VERSION &&
             item.physicalPdfPages ===
               AG24_BP_VISUAL_GATE_V1
                 .EXPECTED_PAGE_COUNT
