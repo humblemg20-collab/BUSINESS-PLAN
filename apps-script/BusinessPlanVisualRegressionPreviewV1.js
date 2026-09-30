@@ -125,6 +125,14 @@ function AG24_BP_VISUAL_PREVIEW_safeReport_(
                   String(
                     item.themeLabel || ""
                   ),
+                layoutGrammar:
+                  String(
+                    item.layoutGrammar || ""
+                  ),
+                visualGateVersion:
+                  String(
+                    item.visualGateVersion || ""
+                  ),
                 success:
                   item.success === true,
                 documentId:
@@ -381,6 +389,8 @@ function AG24_BP_VISUAL_PREVIEW_renderTheme_(
       themeId,
     themeLabel:
       themeLabel,
+    layoutGrammar: "",
+    visualGateVersion: "",
     success: false,
     documentId: "",
     documentUrl: "",
@@ -424,6 +434,21 @@ function AG24_BP_VISUAL_PREVIEW_renderTheme_(
           themeId:
             themeId
         }
+      );
+
+    report.layoutGrammar =
+      String(
+        designResult &&
+        designResult.layoutGrammar ||
+        ""
+      );
+
+    report.visualGateVersion =
+      String(
+        designResult &&
+        designResult.visualQualityPreflight &&
+        designResult.visualQualityPreflight.version ||
+        ""
       );
 
     document.saveAndClose();
