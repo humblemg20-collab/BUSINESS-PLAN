@@ -1041,6 +1041,12 @@ function AG24_BP_PROJECT_BRANDING_SAVE_V1(
     );
   }
 
+  var folder =
+    AG24_BP_BRANDING_projectFolder_(
+      token,
+      true
+    );
+
   var lock =
     LockService.getScriptLock();
 
@@ -1049,12 +1055,6 @@ function AG24_BP_PROJECT_BRANDING_SAVE_V1(
   );
 
   try {
-    var folder =
-      AG24_BP_BRANDING_projectFolder_(
-        token,
-        true
-      );
-
     var existing =
       AG24_BP_BRANDING_readMetadata_(
         folder
