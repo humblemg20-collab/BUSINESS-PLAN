@@ -3684,15 +3684,34 @@ function AG24_BP_V2_addRoadmapPage_(
       ],
       [
         "6 MOIS",
-        model.roadmap.sixMonths
+        model.roadmap.sixMonths ||
+        "À formaliser"
       ],
       [
         "12 MOIS",
-        model.roadmap.twelveMonths
+        model.roadmap.twelveMonths ||
+        "À formaliser"
       ],
       [
         "24 MOIS",
-        model.roadmap.twentyFourMonths
+        model.roadmap.twentyFourMonths ||
+        "À formaliser"
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    [
+      [
+        "Zone de déploiement",
+        model.snapshot.marketArea ||
+        model.project.country
+      ],
+      [
+        "Financement / ressources",
+        model.snapshot.funding
       ]
     ],
     theme
