@@ -9,7 +9,7 @@
  */
 
 const AG24_BP_SYSTEM_TEST_V1 = Object.freeze({
-  VERSION: '2.2.0',
+  VERSION: '2.3.0',
   LAST_REPORT_PROPERTY:
     'AFRIGREEN24_OPENAI_FULL_SYSTEM_TEST_LAST_REPORT',
   MIN_PDF_BYTES: 5000,
@@ -226,6 +226,7 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
     narrativeBlockCount: 0,
     designSystemVersion: '',
     themeId: '',
+    layoutGrammar: '',
     whiteLabel: false,
     pageModelCount: 0,
     executiveMasterId: '',
@@ -419,6 +420,13 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
       String(
         designResult &&
         designResult.themeId ||
+        ''
+      );
+
+    report.layoutGrammar =
+      String(
+        designResult &&
+        designResult.layoutGrammar ||
         ''
       );
 
@@ -637,6 +645,10 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
         AG24_BP_DESIGN_V2.VERSION ||
       report.themeId !==
         data.documentTheme ||
+      report.layoutGrammar !==
+        AG24_BP_V2_resolveTheme_(
+          data.documentTheme
+        ).grammar ||
       !report.whiteLabel ||
       report.pageModelCount !==
         AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT ||

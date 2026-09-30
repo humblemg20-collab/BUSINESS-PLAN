@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.1.0",
+  VERSION: "2.2.0",
   MASTER_PAGE_COUNT: 15,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
   DEFAULT_THEME: "executive_premium",
@@ -32,6 +32,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   executive_premium: Object.freeze({
     id: "executive_premium",
     label: "Executive Premium",
+    grammar: "executive",
     primary: "#16263D",
     primaryDark: "#0D1726",
     secondary: "#B78B43",
@@ -49,6 +50,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   institutional_banking: Object.freeze({
     id: "institutional_banking",
     label: "Institutional Banking",
+    grammar: "banking",
     primary: "#15324B",
     primaryDark: "#0B2235",
     secondary: "#557A8B",
@@ -66,6 +68,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   modern_minimal: Object.freeze({
     id: "modern_minimal",
     label: "Modern Minimal",
+    grammar: "minimal",
     primary: "#20252B",
     primaryDark: "#111418",
     secondary: "#5B6570",
@@ -83,6 +86,7 @@ var AG24_BP_THEMES_V2 = Object.freeze({
   impact_sustainability: Object.freeze({
     id: "impact_sustainability",
     label: "Impact & Sustainability",
+    grammar: "impact",
     primary: "#25483C",
     primaryDark: "#173229",
     secondary: "#6D846B",
@@ -1057,6 +1061,33 @@ function AG24_BP_V2_addAccentBar_(
   body,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
+  var leftColor =
+    grammar === "minimal"
+      ? theme.primaryDark
+      : theme.primary;
+
+  var rightColor =
+    grammar === "banking"
+      ? theme.secondary
+      : theme.accent;
+
+  var leftWidth =
+    grammar === "minimal"
+      ? 435
+      : (
+          grammar === "banking"
+            ? 390
+            : 410
+        );
+
+  var rightWidth =
+    480 - leftWidth;
+
   var table =
     body.appendTable([
       ["", ""]
@@ -1071,23 +1102,23 @@ function AG24_BP_V2_addAccentBar_(
   table
     .getCell(0, 0)
     .setBackgroundColor(
-      theme.primary
+      leftColor
     );
 
   table
     .getCell(0, 1)
     .setBackgroundColor(
-      theme.accent
+      rightColor
     );
 
   table.setColumnWidth(
     0,
-    410
+    leftWidth
   );
 
   table.setColumnWidth(
     1,
-    70
+    rightWidth
   );
 
   for (
@@ -1099,9 +1130,21 @@ function AG24_BP_V2_addAccentBar_(
       .getCell(0, index)
       .getChild(0)
       .asParagraph()
-      .setFontSize(1)
-      .setSpacingBefore(1)
-      .setSpacingAfter(1);
+      .setFontSize(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      )
+      .setSpacingBefore(
+        grammar === "impact"
+          ? 2
+          : 1
+      )
+      .setSpacingAfter(
+        grammar === "impact"
+          ? 2
+          : 1
+      );
   }
 
   return table;
@@ -1114,6 +1157,11 @@ function AG24_BP_V2_addCover_(
   data,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   AG24_BP_V2_addAccentBar_(
     body,
     theme
@@ -1121,7 +1169,11 @@ function AG24_BP_V2_addCover_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(28);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 36
+        : 28
+    );
 
   var logoParagraph =
     body.appendParagraph("");
@@ -1133,7 +1185,9 @@ function AG24_BP_V2_addCover_(
   AG24_BP_V2_insertClientLogo_(
     logoParagraph,
     data,
-    118
+    grammar === "minimal"
+      ? 102
+      : 118
   );
 
   var type =
@@ -1143,15 +1197,29 @@ function AG24_BP_V2_addCover_(
 
   type
     .setForegroundColor(
-      theme.accent
+      grammar === "banking"
+        ? theme.primary
+        : theme.accent
     )
     .setBold(true)
     .setFontFamily(
       theme.headingFont
     )
-    .setFontSize(10)
-    .setSpacingBefore(28)
-    .setSpacingAfter(12);
+    .setFontSize(
+      grammar === "minimal"
+        ? 9
+        : 10
+    )
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 34
+        : 28
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 16
+        : 12
+    );
 
   var title =
     body.appendParagraph(
@@ -1166,9 +1234,25 @@ function AG24_BP_V2_addCover_(
     .setFontFamily(
       theme.headingFont
     )
-    .setFontSize(30)
-    .setLineSpacing(1.05)
-    .setSpacingAfter(12);
+    .setFontSize(
+      grammar === "minimal"
+        ? 32
+        : (
+            grammar === "banking"
+              ? 28
+              : 30
+          )
+    )
+    .setLineSpacing(
+      grammar === "minimal"
+        ? 1.0
+        : 1.05
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 18
+        : 12
+    );
 
   if (
     model.project.slogan
@@ -1185,13 +1269,21 @@ function AG24_BP_V2_addCover_(
       .setFontFamily(
         theme.bodyFont
       )
-      .setFontSize(12)
+      .setFontSize(
+        grammar === "minimal"
+          ? 11
+          : 12
+      )
       .setLineSpacing(1.2)
       .setSpacingAfter(30);
   } else {
     body
       .appendParagraph("")
-      .setSpacingAfter(18);
+      .setSpacingAfter(
+        grammar === "minimal"
+          ? 24
+          : 18
+      );
   }
 
   var facts = [
@@ -1240,9 +1332,15 @@ function AG24_BP_V2_addCover_(
 
     factsTable
       .setBorderColor(
-        theme.border
+        grammar === "banking"
+          ? theme.secondary
+          : theme.border
       )
-      .setBorderWidth(1);
+      .setBorderWidth(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      );
 
     for (
       var rowIndex = 0;
@@ -1262,23 +1360,53 @@ function AG24_BP_V2_addCover_(
           1
         );
 
-      labelCell.setBackgroundColor(
-        theme.primary
-      );
+      if (
+        grammar === "minimal"
+      ) {
+        labelCell.setBackgroundColor(
+          theme.white
+        );
 
-      valueCell.setBackgroundColor(
-        rowIndex % 2 === 0
-          ? theme.soft
-          : theme.softAlt
-      );
+        valueCell.setBackgroundColor(
+          theme.white
+        );
+      } else if (
+        grammar === "banking"
+      ) {
+        labelCell.setBackgroundColor(
+          theme.primaryDark
+        );
+
+        valueCell.setBackgroundColor(
+          rowIndex % 2 === 0
+            ? theme.white
+            : theme.softAlt
+        );
+      } else {
+        labelCell.setBackgroundColor(
+          theme.primary
+        );
+
+        valueCell.setBackgroundColor(
+          rowIndex % 2 === 0
+            ? theme.soft
+            : theme.softAlt
+        );
+      }
 
       AG24_BP_V2_styleCellText_(
         labelCell,
         theme,
         {
-          color: theme.white,
+          color:
+            grammar === "minimal"
+              ? theme.accent
+              : theme.white,
           bold: true,
-          size: 8
+          size:
+            grammar === "minimal"
+              ? 7.5
+              : 8
         }
       );
 
@@ -1287,25 +1415,36 @@ function AG24_BP_V2_addCover_(
         theme,
         {
           color: theme.text,
-          size: 9.5
+          size:
+            grammar === "minimal"
+              ? 9
+              : 9.5
         }
       );
     }
 
     factsTable.setColumnWidth(
       0,
-      130
+      grammar === "minimal"
+        ? 112
+        : 130
     );
 
     factsTable.setColumnWidth(
       1,
-      350
+      grammar === "minimal"
+        ? 368
+        : 350
     );
   }
 
   body
     .appendParagraph("")
-    .setSpacingAfter(34);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 44
+        : 34
+    );
 
   var date =
     body.appendParagraph(
@@ -1345,6 +1484,11 @@ function AG24_BP_V2_addSectionTitle_(
   title,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var table =
     body.appendTable([
       [
@@ -1352,12 +1496,6 @@ function AG24_BP_V2_addSectionTitle_(
         title || ""
       ]
     ]);
-
-  table
-    .setBorderColor(
-      theme.white
-    )
-    .setBorderWidth(0);
 
   var numberCell =
     table.getCell(
@@ -1371,21 +1509,83 @@ function AG24_BP_V2_addSectionTitle_(
       1
     );
 
-  numberCell.setBackgroundColor(
-    theme.primary
-  );
+  if (
+    grammar === "minimal"
+  ) {
+    table
+      .setBorderColor(
+        theme.border
+      )
+      .setBorderWidth(0.5);
 
-  titleCell.setBackgroundColor(
-    theme.soft
-  );
+    numberCell.setBackgroundColor(
+      theme.white
+    );
+
+    titleCell.setBackgroundColor(
+      theme.white
+    );
+  } else if (
+    grammar === "banking"
+  ) {
+    table
+      .setBorderColor(
+        theme.primary
+      )
+      .setBorderWidth(1);
+
+    numberCell.setBackgroundColor(
+      theme.primaryDark
+    );
+
+    titleCell.setBackgroundColor(
+      theme.white
+    );
+  } else if (
+    grammar === "impact"
+  ) {
+    table
+      .setBorderColor(
+        theme.border
+      )
+      .setBorderWidth(0);
+
+    numberCell.setBackgroundColor(
+      theme.primary
+    );
+
+    titleCell.setBackgroundColor(
+      theme.soft
+    );
+  } else {
+    table
+      .setBorderColor(
+        theme.white
+      )
+      .setBorderWidth(0);
+
+    numberCell.setBackgroundColor(
+      theme.primary
+    );
+
+    titleCell.setBackgroundColor(
+      theme.soft
+    );
+  }
 
   AG24_BP_V2_styleCellText_(
     numberCell,
     theme,
     {
-      color: theme.white,
+      color:
+        grammar === "minimal"
+          ? theme.accent
+          : theme.white,
       bold: true,
-      size: 9
+      size:
+        grammar === "minimal"
+          ? 8
+          : 9
     }
   );
 
@@ -1393,9 +1593,15 @@ function AG24_BP_V2_addSectionTitle_(
     titleCell,
     theme,
     {
-      color: theme.primaryDark,
+      color:
+        grammar === "banking"
+          ? theme.primary
+          : theme.primaryDark,
       bold: true,
-      size: 16,
+      size:
+        grammar === "minimal"
+          ? 17
+          : 16,
       font: theme.headingFont
     }
   );
@@ -1406,31 +1612,55 @@ function AG24_BP_V2_addSectionTitle_(
     .setAlignment(
       DocumentApp.HorizontalAlignment.CENTER
     )
-    .setSpacingBefore(8)
-    .setSpacingAfter(8);
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 6
+        : 8
+    );
 
   titleCell
     .getChild(0)
     .asParagraph()
-    .setSpacingBefore(8)
-    .setSpacingAfter(8)
+    .setSpacingBefore(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 6
+        : 8
+    )
     .setHeading(
       DocumentApp.ParagraphHeading.HEADING1
     );
 
   table.setColumnWidth(
     0,
-    52
+    grammar === "minimal"
+      ? 38
+      : 52
   );
 
   table.setColumnWidth(
     1,
-    428
+    grammar === "minimal"
+      ? 442
+      : 428
   );
 
   body
     .appendParagraph("")
-    .setSpacingAfter(8);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 12
+        : 8
+    );
 }
 
 
@@ -1527,6 +1757,11 @@ function AG24_BP_V2_addCards_(
   cards,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (cards || [])
       .filter(
@@ -1570,9 +1805,19 @@ function AG24_BP_V2_addCards_(
 
     table
       .setBorderColor(
-        theme.border
+        grammar === "minimal"
+          ? theme.border
+          : (
+              grammar === "banking"
+                ? theme.secondary
+                : theme.border
+            )
       )
-      .setBorderWidth(1);
+      .setBorderWidth(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      );
 
     pair.forEach(
       function(card, index) {
@@ -1582,10 +1827,37 @@ function AG24_BP_V2_addCards_(
             index
           );
 
+        var background =
+          theme.soft;
+
+        if (
+          grammar === "minimal"
+        ) {
+          background =
+            theme.white;
+        } else if (
+          grammar === "banking"
+        ) {
+          background =
+            index % 2 === 0
+              ? theme.white
+              : theme.softAlt;
+        } else if (
+          grammar === "impact"
+        ) {
+          background =
+            index % 2 === 0
+              ? theme.soft
+              : theme.softAlt;
+        } else {
+          background =
+            index % 2 === 0
+              ? theme.soft
+              : theme.softAlt;
+        }
+
         cell.setBackgroundColor(
-          index % 2 === 0
-            ? theme.soft
-            : theme.softAlt
+          background
         );
 
         var title =
@@ -1599,14 +1871,28 @@ function AG24_BP_V2_addCards_(
 
         title
           .setForegroundColor(
-            theme.primary
+            grammar === "minimal"
+              ? theme.accent
+              : (
+                  grammar === "banking"
+                    ? theme.primaryDark
+                    : theme.primary
+                )
           )
           .setBold(true)
           .setFontFamily(
             theme.headingFont
           )
-          .setFontSize(8)
-          .setSpacingBefore(7)
+          .setFontSize(
+            grammar === "minimal"
+              ? 7.5
+              : 8
+          )
+          .setSpacingBefore(
+            grammar === "impact"
+              ? 9
+              : 7
+          )
           .setSpacingAfter(5);
 
         cell
@@ -1619,9 +1905,21 @@ function AG24_BP_V2_addCards_(
           .setFontFamily(
             theme.bodyFont
           )
-          .setFontSize(9)
-          .setLineSpacing(1.2)
-          .setSpacingAfter(7);
+          .setFontSize(
+            grammar === "minimal"
+              ? 8.8
+              : 9
+          )
+          .setLineSpacing(
+            grammar === "minimal"
+              ? 1.25
+              : 1.2
+          )
+          .setSpacingAfter(
+            grammar === "impact"
+              ? 9
+              : 7
+          );
       }
     );
 
@@ -1646,7 +1944,11 @@ function AG24_BP_V2_addCards_(
 
     body
       .appendParagraph("")
-      .setSpacingAfter(6);
+      .setSpacingAfter(
+        grammar === "minimal"
+          ? 8
+          : 6
+      );
   }
 }
 
@@ -1656,6 +1958,11 @@ function AG24_BP_V2_addFactsGrid_(
   facts,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (facts || [])
       .filter(
@@ -1693,9 +2000,15 @@ function AG24_BP_V2_addFactsGrid_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "banking"
+        ? theme.secondary
+        : theme.border
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.5
+        : 1
+    );
 
   for (
     var rowIndex = 0;
@@ -1714,21 +2027,51 @@ function AG24_BP_V2_addFactsGrid_(
         1
       );
 
-    label.setBackgroundColor(
-      theme.soft
-    );
+    if (
+      grammar === "minimal"
+    ) {
+      label.setBackgroundColor(
+        theme.white
+      );
 
-    value.setBackgroundColor(
-      theme.white
-    );
+      value.setBackgroundColor(
+        theme.white
+      );
+    } else if (
+      grammar === "banking"
+    ) {
+      label.setBackgroundColor(
+        theme.soft
+      );
+
+      value.setBackgroundColor(
+        rowIndex % 2 === 0
+          ? theme.white
+          : theme.softAlt
+      );
+    } else {
+      label.setBackgroundColor(
+        theme.soft
+      );
+
+      value.setBackgroundColor(
+        theme.white
+      );
+    }
 
     AG24_BP_V2_styleCellText_(
       label,
       theme,
       {
         bold: true,
-        color: theme.primary,
-        size: 8.5
+        color:
+          grammar === "minimal"
+            ? theme.accent
+            : theme.primary,
+        size:
+          grammar === "minimal"
+            ? 8
+            : 8.5
       }
     );
 
@@ -1737,24 +2080,35 @@ function AG24_BP_V2_addFactsGrid_(
       theme,
       {
         color: theme.text,
-        size: 9
+        size:
+          grammar === "minimal"
+            ? 8.8
+            : 9
       }
     );
   }
 
   table.setColumnWidth(
     0,
-    140
+    grammar === "banking"
+      ? 155
+      : 140
   );
 
   table.setColumnWidth(
     1,
-    340
+    grammar === "banking"
+      ? 325
+      : 340
   );
 
   body
     .appendParagraph("")
-    .setSpacingAfter(8);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 10
+        : 8
+    );
 }
 
 
@@ -1970,6 +2324,11 @@ function AG24_BP_V2_addCallout_(
     return null;
   }
 
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var table =
     body.appendTable([
       [""]
@@ -1977,9 +2336,19 @@ function AG24_BP_V2_addCallout_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "minimal"
+        ? theme.accent
+        : (
+            grammar === "banking"
+              ? theme.secondary
+              : theme.border
+          )
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.75
+        : 1
+    );
 
   var cell =
     table.getCell(
@@ -1988,7 +2357,13 @@ function AG24_BP_V2_addCallout_(
     );
 
   cell.setBackgroundColor(
-    theme.soft
+    grammar === "minimal"
+      ? theme.white
+      : (
+          grammar === "banking"
+            ? theme.softAlt
+            : theme.soft
+        )
   );
 
   var heading =
@@ -2004,14 +2379,24 @@ function AG24_BP_V2_addCallout_(
 
   heading
     .setForegroundColor(
-      theme.accent
+      grammar === "minimal"
+        ? theme.accent
+        : (
+            grammar === "banking"
+              ? theme.primary
+              : theme.accent
+          )
     )
     .setBold(true)
     .setFontFamily(
       theme.headingFont
     )
     .setFontSize(8)
-    .setSpacingBefore(7)
+    .setSpacingBefore(
+      grammar === "impact"
+        ? 9
+        : 7
+    )
     .setSpacingAfter(5);
 
   cell
@@ -2024,9 +2409,21 @@ function AG24_BP_V2_addCallout_(
     .setFontFamily(
       theme.bodyFont
     )
-    .setFontSize(10)
-    .setLineSpacing(1.2)
-    .setSpacingAfter(7);
+    .setFontSize(
+      grammar === "minimal"
+        ? 9.5
+        : 10
+    )
+    .setLineSpacing(
+      grammar === "minimal"
+        ? 1.25
+        : 1.2
+    )
+    .setSpacingAfter(
+      grammar === "impact"
+        ? 9
+        : 7
+    );
 
   table.setColumnWidth(
     0,
@@ -2035,7 +2432,11 @@ function AG24_BP_V2_addCallout_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(6);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 9
+        : 6
+    );
 
   return table;
 }
@@ -2133,6 +2534,11 @@ function AG24_BP_V2_addProcessFlow_(
   steps,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (steps || [])
       .filter(
@@ -2164,9 +2570,15 @@ function AG24_BP_V2_addProcessFlow_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "banking"
+        ? theme.secondary
+        : theme.border
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.5
+        : 1
+    );
 
   var width =
     Math.floor(
@@ -2182,10 +2594,27 @@ function AG24_BP_V2_addProcessFlow_(
           index
         );
 
-      cell.setBackgroundColor(
+      var background =
         index % 2 === 0
           ? theme.soft
-          : theme.softAlt
+          : theme.softAlt;
+
+      if (
+        grammar === "minimal"
+      ) {
+        background =
+          theme.white;
+      } else if (
+        grammar === "banking"
+      ) {
+        background =
+          index === 0
+            ? theme.soft
+            : theme.white;
+      }
+
+      cell.setBackgroundColor(
+        background
       );
 
       var heading =
@@ -2201,14 +2630,20 @@ function AG24_BP_V2_addProcessFlow_(
 
       heading
         .setForegroundColor(
-          theme.primary
+          grammar === "minimal"
+            ? theme.accent
+            : theme.primary
         )
         .setBold(true)
         .setFontFamily(
           theme.headingFont
         )
         .setFontSize(7.5)
-        .setSpacingBefore(7)
+        .setSpacingBefore(
+          grammar === "impact"
+            ? 10
+            : 7
+        )
         .setSpacingAfter(5);
 
       cell
@@ -2223,9 +2658,21 @@ function AG24_BP_V2_addProcessFlow_(
         .setFontFamily(
           theme.bodyFont
         )
-        .setFontSize(8.5)
-        .setLineSpacing(1.15)
-        .setSpacingAfter(7);
+        .setFontSize(
+          grammar === "minimal"
+            ? 8.2
+            : 8.5
+        )
+        .setLineSpacing(
+          grammar === "minimal"
+            ? 1.2
+            : 1.15
+        )
+        .setSpacingAfter(
+          grammar === "impact"
+            ? 10
+            : 7
+        );
 
       table.setColumnWidth(
         index,
@@ -2236,7 +2683,11 @@ function AG24_BP_V2_addProcessFlow_(
 
   body
     .appendParagraph("")
-    .setSpacingAfter(7);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 9
+        : 7
+    );
 
   return table;
 }
@@ -2274,6 +2725,23 @@ function AG24_BP_V2_splitRisks_(
         }
       )
       .filter(Boolean);
+
+  if (
+    parts.length === 1 &&
+    parts[0].indexOf(",") !== -1
+  ) {
+    parts =
+      parts[0]
+        .split(",")
+        .map(
+          function(item) {
+            return AG24_BP_V2_text_(
+              item
+            );
+          }
+        )
+        .filter(Boolean);
+  }
 
   if (!parts.length) {
     return [];
@@ -2337,12 +2805,12 @@ function AG24_BP_V2_addRiskRegister_(
 
       rows.push([
         item,
-        AG24_BP_V2_valueOrDash_(
+        AG24_BP_V2_text_(
           level
-        ),
-        AG24_BP_V2_valueOrDash_(
+        ) || "À qualifier",
+        AG24_BP_V2_text_(
           mitigation
-        )
+        ) || "À formaliser"
       ]);
     }
   );
@@ -2466,12 +2934,48 @@ function AG24_BP_V2_addExecutiveSummaryPage_(
     theme
   );
 
-  AG24_BP_V2_addCallout_(
+  AG24_BP_V2_addFactsGrid_(
     body,
-    "Pourquoi ce projet mérite l’attention",
-    model.snapshot.valueProposition,
+    [
+      [
+        "Modèle économique",
+        model.snapshot.revenueModel
+      ],
+      [
+        "Clientèle cible",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Financement",
+        model.snapshot.funding
+      ]
+    ],
     theme
   );
+
+  if (
+    AG24_BP_V2_text_(
+      model.snapshot.opportunity
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Opportunité",
+      model.snapshot.opportunity,
+      theme
+    );
+  } else if (
+    AG24_BP_V2_text_(
+      model.snapshot.funding
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Financement à structurer",
+      model.snapshot.funding,
+      theme
+    );
+  }
 }
 
 
@@ -2798,6 +3302,7 @@ function AG24_BP_V2_addStrategyPage_(
 function AG24_BP_V2_addOperationsPage_(
   body,
   section,
+  model,
   theme
 ) {
   AG24_BP_V2_addSectionTitle_(
@@ -2815,7 +3320,28 @@ function AG24_BP_V2_addOperationsPage_(
 
   AG24_BP_V2_addCards_(
     body,
-    section.cards,
+    [
+      [
+        "Équipe",
+        AG24_BP_V2_findCard_(
+          section,
+          "Équipe"
+        )
+      ],
+      [
+        "Stade actuel",
+        model.project.stage
+      ],
+      [
+        "Porteur",
+        model.project.promoter
+      ],
+      [
+        "Zone d’opération",
+        model.snapshot.marketArea ||
+        model.project.country
+      ]
+    ],
     theme
   );
 }
@@ -2916,6 +3442,19 @@ function AG24_BP_V2_addImpactPage_(
         )
       ],
       [
+        "Clientèle concernée",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Zone de déploiement",
+        model.snapshot.marketArea ||
+        model.project.country
+      ],
+      [
+        "Stade actuel",
+        model.project.stage
+      ],
+      [
         "Impact économique",
         model.impactPillars.economic
       ],
@@ -3010,6 +3549,7 @@ function AG24_BP_V2_addMasterSectionPage_(
       AG24_BP_V2_addOperationsPage_(
         body,
         section,
+        model,
         theme
       );
       break;
@@ -3144,15 +3684,34 @@ function AG24_BP_V2_addRoadmapPage_(
       ],
       [
         "6 MOIS",
-        model.roadmap.sixMonths
+        model.roadmap.sixMonths ||
+        "À formaliser"
       ],
       [
         "12 MOIS",
-        model.roadmap.twelveMonths
+        model.roadmap.twelveMonths ||
+        "À formaliser"
       ],
       [
         "24 MOIS",
-        model.roadmap.twentyFourMonths
+        model.roadmap.twentyFourMonths ||
+        "À formaliser"
+      ]
+    ],
+    theme
+  );
+
+  AG24_BP_V2_addCards_(
+    body,
+    [
+      [
+        "Zone de déploiement",
+        model.snapshot.marketArea ||
+        model.project.country
+      ],
+      [
+        "Financement / ressources",
+        model.snapshot.funding
       ]
     ],
     theme
@@ -3535,6 +4094,8 @@ function AG24_BP_V2_renderDocument_(
       theme.id,
     themeLabel:
       theme.label,
+    layoutGrammar:
+      theme.grammar,
     executiveMasterId:
       AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID,
     pageModelCount:
@@ -3574,6 +4135,7 @@ function AG24_BP_V2_getThemeCatalog_() {
         return {
           id: theme.id,
           label: theme.label,
+          grammar: theme.grammar,
           primary: theme.primary,
           secondary: theme.secondary,
           accent: theme.accent

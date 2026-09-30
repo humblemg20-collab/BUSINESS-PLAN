@@ -21,7 +21,7 @@
  */
 
 var AG24_BP_VISUAL_GATE_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   EXPECTED_PAGE_COUNT: 15,
   MIN_PDF_BYTES: 5000,
   MAX_SINGLE_BLOCK_CHARS: 2200,
@@ -295,6 +295,165 @@ function AG24_BP_VISUAL_buildPagePayloads_(
 }
 
 
+function AG24_BP_VISUAL_signalCount_(
+  pageId,
+  model
+) {
+  model = model || {};
+
+  function countValues(values) {
+    return (values || [])
+      .filter(
+        function(value) {
+          return Boolean(
+            AG24_BP_VISUAL_text_(
+              value
+            )
+          );
+        }
+      )
+      .length;
+  }
+
+  var sections =
+    Array.isArray(
+      model.sections
+    )
+      ? model.sections
+      : [];
+
+  var section =
+    sections.filter(
+      function(item) {
+        return (
+          item &&
+          item.id === pageId
+        );
+      }
+    )[0] || {};
+
+  if (
+    pageId === "operations"
+  ) {
+    return countValues([
+      section.narrative,
+      section.cards &&
+      section.cards[0] &&
+      section.cards[0][1],
+      model.project &&
+      model.project.stage,
+      model.project &&
+      model.project.promoter,
+      model.snapshot &&
+      model.snapshot.marketArea
+    ]);
+  }
+
+  if (
+    pageId === "impact"
+  ) {
+    return countValues([
+      section.narrative,
+      section.cards &&
+      section.cards[0] &&
+      section.cards[0][1],
+      model.snapshot &&
+      model.snapshot.targetCustomers,
+      model.snapshot &&
+      model.snapshot.marketArea,
+      model.project &&
+      model.project.stage,
+      model.impactPillars &&
+      model.impactPillars.economic,
+      model.impactPillars &&
+      model.impactPillars.social,
+      model.impactPillars &&
+      model.impactPillars.environmental
+    ]);
+  }
+
+  if (
+    pageId === "risks"
+  ) {
+    var raw =
+      AG24_BP_VISUAL_text_(
+        model.risks &&
+        model.risks.raw
+      );
+
+    var riskCount = 0;
+
+    if (raw) {
+      riskCount =
+        raw
+          .replace(
+            /[•●▪\r\n]/g,
+            ";"
+          )
+          .split(
+            /[;,]/
+          )
+          .map(
+            function(item) {
+              return AG24_BP_VISUAL_text_(
+                item
+              );
+            }
+          )
+          .filter(Boolean)
+          .length;
+    }
+
+    return (
+      riskCount +
+      countValues([
+        model.risks &&
+        model.risks.control
+      ])
+    );
+  }
+
+  if (
+    pageId === "roadmap"
+  ) {
+    return countValues([
+      model.roadmap &&
+      model.roadmap.now,
+      model.roadmap &&
+      model.roadmap.sixMonths,
+      model.roadmap &&
+      model.roadmap.twelveMonths,
+      model.roadmap &&
+      model.roadmap.twentyFourMonths,
+      model.roadmap &&
+      model.roadmap.objective,
+      model.snapshot &&
+      model.snapshot.marketArea,
+      model.snapshot &&
+      model.snapshot.funding
+    ]);
+  }
+
+  return 0;
+}
+
+
+function AG24_BP_VISUAL_minSignals_(
+  pageId
+) {
+  var minimums = {
+    operations: 4,
+    impact: 4,
+    risks: 2,
+    roadmap: 3
+  };
+
+  return Number(
+    minimums[pageId] || 0
+  );
+}
+
+
 function AG24_BP_VISUAL_densityClass_(
   ratio
 ) {
@@ -351,6 +510,17 @@ function AG24_BP_VISUAL_preflight_(
             )
           : 0;
 
+      var contentSignals =
+        AG24_BP_VISUAL_signalCount_(
+          page.pageId,
+          model
+        );
+
+      var minSignals =
+        AG24_BP_VISUAL_minSignals_(
+          page.pageId
+        );
+
       var pageReport = {
         pageNumber:
           page.pageNumber,
@@ -374,9 +544,20 @@ function AG24_BP_VISUAL_preflight_(
           metrics.maxBlockChars,
         blockCount:
           metrics.blockCount,
+        contentSignals:
+          contentSignals,
+        minSignals:
+          minSignals,
         sparse:
-          metrics.totalChars <
-          rule.sparseChars,
+          (
+            metrics.totalChars <
+            rule.sparseChars
+          ) ||
+          (
+            minSignals > 0 &&
+            contentSignals <
+              minSignals
+          ),
         overCapacity:
           metrics.totalChars >
           rule.maxChars,

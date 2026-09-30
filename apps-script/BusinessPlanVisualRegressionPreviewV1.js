@@ -18,7 +18,7 @@
  */
 
 var AG24_BP_VISUAL_PREVIEW_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   LAST_REPORT_PROPERTY:
     "AFRIGREEN24_BP_VISUAL_PREVIEW_LAST_REPORT",
   THEMES: Object.freeze([
@@ -124,6 +124,14 @@ function AG24_BP_VISUAL_PREVIEW_safeReport_(
                 themeLabel:
                   String(
                     item.themeLabel || ""
+                  ),
+                layoutGrammar:
+                  String(
+                    item.layoutGrammar || ""
+                  ),
+                visualGateVersion:
+                  String(
+                    item.visualGateVersion || ""
                   ),
                 success:
                   item.success === true,
@@ -381,6 +389,8 @@ function AG24_BP_VISUAL_PREVIEW_renderTheme_(
       themeId,
     themeLabel:
       themeLabel,
+    layoutGrammar: "",
+    visualGateVersion: "",
     success: false,
     documentId: "",
     documentUrl: "",
@@ -424,6 +434,21 @@ function AG24_BP_VISUAL_PREVIEW_renderTheme_(
           themeId:
             themeId
         }
+      );
+
+    report.layoutGrammar =
+      String(
+        designResult &&
+        designResult.layoutGrammar ||
+        ""
+      );
+
+    report.visualGateVersion =
+      String(
+        designResult &&
+        designResult.visualQualityPreflight &&
+        designResult.visualQualityPreflight.version ||
+        ""
       );
 
     document.saveAndClose();
@@ -729,8 +754,31 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1() {
         }
       );
 
+    var grammarSet = {};
+
+    report.themes.forEach(
+      function(item) {
+        if (
+          item &&
+          item.layoutGrammar
+        ) {
+          grammarSet[
+            String(
+              item.layoutGrammar
+            )
+          ] = true;
+        }
+      }
+    );
+
     report.success =
       report.themes.length ===
+        AG24_BP_VISUAL_PREVIEW_V1
+          .THEMES
+          .length &&
+      Object.keys(
+        grammarSet
+      ).length ===
         AG24_BP_VISUAL_PREVIEW_V1
           .THEMES
           .length &&
@@ -738,6 +786,12 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1() {
         function(item) {
           return (
             item.success === true &&
+            item.layoutGrammar ===
+              AG24_BP_V2_resolveTheme_(
+                item.themeId
+              ).grammar &&
+            item.visualGateVersion ===
+              AG24_BP_VISUAL_GATE_V1.VERSION &&
             item.physicalPdfPages ===
               AG24_BP_VISUAL_GATE_V1
                 .EXPECTED_PAGE_COUNT

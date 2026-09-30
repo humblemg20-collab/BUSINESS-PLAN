@@ -597,10 +597,14 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.1.0"',
+        'VERSION: "2.2.0"',
         'MASTER_PAGE_COUNT: 15',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
         'DEFAULT_THEME: "executive_premium"',
+        'grammar: "executive"',
+        'grammar: "banking"',
+        'grammar: "minimal"',
+        'grammar: "impact"',
         '"institutional_banking"',
         '"modern_minimal"',
         '"impact_sustainability"',
@@ -614,6 +618,7 @@ else:
         "AG24_BP_V2_addRoadmapPage_",
         "AG24_BP_V2_addClosing_",
         "AG24_BP_V2_addMasterSectionPage_",
+        "layoutGrammar:",
         "AG24_BP_VISUAL_assertPreflight_(",
         "visualQualityPreflight",
         "Risques & points de vigilance",
@@ -636,10 +641,13 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.0.0"',
+        'VERSION: "1.1.0"',
         "EXPECTED_PAGE_COUNT: 15",
         "MAX_SINGLE_BLOCK_CHARS",
         "function AG24_BP_VISUAL_preflight_",
+        "function AG24_BP_VISUAL_signalCount_",
+        "function AG24_BP_VISUAL_minSignals_",
+        "contentSignals:",
         "function AG24_BP_VISUAL_assertPreflight_",
         "function AG24_BP_VISUAL_getTextLayout_",
         "function AG24_BP_VISUAL_countPdfPages_",
@@ -724,6 +732,7 @@ else:
         "DocumentApp.create(",
         "AG24_BP_V2_renderDocument_(",
         "designSystemVersion",
+        "layoutGrammar",
         "whiteLabel",
         "pageModelCount",
         "executiveMasterId",
@@ -766,7 +775,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.0.0"',
+        'VERSION: "1.1.0"',
         '"executive_premium"',
         '"institutional_banking"',
         '"modern_minimal"',
@@ -781,6 +790,10 @@ else:
         "AG24_BP_V2_renderDocument_(",
         "AG24_BP_VISUAL_assertPdf_(",
         "aiRequestCount",
+        "layoutGrammar",
+        "grammarSet",
+        "Object.keys(",
+        "visualGateVersion",
         "physicalPdfPages",
         "BUSINESS_PLAN_VISUAL_PREVIEW_CREATED",
         "BUSINESS_PLAN_VISUAL_PREVIEW_CLEANUP",
