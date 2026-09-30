@@ -2936,18 +2936,65 @@ function configurerIdentiteDocument(
 function extraireBrandingBusinessPlan_(data) {
   data = data || {};
 
-  var logoUpload =
-    data.logoUpload &&
-    typeof data.logoUpload === "object"
-      ? data.logoUpload
-      : null;
+  var projectBrandingToken =
+    String(
+      data.projectBrandingToken || ""
+    ).trim();
 
-  var slogan = nettoyerTexte(
-    data.organizationSlogan ||
-    data.projectSlogan ||
-    "",
-    ""
-  );
+  var storedBranding = null;
+
+  if (projectBrandingToken) {
+    if (
+      typeof AG24_BP_PROJECT_BRANDING_resolveForGeneration_ !==
+      "function"
+    ) {
+      throw new Error(
+        "PROJECT_BRANDING_STORE_UNAVAILABLE"
+      );
+    }
+
+    storedBranding =
+      AG24_BP_PROJECT_BRANDING_resolveForGeneration_(
+        projectBrandingToken
+      );
+
+    if (
+      !storedBranding ||
+      storedBranding.found !==
+        true
+    ) {
+      throw new Error(
+        "PROJECT_BRANDING_NOT_FOUND"
+      );
+    }
+  }
+
+  var logoUpload =
+    storedBranding
+      ? (
+          storedBranding.logoUpload ||
+          null
+        )
+      : (
+          data.logoUpload &&
+          typeof data.logoUpload ===
+            "object"
+            ? data.logoUpload
+            : null
+        );
+
+  var slogan =
+    storedBranding
+      ? nettoyerTexte(
+          storedBranding.slogan,
+          ""
+        )
+      : nettoyerTexte(
+          data.organizationSlogan ||
+          data.projectSlogan ||
+          "",
+          ""
+        );
 
   var documentTheme =
     String(
@@ -2959,8 +3006,12 @@ function extraireBrandingBusinessPlan_(data) {
       .toLowerCase();
 
   return {
-    logoUpload: logoUpload,
-    slogan: slogan,
+    logoUpload:
+      logoUpload,
+    slogan:
+      slogan,
+    projectBrandingToken:
+      projectBrandingToken,
     documentTheme:
       documentTheme ||
       (
@@ -2982,7 +3033,8 @@ function construireDonneesBusinessPlanSansBranding_(data) {
       cle === "organizationSlogan" ||
       cle === "projectSlogan" ||
       cle === "documentTheme" ||
-      cle === "designTheme"
+      cle === "designTheme" ||
+      cle === "projectBrandingToken"
     ) {
       return;
     }
