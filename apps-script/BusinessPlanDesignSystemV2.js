@@ -1661,6 +1661,11 @@ function AG24_BP_V2_addCards_(
   cards,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (cards || [])
       .filter(
@@ -1704,9 +1709,19 @@ function AG24_BP_V2_addCards_(
 
     table
       .setBorderColor(
-        theme.border
+        grammar === "minimal"
+          ? theme.border
+          : (
+              grammar === "banking"
+                ? theme.secondary
+                : theme.border
+            )
       )
-      .setBorderWidth(1);
+      .setBorderWidth(
+        grammar === "minimal"
+          ? 0.5
+          : 1
+      );
 
     pair.forEach(
       function(card, index) {
@@ -1716,10 +1731,37 @@ function AG24_BP_V2_addCards_(
             index
           );
 
+        var background =
+          theme.soft;
+
+        if (
+          grammar === "minimal"
+        ) {
+          background =
+            theme.white;
+        } else if (
+          grammar === "banking"
+        ) {
+          background =
+            index % 2 === 0
+              ? theme.white
+              : theme.softAlt;
+        } else if (
+          grammar === "impact"
+        ) {
+          background =
+            index % 2 === 0
+              ? theme.soft
+              : theme.softAlt;
+        } else {
+          background =
+            index % 2 === 0
+              ? theme.soft
+              : theme.softAlt;
+        }
+
         cell.setBackgroundColor(
-          index % 2 === 0
-            ? theme.soft
-            : theme.softAlt
+          background
         );
 
         var title =
@@ -1733,14 +1775,28 @@ function AG24_BP_V2_addCards_(
 
         title
           .setForegroundColor(
-            theme.primary
+            grammar === "minimal"
+              ? theme.accent
+              : (
+                  grammar === "banking"
+                    ? theme.primaryDark
+                    : theme.primary
+                )
           )
           .setBold(true)
           .setFontFamily(
             theme.headingFont
           )
-          .setFontSize(8)
-          .setSpacingBefore(7)
+          .setFontSize(
+            grammar === "minimal"
+              ? 7.5
+              : 8
+          )
+          .setSpacingBefore(
+            grammar === "impact"
+              ? 9
+              : 7
+          )
           .setSpacingAfter(5);
 
         cell
@@ -1753,9 +1809,21 @@ function AG24_BP_V2_addCards_(
           .setFontFamily(
             theme.bodyFont
           )
-          .setFontSize(9)
-          .setLineSpacing(1.2)
-          .setSpacingAfter(7);
+          .setFontSize(
+            grammar === "minimal"
+              ? 8.8
+              : 9
+          )
+          .setLineSpacing(
+            grammar === "minimal"
+              ? 1.25
+              : 1.2
+          )
+          .setSpacingAfter(
+            grammar === "impact"
+              ? 9
+              : 7
+          );
       }
     );
 
@@ -1780,7 +1848,11 @@ function AG24_BP_V2_addCards_(
 
     body
       .appendParagraph("")
-      .setSpacingAfter(6);
+      .setSpacingAfter(
+        grammar === "minimal"
+          ? 8
+          : 6
+      );
   }
 }
 
@@ -1790,6 +1862,11 @@ function AG24_BP_V2_addFactsGrid_(
   facts,
   theme
 ) {
+  var grammar =
+    String(
+      theme.grammar || "executive"
+    );
+
   var usable =
     (facts || [])
       .filter(
@@ -1827,9 +1904,15 @@ function AG24_BP_V2_addFactsGrid_(
 
   table
     .setBorderColor(
-      theme.border
+      grammar === "banking"
+        ? theme.secondary
+        : theme.border
     )
-    .setBorderWidth(1);
+    .setBorderWidth(
+      grammar === "minimal"
+        ? 0.5
+        : 1
+    );
 
   for (
     var rowIndex = 0;
@@ -1848,21 +1931,51 @@ function AG24_BP_V2_addFactsGrid_(
         1
       );
 
-    label.setBackgroundColor(
-      theme.soft
-    );
+    if (
+      grammar === "minimal"
+    ) {
+      label.setBackgroundColor(
+        theme.white
+      );
 
-    value.setBackgroundColor(
-      theme.white
-    );
+      value.setBackgroundColor(
+        theme.white
+      );
+    } else if (
+      grammar === "banking"
+    ) {
+      label.setBackgroundColor(
+        theme.soft
+      );
+
+      value.setBackgroundColor(
+        rowIndex % 2 === 0
+          ? theme.white
+          : theme.softAlt
+      );
+    } else {
+      label.setBackgroundColor(
+        theme.soft
+      );
+
+      value.setBackgroundColor(
+        theme.white
+      );
+    }
 
     AG24_BP_V2_styleCellText_(
       label,
       theme,
       {
         bold: true,
-        color: theme.primary,
-        size: 8.5
+        color:
+          grammar === "minimal"
+            ? theme.accent
+            : theme.primary,
+        size:
+          grammar === "minimal"
+            ? 8
+            : 8.5
       }
     );
 
@@ -1871,24 +1984,35 @@ function AG24_BP_V2_addFactsGrid_(
       theme,
       {
         color: theme.text,
-        size: 9
+        size:
+          grammar === "minimal"
+            ? 8.8
+            : 9
       }
     );
   }
 
   table.setColumnWidth(
     0,
-    140
+    grammar === "banking"
+      ? 155
+      : 140
   );
 
   table.setColumnWidth(
     1,
-    340
+    grammar === "banking"
+      ? 325
+      : 340
   );
 
   body
     .appendParagraph("")
-    .setSpacingAfter(8);
+    .setSpacingAfter(
+      grammar === "minimal"
+        ? 10
+        : 8
+    );
 }
 
 
