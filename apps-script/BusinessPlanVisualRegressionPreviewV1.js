@@ -18,7 +18,7 @@
  */
 
 var AG24_BP_VISUAL_PREVIEW_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   LAST_REPORT_PROPERTY:
     "AFRIGREEN24_BP_VISUAL_PREVIEW_LAST_REPORT",
   THEMES: Object.freeze([
