@@ -2726,6 +2726,23 @@ function AG24_BP_V2_splitRisks_(
       )
       .filter(Boolean);
 
+  if (
+    parts.length === 1 &&
+    parts[0].indexOf(",") !== -1
+  ) {
+    parts =
+      parts[0]
+        .split(",")
+        .map(
+          function(item) {
+            return AG24_BP_V2_text_(
+              item
+            );
+          }
+        )
+        .filter(Boolean);
+  }
+
   if (!parts.length) {
     return [];
   }
@@ -2788,12 +2805,12 @@ function AG24_BP_V2_addRiskRegister_(
 
       rows.push([
         item,
-        AG24_BP_V2_valueOrDash_(
+        AG24_BP_V2_text_(
           level
-        ),
-        AG24_BP_V2_valueOrDash_(
+        ) || "À qualifier",
+        AG24_BP_V2_text_(
           mitigation
-        )
+        ) || "À formaliser"
       ]);
     }
   );
@@ -2917,12 +2934,48 @@ function AG24_BP_V2_addExecutiveSummaryPage_(
     theme
   );
 
-  AG24_BP_V2_addCallout_(
+  AG24_BP_V2_addFactsGrid_(
     body,
-    "Pourquoi ce projet mérite l’attention",
-    model.snapshot.valueProposition,
+    [
+      [
+        "Modèle économique",
+        model.snapshot.revenueModel
+      ],
+      [
+        "Clientèle cible",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Financement",
+        model.snapshot.funding
+      ]
+    ],
     theme
   );
+
+  if (
+    AG24_BP_V2_text_(
+      model.snapshot.opportunity
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Opportunité",
+      model.snapshot.opportunity,
+      theme
+    );
+  } else if (
+    AG24_BP_V2_text_(
+      model.snapshot.funding
+    )
+  ) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Financement à structurer",
+      model.snapshot.funding,
+      theme
+    );
+  }
 }
 
 
@@ -3249,6 +3302,7 @@ function AG24_BP_V2_addStrategyPage_(
 function AG24_BP_V2_addOperationsPage_(
   body,
   section,
+  model,
   theme
 ) {
   AG24_BP_V2_addSectionTitle_(
@@ -3266,7 +3320,28 @@ function AG24_BP_V2_addOperationsPage_(
 
   AG24_BP_V2_addCards_(
     body,
-    section.cards,
+    [
+      [
+        "Équipe",
+        AG24_BP_V2_findCard_(
+          section,
+          "Équipe"
+        )
+      ],
+      [
+        "Stade actuel",
+        model.project.stage
+      ],
+      [
+        "Porteur",
+        model.project.promoter
+      ],
+      [
+        "Zone d’opération",
+        model.snapshot.marketArea ||
+        model.project.country
+      ]
+    ],
     theme
   );
 }
@@ -3367,6 +3442,19 @@ function AG24_BP_V2_addImpactPage_(
         )
       ],
       [
+        "Clientèle concernée",
+        model.snapshot.targetCustomers
+      ],
+      [
+        "Zone de déploiement",
+        model.snapshot.marketArea ||
+        model.project.country
+      ],
+      [
+        "Stade actuel",
+        model.project.stage
+      ],
+      [
         "Impact économique",
         model.impactPillars.economic
       ],
@@ -3461,6 +3549,7 @@ function AG24_BP_V2_addMasterSectionPage_(
       AG24_BP_V2_addOperationsPage_(
         body,
         section,
+        model,
         theme
       );
       break;
