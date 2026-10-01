@@ -612,6 +612,8 @@ else:
         "logoAction",
         "PROJECT_BRANDING_SYSTEM_TEST_PASSED",
         "productionResolverValid",
+        "identityHashPreserved",
+        "parts.some(",
         "extraireBrandingBusinessPlan_(",
         "Logger.log(",
         "JSON.stringify(",

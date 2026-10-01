@@ -729,24 +729,34 @@ function AG24_BP_BRANDING_identityHash_(
       ? identity
       : {};
 
-  var canonical =
-    [
-      AG24_BP_BRANDING_text_(
-        identity.projectName
-      ).toLowerCase(),
-      AG24_BP_BRANDING_text_(
-        identity.promoterName
-      ).toLowerCase(),
-      AG24_BP_BRANDING_text_(
-        identity.country
-      ).toLowerCase()
-    ].join("|");
+  var parts = [
+    AG24_BP_BRANDING_text_(
+      identity.projectName
+    ).toLowerCase(),
+    AG24_BP_BRANDING_text_(
+      identity.promoterName
+    ).toLowerCase(),
+    AG24_BP_BRANDING_text_(
+      identity.country
+    ).toLowerCase()
+  ];
 
-  return canonical
-    ? AG24_SEC_sha256_(
-        canonical
-      )
-    : "";
+  var hasIdentity =
+    parts.some(
+      function(value) {
+        return Boolean(
+          value
+        );
+      }
+    );
+
+  if (!hasIdentity) {
+    return "";
+  }
+
+  return AG24_SEC_sha256_(
+    parts.join("|")
+  );
 }
 
 
@@ -1239,6 +1249,7 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
     logoRoundTrip: false,
     sloganRoundTrip: false,
     productionResolverValid: false,
+    identityHashPreserved: false,
     logoRemoved: false,
     cleanupSuccess: false,
     failureCode: ""
@@ -1352,6 +1363,24 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
           token
       );
 
+    var projectFolderBeforeRemove =
+      AG24_BP_BRANDING_projectFolder_(
+        token,
+        false
+      );
+
+    var metadataBeforeRemove =
+      AG24_BP_BRANDING_readMetadata_(
+        projectFolderBeforeRemove
+      );
+
+    var identityHashBeforeRemove =
+      String(
+        metadataBeforeRemove &&
+        metadataBeforeRemove.projectIdentityHash ||
+        ""
+      );
+
     AG24_BP_PROJECT_BRANDING_SAVE_V1({
       token:
         token,
@@ -1360,6 +1389,22 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
       logoAction:
         "remove"
     });
+
+    var metadataAfterRemove =
+      AG24_BP_BRANDING_readMetadata_(
+        projectFolderBeforeRemove
+      );
+
+    report.identityHashPreserved =
+      Boolean(
+        identityHashBeforeRemove &&
+        metadataAfterRemove &&
+        String(
+          metadataAfterRemove.projectIdentityHash ||
+          ""
+        ) ===
+          identityHashBeforeRemove
+      );
 
     var afterRemove =
       AG24_BP_PROJECT_BRANDING_GET_V1(
@@ -1381,6 +1426,7 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
       report.logoRoundTrip &&
       report.sloganRoundTrip &&
       report.productionResolverValid &&
+      report.identityHashPreserved &&
       report.logoRemoved;
 
     if (!report.success) {
