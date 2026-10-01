@@ -599,14 +599,17 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.0.0"',
+        'VERSION: "1.1.0"',
         "MAX_ATTEMPTS: 3",
         'id: "compact"',
         'id: "dense"',
         'id: "tight"',
+        "function AG24_BP_VISUAL_FIT_try_(",
         "function AG24_BP_VISUAL_FIT_pdf_(",
         "function AG24_BP_VISUAL_FIT_applyProfile_(",
         "function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1()",
+        "targetEnvelopeMatch",
+        "VISUAL_FIT_TEST_FIXTURE_OUTSIDE_TARGET_ENVELOPE_",
         "PDF_FIT_RECOVERY_STARTED",
         "PDF_FIT_RECOVERY_ATTEMPT",
         "PDF_FIT_RECOVERY_PASSED",
