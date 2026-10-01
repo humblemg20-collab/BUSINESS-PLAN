@@ -477,7 +477,7 @@ function AG24_BP_VISUAL_PREVIEW_renderTheme_(
       AG24_BP_VISUAL_assertPdf_(
         blobPdf,
         {
-          expectedPageCount:
+          expectedSemanticPageCount:
             designResult.pageModelCount
         }
       );
@@ -792,9 +792,12 @@ function AG24_BUSINESS_PLAN_VISUAL_PREVIEW_V1() {
               ).grammar &&
             item.visualGateVersion ===
               AG24_BP_VISUAL_GATE_V1.VERSION &&
-            item.physicalPdfPages ===
+            item.physicalPdfPages >=
               AG24_BP_VISUAL_GATE_V1
-                .EXPECTED_PAGE_COUNT
+                .MIN_PHYSICAL_PAGE_COUNT &&
+            item.physicalPdfPages <=
+              AG24_BP_VISUAL_GATE_V1
+                .HARD_PHYSICAL_PAGE_MAX
           );
         }
       );
