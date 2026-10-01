@@ -1,13 +1,6 @@
-name: Sync Business Plan Apps Script HEAD
+name: Manual Business Plan Apps Script HEAD Sync
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps-script/**"
-      - "scripts/validate_apps_script.py"
-      - ".github/workflows/sync-apps-script-head.yml"
   workflow_dispatch:
 
 permissions:

@@ -588,6 +588,38 @@ else:
             fail("Narrative contract test must not log generated narrative content")
 
 
+
+# Canonical PowerShell release engine contract
+release_engine_path = ROOT / "scripts" / "release-business-plan.ps1"
+if not release_engine_path.exists():
+    fail("Canonical PowerShell release engine is required")
+else:
+    release_engine_text = release_engine_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "BUSINESS PLAN POWERSHELL RELEASE ENGINE V1",
+        "WORKTREE_DIRTY",
+        "CANONICAL_MAIN_MISMATCH",
+        "APPS_SCRIPT_HEAD_PUSH=PASS",
+        "Wait-DeploymentVersion",
+        "DEPLOYMENT_PROPAGATION_TIMEOUT",
+        "Wait-ProductionHealth",
+        "AUTOMATIC_ROLLBACK=START",
+        "ROLLBACK_PROPAGATION_TIMEOUT",
+        "OPENAI_CONFIG_HEALTH=PASS",
+        "release-evidence",
+        "state.json",
+        "BUSINESS PLAN POWERSHELL RELEASE = PASS",
+    ]:
+        if marker not in release_engine_text:
+            fail(f"PowerShell release engine marker missing: {marker}")
+
+    if '$WebAppUrl + "?health=openai-config"' not in release_engine_text:
+        fail("PowerShell release engine must build health URL explicitly")
+
 # Business Plan Adaptive PDF Fit V1 contract
 pdf_fit_path = APP / "BusinessPlanAdaptivePdfFitV1.js"
 if not pdf_fit_path.exists():
