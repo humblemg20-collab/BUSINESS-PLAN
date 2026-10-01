@@ -19,7 +19,7 @@
  */
 
 var AG24_BP_VISUAL_FIT_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   MAX_ATTEMPTS: 3,
   SETTLE_MS: 900,
   PROFILES: Object.freeze([
@@ -622,7 +622,7 @@ function AG24_BP_VISUAL_FIT_onlyOverflowError_(
 }
 
 
-function AG24_BP_VISUAL_FIT_pdf_(
+function AG24_BP_VISUAL_FIT_try_(
   documentId,
   pdfName,
   options
@@ -632,8 +632,6 @@ function AG24_BP_VISUAL_FIT_pdf_(
 
   if (
     typeof AG24_BP_VISUAL_postflightPdf_ !==
-      "function" ||
-    typeof AG24_BP_VISUAL_assertPdf_ !==
       "function"
   ) {
     throw new Error(
@@ -681,21 +679,36 @@ function AG24_BP_VISUAL_FIT_pdf_(
     attempts: []
   };
 
-  if (
-    report.success
+  function result_(
+    success,
+    errorCode
   ) {
     report.fitRecovery =
       recovery;
 
     return {
-      success: true,
+      success:
+        Boolean(success),
       blob:
         blob,
       report:
         report,
       recovery:
-        recovery
+        recovery,
+      errorCode:
+        String(
+          errorCode || ""
+        )
     };
+  }
+
+  if (
+    report.success
+  ) {
+    return result_(
+      true,
+      ""
+    );
   }
 
   if (
@@ -706,12 +719,11 @@ function AG24_BP_VISUAL_FIT_pdf_(
       report.physicalPageCount || 0
     ) <= expected
   ) {
-    AG24_BP_VISUAL_assertPdf_(
-      blob,
-      {
-        expectedPageCount:
-          expected
-      }
+    return result_(
+      false,
+      (
+        report.errors || []
+      ).join(",")
     );
   }
 
@@ -842,15 +854,10 @@ function AG24_BP_VISUAL_FIT_pdf_(
         );
       }
 
-      return {
-        success: true,
-        blob:
-          blob,
-        report:
-          report,
-        recovery:
-          recovery
-      };
+      return result_(
+        true,
+        ""
+      );
     }
 
     if (
@@ -884,11 +891,57 @@ function AG24_BP_VISUAL_FIT_pdf_(
     );
   }
 
+  return result_(
+    false,
+    (
+      report.errors || []
+    ).join(",")
+  );
+}
+
+
+function AG24_BP_VISUAL_FIT_pdf_(
+  documentId,
+  pdfName,
+  options
+) {
+  options =
+    options || {};
+
+  if (
+    typeof AG24_BP_VISUAL_assertPdf_ !==
+      "function"
+  ) {
+    throw new Error(
+      "VISUAL_QUALITY_GATE_UNAVAILABLE"
+    );
+  }
+
+  var result =
+    AG24_BP_VISUAL_FIT_try_(
+      documentId,
+      pdfName,
+      options
+    );
+
+  if (
+    result.success
+  ) {
+    return result;
+  }
+
   AG24_BP_VISUAL_assertPdf_(
-    blob,
+    result.blob,
     {
       expectedPageCount:
-        expected
+        result.recovery &&
+        result.recovery.expectedPageCount
+          ? result.recovery
+              .expectedPageCount
+          : (
+              options.expectedPageCount ||
+              15
+            )
     }
   );
 
@@ -913,8 +966,10 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
       AG24_BP_VISUAL_FIT_V1.VERSION,
     initialPageCount: 0,
     finalPageCount: 0,
+    targetEnvelopeMatch: false,
     fitApplied: false,
     attemptCount: 0,
+    attempts: [],
     cleanupSuccess: false,
     failureCode: ""
   };
@@ -939,6 +994,14 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
     body.setMarginLeft(48);
     body.setMarginRight(48);
 
+    /*
+     * Regression envelope:
+     * the production incident was 19 physical pages for 15 semantic pages.
+     *
+     * Earlier V1 accidentally created 34 physical pages, which tested a
+     * completely different failure class. V1.1 creates four moderately
+     * overflowing semantic pages and expects an initial 16-22 page envelope.
+     */
     var overflowPages = {
       3: true,
       6: true,
@@ -948,8 +1011,7 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
 
     var normalText =
       "Donnée synthétique de contrôle de pagination. " +
-      "Le moteur doit préserver intégralement le contenu et uniquement " +
-      "adapter la typographie et les espacements.";
+      "Le moteur conserve le contenu et ajuste uniquement la mise en page.";
 
     for (
       var page = 1;
@@ -967,8 +1029,8 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
 
       var lines =
         overflowPages[page]
-          ? 52
-          : 34;
+          ? 20
+          : 8;
 
       for (
         var line = 0;
@@ -1012,8 +1074,23 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
     report.initialPageCount =
       initial.pageCount;
 
+    report.targetEnvelopeMatch =
+      report.initialPageCount >= 16 &&
+      report.initialPageCount <= 22;
+
+    if (
+      !report.targetEnvelopeMatch
+    ) {
+      throw new Error(
+        "VISUAL_FIT_TEST_FIXTURE_OUTSIDE_TARGET_ENVELOPE_" +
+        String(
+          report.initialPageCount
+        )
+      );
+    }
+
     var fitted =
-      AG24_BP_VISUAL_FIT_pdf_(
+      AG24_BP_VISUAL_FIT_try_(
         documentId,
         "visual-fit-after.pdf",
         {
@@ -1022,8 +1099,15 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
       );
 
     report.finalPageCount =
-      fitted.report
-        .physicalPageCount;
+      fitted.recovery
+        ? fitted.recovery
+            .finalPageCount
+        : (
+            fitted.report
+              ? fitted.report
+                  .physicalPageCount
+              : 0
+          );
 
     report.fitApplied =
       Boolean(
@@ -1031,26 +1115,29 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
         fitted.recovery.applied
       );
 
-    report.attemptCount =
+    report.attempts =
       fitted.recovery &&
       Array.isArray(
         fitted.recovery.attempts
       )
         ? fitted.recovery
             .attempts
-            .length
-        : 0;
+        : [];
+
+    report.attemptCount =
+      report.attempts.length;
 
     report.success =
-      report.initialPageCount > 15 &&
+      fitted.success === true &&
+      report.targetEnvelopeMatch === true &&
       report.finalPageCount === 15 &&
       report.fitApplied === true &&
       report.attemptCount >= 1;
 
     if (!report.success) {
-      throw new Error(
-        "VISUAL_FIT_SYSTEM_TEST_CONTRACT_FAILED"
-      );
+      report.failureCode =
+        fitted.errorCode ||
+        "VISUAL_FIT_SYSTEM_TEST_CONTRACT_FAILED";
     }
 
   } catch (error) {
@@ -1113,6 +1200,8 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
               report.initialPageCount,
             finalPageCount:
               report.finalPageCount,
+            targetEnvelopeMatch:
+              report.targetEnvelopeMatch,
             attemptCount:
               report.attemptCount,
             cleanupSuccess:
