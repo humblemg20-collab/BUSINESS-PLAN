@@ -1,0 +1,112 @@
+name: Sync Business Plan Apps Script HEAD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps-script/**"
+      - "scripts/validate_apps_script.py"
+      - ".github/workflows/sync-apps-script-head.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: business-plan-apps-script-head-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-head:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Verify canonical commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          echo "CANONICAL_MAIN_SHA=$CURRENT_SHA"
+          test "$CURRENT_SHA" = "$GITHUB_SHA"
+
+      - name: Validate source
+        run: python3 scripts/validate_apps_script.py
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install clasp
+        run: npm install --global @google/clasp@latest
+
+      - name: Configure canonical clasp credentials
+        shell: bash
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLASPRC_JSON:-}" ]]; then
+            echo "CLASPRC_JSON_MISSING"
+            exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          echo "CLASP_CREDENTIALS_CONFIGURED=YES"
+
+      - name: Apps Script access preflight
+        working-directory: apps-script
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED_SCRIPT_ID="1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
+          ACTUAL_SCRIPT_ID="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('.clasp.json','utf8')); process.stdout.write(String(x.scriptId||''));")"
+
+          echo "EXPECTED_SCRIPT_ID=$EXPECTED_SCRIPT_ID"
+          echo "ACTUAL_SCRIPT_ID=$ACTUAL_SCRIPT_ID"
+
+          test "$ACTUAL_SCRIPT_ID" = "$EXPECTED_SCRIPT_ID"
+
+          # Validate auth and project access without exposing the authorized
+          # Google account email in workflow logs.
+          clasp show-authorized-user >/dev/null
+          clasp list-deployments >/dev/null
+
+          echo "APPS_SCRIPT_ACCESS_PREFLIGHT=PASS"
+
+      - name: Push canonical main to Apps Script HEAD
+        working-directory: apps-script
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp push --force
+          echo "APPS_SCRIPT_HEAD_PUSH=PASS"
+
+      - name: Verify Apps Script source status
+        working-directory: apps-script
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp status
+          echo "APPS_SCRIPT_HEAD_SYNC=PASS"
+
+      - name: Sync summary
+        shell: bash
+        run: |
+          {
+            echo "## Apps Script HEAD sync"
+            echo ""
+            echo "- Canonical SHA: `$GITHUB_SHA`"
+            echo "- Source validation: PASS"
+            echo "- Apps Script access preflight: PASS"
+            echo "- clasp push --force: PASS"
+            echo "- Production deployment updated: NO"
+          } >> "$GITHUB_STEP_SUMMARY"
