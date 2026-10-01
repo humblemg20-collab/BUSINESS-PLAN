@@ -787,8 +787,8 @@ if code.exists():
         fail("Standard Business Plan production path must resolve canonical project branding")
     if 'cle === "projectBrandingToken"' not in code_text:
         fail("Project Branding capability must be excluded from the OpenAI payload")
-    if "AG24_BP_VISUAL_assertPdf_(" not in code_text:
-        fail("Standard generation must enforce PDF Visual Quality Gate V1")
+    if "AG24_BP_VISUAL_FIT_pdf_(" not in code_text:
+        fail("Standard generation must enforce Adaptive PDF Fit before final visual-quality acceptance")
     if "STANDARD_PDF_VISUAL_GATE_PASSED" not in code_text:
         fail("Visual quality success audit is missing")
     if "STANDARD_PDF_VISUAL_GATE_FAILED" not in code_text:
