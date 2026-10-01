@@ -248,29 +248,28 @@ function genererBusinessPlan_(data) {
     var fichierDocument = DriveApp.getFileById(documentId);
 
     /*
-     * Conversion en PDF.
-     */
-    var blobPdf = fichierDocument
-      .getBlob()
-      .getAs(MimeType.PDF)
-      .setName(nomDocument + ".pdf");
-
-    /*
-     * PDF Visual Quality Gate V1.
-     * The physical PDF must keep the canonical 15-page contract.
+     * Adaptive PDF Fit Engine V1.
+     *
+     * Real customer content can overflow the 15 semantic pages even when the
+     * pre-render character budget passes. We do not disable the visual gate:
+     * the engine deterministically compacts typography/spacing, re-exports,
+     * and re-validates the physical page contract with bounded retries.
+     *
+     * No additional AI call and no content deletion.
      */
     if (
-      typeof AG24_BP_VISUAL_assertPdf_ !==
+      typeof AG24_BP_VISUAL_FIT_pdf_ !==
       "function"
     ) {
       throw new Error(
-        "VISUAL_QUALITY_GATE_UNAVAILABLE"
+        "VISUAL_FIT_ENGINE_UNAVAILABLE"
       );
     }
 
-    visualQualityPdf =
-      AG24_BP_VISUAL_assertPdf_(
-        blobPdf,
+    var pdfFitResult =
+      AG24_BP_VISUAL_FIT_pdf_(
+        documentId,
+        nomDocument + ".pdf",
         {
           expectedPageCount:
             designResult &&
@@ -279,6 +278,12 @@ function genererBusinessPlan_(data) {
               : 15
         }
       );
+
+    var blobPdf =
+      pdfFitResult.blob;
+
+    visualQualityPdf =
+      pdfFitResult.report;
 
     if (
       typeof AG24_AUDIT_event_ ===
@@ -308,7 +313,29 @@ function genererBusinessPlan_(data) {
               ? designResult
                   .visualQualityPreflight
                   .sparsePageCount
-              : null
+              : null,
+          fitApplied:
+            Boolean(
+              visualQualityPdf.fitRecovery &&
+              visualQualityPdf.fitRecovery.applied
+            ),
+          fitAttempts:
+            visualQualityPdf.fitRecovery &&
+            Array.isArray(
+              visualQualityPdf.fitRecovery.attempts
+            )
+              ? visualQualityPdf
+                  .fitRecovery
+                  .attempts
+                  .length
+              : 0,
+          initialPhysicalPageCount:
+            visualQualityPdf.fitRecovery
+              ? visualQualityPdf
+                  .fitRecovery
+                  .initialPageCount
+              : visualQualityPdf
+                  .physicalPageCount
         }
       );
     }
