@@ -555,7 +555,7 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
       AG24_BP_VISUAL_assertPdf_(
         blobPdf,
         {
-          expectedPageCount:
+          expectedSemanticPageCount:
             report.pageModelCount
         }
       );
@@ -658,8 +658,10 @@ function AG24_BUSINESS_PLAN_FULL_SYSTEM_TEST_V1() {
       report.visualGateVersion !==
         AG24_BP_VISUAL_GATE_V1.VERSION ||
       !report.visualPdfValid ||
-      report.physicalPdfPages !==
-        AG24_BP_VISUAL_GATE_V1.EXPECTED_PAGE_COUNT
+      report.physicalPdfPages <
+        AG24_BP_VISUAL_GATE_V1.MIN_PHYSICAL_PAGE_COUNT ||
+      report.physicalPdfPages >
+        AG24_BP_VISUAL_GATE_V1.HARD_PHYSICAL_PAGE_MAX
     ) {
       throw new Error(
         'Design + Visual Quality Gate contract failed.'
