@@ -250,10 +250,9 @@ function genererBusinessPlan_(data) {
     /*
      * Adaptive PDF Fit Engine V1.
      *
-     * Real customer content can overflow the 15 semantic pages even when the
-     * pre-render character budget passes. We do not disable the visual gate:
-     * the engine deterministically compacts typography/spacing, re-exports,
-     * and re-validates the physical page contract with bounded retries.
+     * Real customer content can naturally span more physical pages than the
+     * 15-section semantic master. The visual gate accepts healthy variation.
+     * Deterministic compaction is reserved for extreme physical overflow only.
      *
      * No additional AI call and no content deletion.
      */
@@ -271,7 +270,7 @@ function genererBusinessPlan_(data) {
         documentId,
         nomDocument + ".pdf",
         {
-          expectedPageCount:
+          expectedSemanticPageCount:
             designResult &&
             designResult.pageModelCount
               ? designResult.pageModelCount
@@ -292,8 +291,8 @@ function genererBusinessPlan_(data) {
       AG24_AUDIT_event_(
         "STANDARD_PDF_VISUAL_GATE_PASSED",
         {
-          expectedPageCount:
-            visualQualityPdf.expectedPageCount,
+          expectedSemanticPageCount:
+            visualQualityPdf.expectedSemanticPageCount,
           physicalPageCount:
             visualQualityPdf.physicalPageCount,
           pageCountMethod:
@@ -335,7 +334,11 @@ function genererBusinessPlan_(data) {
                   .fitRecovery
                   .initialPageCount
               : visualQualityPdf
-                  .physicalPageCount
+                  .physicalPageCount,
+          physicalPageLengthClass:
+            visualQualityPdf.physicalPageLengthClass,
+          visualWarnings:
+            visualQualityPdf.warnings || []
         }
       );
     }
