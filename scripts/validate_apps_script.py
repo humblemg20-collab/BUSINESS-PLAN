@@ -32,6 +32,7 @@ required = [
     APP / "BusinessPlanVisualQualityGateV1.js",
     APP / "BusinessPlanVisualRegressionPreviewV1.js",
     APP / "BusinessPlanProjectBrandingV1.js",
+    APP / "BusinessPlanAdaptivePdfFitV1.js",
 ]
 
 for path in required:
@@ -587,6 +588,42 @@ else:
             fail("Narrative contract test must not log generated narrative content")
 
 
+# Business Plan Adaptive PDF Fit V1 contract
+pdf_fit_path = APP / "BusinessPlanAdaptivePdfFitV1.js"
+if not pdf_fit_path.exists():
+    fail("BusinessPlanAdaptivePdfFitV1.js is required")
+else:
+    pdf_fit_text = pdf_fit_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        "MAX_ATTEMPTS: 3",
+        'id: "compact"',
+        'id: "dense"',
+        'id: "tight"',
+        "function AG24_BP_VISUAL_FIT_pdf_(",
+        "function AG24_BP_VISUAL_FIT_applyProfile_(",
+        "function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1()",
+        "PDF_FIT_RECOVERY_STARTED",
+        "PDF_FIT_RECOVERY_ATTEMPT",
+        "PDF_FIT_RECOVERY_PASSED",
+        "PDF_FIT_RECOVERY_FAILED",
+        "VISUAL_FIT_SYSTEM_TEST_PASSED",
+        "fitRecovery",
+    ]:
+        if marker not in pdf_fit_text:
+            fail(f"Adaptive PDF Fit V1 marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in pdf_fit_text:
+        fail("Adaptive PDF Fit must remain deterministic and offline")
+
+    if "preparerBusinessPlanStandardIA52(" in pdf_fit_text:
+        fail("Adaptive PDF Fit must never trigger an AI preparation call")
+
+
 # Business Plan Project Branding Store V1 contract
 project_branding_path = APP / "BusinessPlanProjectBrandingV1.js"
 if not project_branding_path.exists():
@@ -742,6 +779,10 @@ if code.exists():
 
     if "AG24_BP_V2_renderDocument_(" not in code_text:
         fail("Standard Business Plan production path must use Design System V2")
+    if "AG24_BP_VISUAL_FIT_pdf_(" not in code_text:
+        fail("Standard Business Plan production path must use Adaptive PDF Fit V1")
+    if "fitApplied:" not in code_text or "initialPhysicalPageCount:" not in code_text:
+        fail("Adaptive PDF Fit observability is missing from the production path")
     if "AG24_BP_PROJECT_BRANDING_resolveForGeneration_(" not in code_text:
         fail("Standard Business Plan production path must resolve canonical project branding")
     if 'cle === "projectBrandingToken"' not in code_text:
