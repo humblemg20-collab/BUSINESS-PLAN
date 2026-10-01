@@ -599,7 +599,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.1.0"',
+        'VERSION: "1.2.0"',
         "MAX_ATTEMPTS: 3",
         'id: "compact"',
         'id: "dense"',
@@ -608,8 +608,8 @@ else:
         "function AG24_BP_VISUAL_FIT_pdf_(",
         "function AG24_BP_VISUAL_FIT_applyProfile_(",
         "function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1()",
-        "targetEnvelopeMatch",
-        "VISUAL_FIT_TEST_FIXTURE_OUTSIDE_TARGET_ENVELOPE_",
+        "extremeOverflowRecognized",
+        "PHYSICAL_PAGE_COUNT_27_ABOVE_MAX_26",
         "PDF_FIT_RECOVERY_STARTED",
         "PDF_FIT_RECOVERY_ATTEMPT",
         "PDF_FIT_RECOVERY_PASSED",
@@ -730,8 +730,12 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.1.0"',
-        "EXPECTED_PAGE_COUNT: 15",
+        'VERSION: "1.2.0"',
+        "EXPECTED_SEMANTIC_PAGE_COUNT: 15",
+        "MIN_PHYSICAL_PAGE_COUNT: 15",
+        "NORMAL_PHYSICAL_PAGE_MAX: 22",
+        "WARNING_PHYSICAL_PAGE_MAX: 26",
+        "HARD_PHYSICAL_PAGE_MAX: 26",
         "MAX_SINGLE_BLOCK_CHARS",
         "function AG24_BP_VISUAL_preflight_",
         "function AG24_BP_VISUAL_signalCount_",
@@ -744,6 +748,8 @@ else:
         "function AG24_BP_VISUAL_assertPdf_",
         "PDF_PAGE_COUNT_UNREADABLE",
         "PHYSICAL_PAGE_COUNT_",
+        "POST_PDF_PASS_WITH_WARNINGS",
+        "function AG24_BP_VISUAL_PAGE_POLICY_SYSTEM_TEST_V1()",
     ]:
         if marker not in visual_gate_text:
             fail(f"PDF Visual Quality Gate V1 marker missing: {marker}")
@@ -839,7 +845,8 @@ else:
         "visualPreflightValid",
         "physicalPdfPages",
         "AG24_BP_VISUAL_assertPdf_(",
-        "AG24_BP_VISUAL_GATE_V1.EXPECTED_PAGE_COUNT",
+        "AG24_BP_VISUAL_GATE_V1.MIN_PHYSICAL_PAGE_COUNT",
+        "AG24_BP_VISUAL_GATE_V1.HARD_PHYSICAL_PAGE_MAX",
         "AG24_BP_DESIGN_V2.MASTER_PAGE_COUNT",
         "AG24_BP_DESIGN_V2.EXECUTIVE_MASTER_ID",
         "creerPdfDansMemeDossier(",
