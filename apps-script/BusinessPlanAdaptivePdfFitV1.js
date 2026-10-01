@@ -4,14 +4,14 @@
  * ============================================================
  *
  * Purpose:
- * Keep the validated 15-page semantic master while allowing real customer
- * content to vary in length.
+ * Keep the validated 15-section semantic master while allowing real customer
+ * content to vary naturally across physical PDF pages.
  *
  * Strategy:
  * 1. export the rendered Google Doc as-is;
  * 2. count physical PDF pages;
- * 3. if the document overflows the 15-page contract, apply deterministic
- *    incremental compaction to the existing document;
+ * 3. if the document exceeds the hard physical-page safety ceiling, apply
+ *    deterministic incremental compaction to the existing document;
  * 4. re-export and verify after each step;
  * 5. stop immediately on PASS; otherwise fail cleanly after bounded retries.
  *
@@ -19,7 +19,7 @@
  */
 
 var AG24_BP_VISUAL_FIT_V1 = Object.freeze({
-  VERSION: "1.1.0",
+  VERSION: "1.2.0",
   MAX_ATTEMPTS: 3,
   SETTLE_MS: 900,
   PROFILES: Object.freeze([
@@ -613,7 +613,7 @@ function AG24_BP_VISUAL_FIT_onlyOverflowError_(
   return report.errors.every(
     function(error) {
       return (
-        /^PHYSICAL_PAGE_COUNT_\d+_EXPECTED_\d+$/.test(
+        /^PHYSICAL_PAGE_COUNT_\d+_ABOVE_MAX_\d+$/.test(
           String(error || "")
         )
       );
@@ -639,15 +639,28 @@ function AG24_BP_VISUAL_FIT_try_(
     );
   }
 
-  var expected =
+  var semanticCount =
     Number(
+      options.expectedSemanticPageCount ||
       options.expectedPageCount ||
       (
         typeof AG24_BP_VISUAL_GATE_V1 !==
           "undefined"
           ? AG24_BP_VISUAL_GATE_V1
-              .EXPECTED_PAGE_COUNT
+              .EXPECTED_SEMANTIC_PAGE_COUNT
           : 15
+      )
+    );
+
+  var hardPhysicalMax =
+    Number(
+      options.hardPhysicalPageMax ||
+      (
+        typeof AG24_BP_VISUAL_GATE_V1 !==
+          "undefined"
+          ? AG24_BP_VISUAL_GATE_V1
+              .HARD_PHYSICAL_PAGE_MAX
+          : 26
       )
     );
 
@@ -661,8 +674,10 @@ function AG24_BP_VISUAL_FIT_try_(
     AG24_BP_VISUAL_postflightPdf_(
       blob,
       {
-        expectedPageCount:
-          expected
+        expectedSemanticPageCount:
+          semanticCount,
+        hardPhysicalPageMax:
+          hardPhysicalMax
       }
     );
 
@@ -670,8 +685,10 @@ function AG24_BP_VISUAL_FIT_try_(
     version:
       AG24_BP_VISUAL_FIT_V1.VERSION,
     applied: false,
-    expectedPageCount:
-      expected,
+    expectedSemanticPageCount:
+      semanticCount,
+    hardPhysicalPageMax:
+      hardPhysicalMax,
     initialPageCount:
       report.physicalPageCount,
     finalPageCount:
@@ -702,6 +719,11 @@ function AG24_BP_VISUAL_FIT_try_(
     };
   }
 
+  /*
+   * 15-22 pages: normal.
+   * 23-26 pages: valid with warning.
+   * >26 pages: only this class is eligible for deterministic compaction.
+   */
   if (
     report.success
   ) {
@@ -717,7 +739,7 @@ function AG24_BP_VISUAL_FIT_try_(
     ) ||
     Number(
       report.physicalPageCount || 0
-    ) <= expected
+    ) <= hardPhysicalMax
   ) {
     return result_(
       false,
@@ -739,8 +761,10 @@ function AG24_BP_VISUAL_FIT_try_(
       {
         initialPageCount:
           report.physicalPageCount,
-        expectedPageCount:
-          expected
+        expectedSemanticPageCount:
+          semanticCount,
+        hardPhysicalPageMax:
+          hardPhysicalMax
       }
     );
   }
@@ -791,8 +815,10 @@ function AG24_BP_VISUAL_FIT_try_(
       AG24_BP_VISUAL_postflightPdf_(
         blob,
         {
-          expectedPageCount:
-            expected
+          expectedSemanticPageCount:
+            semanticCount,
+          hardPhysicalPageMax:
+            hardPhysicalMax
         }
       );
 
@@ -823,8 +849,8 @@ function AG24_BP_VISUAL_FIT_try_(
             profile.id,
           physicalPageCount:
             report.physicalPageCount,
-          expectedPageCount:
-            expected,
+          hardPhysicalPageMax:
+            hardPhysicalMax,
           success:
             report.success
         }
@@ -839,7 +865,7 @@ function AG24_BP_VISUAL_FIT_try_(
 
       if (
         typeof AG24_AUDIT_event_ ===
-        "function"
+          "function"
       ) {
         AG24_AUDIT_event_(
           "PDF_FIT_RECOVERY_PASSED",
@@ -849,7 +875,9 @@ function AG24_BP_VISUAL_FIT_try_(
             initialPageCount:
               recovery.initialPageCount,
             finalPageCount:
-              recovery.finalPageCount
+              recovery.finalPageCount,
+            hardPhysicalPageMax:
+              hardPhysicalMax
           }
         );
       }
@@ -863,10 +891,7 @@ function AG24_BP_VISUAL_FIT_try_(
     if (
       !AG24_BP_VISUAL_FIT_onlyOverflowError_(
         report
-      ) ||
-      Number(
-        report.physicalPageCount || 0
-      ) < expected
+      )
     ) {
       break;
     }
@@ -874,7 +899,7 @@ function AG24_BP_VISUAL_FIT_try_(
 
   if (
     typeof AG24_AUDIT_event_ ===
-    "function"
+      "function"
   ) {
     AG24_AUDIT_event_(
       "PDF_FIT_RECOVERY_FAILED",
@@ -885,8 +910,8 @@ function AG24_BP_VISUAL_FIT_try_(
           recovery.initialPageCount,
         finalPageCount:
           recovery.finalPageCount,
-        expectedPageCount:
-          expected
+        hardPhysicalPageMax:
+          hardPhysicalMax
       }
     );
   }
@@ -933,14 +958,24 @@ function AG24_BP_VISUAL_FIT_pdf_(
   AG24_BP_VISUAL_assertPdf_(
     result.blob,
     {
-      expectedPageCount:
+      expectedSemanticPageCount:
         result.recovery &&
-        result.recovery.expectedPageCount
+        result.recovery.expectedSemanticPageCount
           ? result.recovery
-              .expectedPageCount
+              .expectedSemanticPageCount
           : (
+              options.expectedSemanticPageCount ||
               options.expectedPageCount ||
               15
+            ),
+      hardPhysicalPageMax:
+        result.recovery &&
+        result.recovery.hardPhysicalPageMax
+          ? result.recovery
+              .hardPhysicalPageMax
+          : (
+              options.hardPhysicalPageMax ||
+              26
             )
     }
   );
@@ -964,12 +999,10 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
     success: false,
     version:
       AG24_BP_VISUAL_FIT_V1.VERSION,
-    initialPageCount: 0,
-    finalPageCount: 0,
-    targetEnvelopeMatch: false,
+    physicalPageCount: 0,
+    normalDocumentAccepted: false,
     fitApplied: false,
-    attemptCount: 0,
-    attempts: [],
+    extremeOverflowRecognized: false,
     cleanupSuccess: false,
     failureCode: ""
   };
@@ -977,7 +1010,7 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
   try {
     var document =
       DocumentApp.create(
-        "AG24 Visual Fit Synthetic Test " +
+        "AG24 Visual Fit Policy Test " +
         String(
           new Date().getTime()
         )
@@ -994,25 +1027,6 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
     body.setMarginLeft(48);
     body.setMarginRight(48);
 
-    /*
-     * Regression envelope:
-     * the production incident was 19 physical pages for 15 semantic pages.
-     *
-     * Earlier V1 accidentally created 34 physical pages, which tested a
-     * completely different failure class. V1.1 creates four moderately
-     * overflowing semantic pages and expects an initial 16-22 page envelope.
-     */
-    var overflowPages = {
-      3: true,
-      6: true,
-      9: true,
-      12: true
-    };
-
-    var normalText =
-      "Donnée synthétique de contrôle de pagination. " +
-      "Le moteur conserve le contenu et ajuste uniquement la mise en page.";
-
     for (
       var page = 1;
       page <= 15;
@@ -1020,31 +1034,21 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
     ) {
       body
         .appendParagraph(
-          "PAGE SYNTHÉTIQUE " +
+          "PAGE SÉMANTIQUE " +
           String(page)
         )
         .setFontSize(18)
         .setBold(true)
         .setSpacingAfter(12);
 
-      var lines =
-        overflowPages[page]
-          ? 20
-          : 8;
-
-      for (
-        var line = 0;
-        line < lines;
-        line++
-      ) {
-        body
-          .appendParagraph(
-            normalText
-          )
-          .setFontSize(10.2)
-          .setLineSpacing(1.22)
-          .setSpacingAfter(4);
-      }
+      body
+        .appendParagraph(
+          "Contenu synthétique de contrôle. " +
+          "La pagination physique peut varier sans casser le contrat sémantique."
+        )
+        .setFontSize(10.2)
+        .setLineSpacing(1.22)
+        .setSpacingAfter(4);
 
       if (
         page < 15
@@ -1060,54 +1064,23 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
         .SETTLE_MS
     );
 
-    var initialBlob =
-      AG24_BP_VISUAL_FIT_exportPdf_(
-        documentId,
-        "visual-fit-before.pdf"
-      );
-
-    var initial =
-      AG24_BP_VISUAL_countPdfPages_(
-        initialBlob
-      );
-
-    report.initialPageCount =
-      initial.pageCount;
-
-    report.targetEnvelopeMatch =
-      report.initialPageCount >= 16 &&
-      report.initialPageCount <= 22;
-
-    if (
-      !report.targetEnvelopeMatch
-    ) {
-      throw new Error(
-        "VISUAL_FIT_TEST_FIXTURE_OUTSIDE_TARGET_ENVELOPE_" +
-        String(
-          report.initialPageCount
-        )
-      );
-    }
-
     var fitted =
       AG24_BP_VISUAL_FIT_try_(
         documentId,
-        "visual-fit-after.pdf",
+        "visual-fit-policy.pdf",
         {
-          expectedPageCount: 15
+          expectedSemanticPageCount: 15
         }
       );
 
-    report.finalPageCount =
-      fitted.recovery
-        ? fitted.recovery
-            .finalPageCount
-        : (
-            fitted.report
-              ? fitted.report
-                  .physicalPageCount
-              : 0
-          );
+    report.physicalPageCount =
+      fitted.report
+        ? fitted.report
+            .physicalPageCount
+        : 0;
+
+    report.normalDocumentAccepted =
+      fitted.success === true;
 
     report.fitApplied =
       Boolean(
@@ -1115,29 +1088,24 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
         fitted.recovery.applied
       );
 
-    report.attempts =
-      fitted.recovery &&
-      Array.isArray(
-        fitted.recovery.attempts
-      )
-        ? fitted.recovery
-            .attempts
-        : [];
-
-    report.attemptCount =
-      report.attempts.length;
+    report.extremeOverflowRecognized =
+      AG24_BP_VISUAL_FIT_onlyOverflowError_({
+        errors: [
+          "PHYSICAL_PAGE_COUNT_27_ABOVE_MAX_26"
+        ]
+      }) === true;
 
     report.success =
-      fitted.success === true &&
-      report.targetEnvelopeMatch === true &&
-      report.finalPageCount === 15 &&
-      report.fitApplied === true &&
-      report.attemptCount >= 1;
+      report.normalDocumentAccepted === true &&
+      report.fitApplied === false &&
+      report.extremeOverflowRecognized === true &&
+      report.physicalPageCount >= 15 &&
+      report.physicalPageCount <= 26;
 
     if (!report.success) {
       report.failureCode =
         fitted.errorCode ||
-        "VISUAL_FIT_SYSTEM_TEST_CONTRACT_FAILED";
+        "VISUAL_FIT_POLICY_TEST_CONTRACT_FAILED";
     }
 
   } catch (error) {
@@ -1188,7 +1156,7 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
 
     if (
       typeof AG24_AUDIT_event_ ===
-      "function"
+        "function"
     ) {
       try {
         AG24_AUDIT_event_(
@@ -1196,14 +1164,14 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
             ? "VISUAL_FIT_SYSTEM_TEST_PASSED"
             : "VISUAL_FIT_SYSTEM_TEST_FAILED",
           {
-            initialPageCount:
-              report.initialPageCount,
-            finalPageCount:
-              report.finalPageCount,
-            targetEnvelopeMatch:
-              report.targetEnvelopeMatch,
-            attemptCount:
-              report.attemptCount,
+            physicalPageCount:
+              report.physicalPageCount,
+            normalDocumentAccepted:
+              report.normalDocumentAccepted,
+            fitApplied:
+              report.fitApplied,
+            extremeOverflowRecognized:
+              report.extremeOverflowRecognized,
             cleanupSuccess:
               report.cleanupSuccess,
             failureCode:

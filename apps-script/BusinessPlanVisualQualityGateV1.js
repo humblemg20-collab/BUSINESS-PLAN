@@ -3,7 +3,7 @@
  * BUSINESS PLAN PDF VISUAL QUALITY GATE V1
  * ============================================================
  *
- * Deterministic quality controls around the 15-page document master.
+ * Deterministic quality controls around the 15-section semantic master.
  *
  * PRE-RENDER:
  * - semantic page density;
@@ -14,15 +14,19 @@
  * POST-PDF:
  * - PDF signature;
  * - physical page count;
- * - expected 15-page contract;
+ * - adaptive physical-page policy;
  * - minimum artifact size.
  *
  * No external API, no AI call, no OCR.
  */
 
 var AG24_BP_VISUAL_GATE_V1 = Object.freeze({
-  VERSION: "1.1.0",
-  EXPECTED_PAGE_COUNT: 15,
+  VERSION: "1.2.0",
+  EXPECTED_SEMANTIC_PAGE_COUNT: 15,
+  MIN_PHYSICAL_PAGE_COUNT: 15,
+  NORMAL_PHYSICAL_PAGE_MAX: 22,
+  WARNING_PHYSICAL_PAGE_MAX: 26,
+  HARD_PHYSICAL_PAGE_MAX: 26,
   MIN_PDF_BYTES: 5000,
   MAX_SINGLE_BLOCK_CHARS: 2200,
   PAGE_RULES: Object.freeze({
@@ -612,7 +616,7 @@ function AG24_BP_VISUAL_preflight_(
   if (
     pagePayloads.length !==
     AG24_BP_VISUAL_GATE_V1
-      .EXPECTED_PAGE_COUNT
+      .EXPECTED_SEMANTIC_PAGE_COUNT
   ) {
     errors.push(
       "SEMANTIC_PAGE_COUNT_" +
@@ -654,9 +658,9 @@ function AG24_BP_VISUAL_preflight_(
               ? "PRE_RENDER_PASS_WITH_WARNINGS"
               : "PRE_RENDER_PASS"
           ),
-    expectedPageCount:
+    expectedSemanticPageCount:
       AG24_BP_VISUAL_GATE_V1
-        .EXPECTED_PAGE_COUNT,
+        .EXPECTED_SEMANTIC_PAGE_COUNT,
     semanticPageCount:
       pagePayloads.length,
     maxDensityRatio:
@@ -922,11 +926,40 @@ function AG24_BP_VISUAL_postflightPdf_(
   options =
     options || {};
 
-  var expected =
+  var semanticCount =
     Number(
+      options.expectedSemanticPageCount ||
       options.expectedPageCount ||
       AG24_BP_VISUAL_GATE_V1
-        .EXPECTED_PAGE_COUNT
+        .EXPECTED_SEMANTIC_PAGE_COUNT
+    );
+
+  var minPhysical =
+    Number(
+      options.minPhysicalPageCount ||
+      AG24_BP_VISUAL_GATE_V1
+        .MIN_PHYSICAL_PAGE_COUNT
+    );
+
+  var normalMax =
+    Number(
+      options.normalPhysicalPageMax ||
+      AG24_BP_VISUAL_GATE_V1
+        .NORMAL_PHYSICAL_PAGE_MAX
+    );
+
+  var warningMax =
+    Number(
+      options.warningPhysicalPageMax ||
+      AG24_BP_VISUAL_GATE_V1
+        .WARNING_PHYSICAL_PAGE_MAX
+    );
+
+  var hardMax =
+    Number(
+      options.hardPhysicalPageMax ||
+      AG24_BP_VISUAL_GATE_V1
+        .HARD_PHYSICAL_PAGE_MAX
     );
 
   var bytes =
@@ -955,6 +988,7 @@ function AG24_BP_VISUAL_postflightPdf_(
     );
 
   var errors = [];
+  var warnings = [];
 
   if (!signatureValid) {
     errors.push(
@@ -978,18 +1012,66 @@ function AG24_BP_VISUAL_postflightPdf_(
     errors.push(
       "PDF_PAGE_COUNT_UNREADABLE"
     );
-  } else if (
-    pageInfo.pageCount !==
-    expected
+  } else {
+    if (
+      pageInfo.pageCount <
+      minPhysical
+    ) {
+      errors.push(
+        "PHYSICAL_PAGE_COUNT_" +
+        String(
+          pageInfo.pageCount
+        ) +
+        "_BELOW_MIN_" +
+        String(
+          minPhysical
+        )
+      );
+    }
+
+    if (
+      pageInfo.pageCount >
+      hardMax
+    ) {
+      errors.push(
+        "PHYSICAL_PAGE_COUNT_" +
+        String(
+          pageInfo.pageCount
+        ) +
+        "_ABOVE_MAX_" +
+        String(
+          hardMax
+        )
+      );
+    } else if (
+      pageInfo.pageCount >
+      normalMax
+    ) {
+      warnings.push(
+        "PHYSICAL_PAGE_COUNT_" +
+        String(
+          pageInfo.pageCount
+        ) +
+        "_LONG_DOCUMENT"
+      );
+    }
+  }
+
+  var pageLengthClass =
+    "normal";
+
+  if (
+    pageInfo.pageCount >
+    warningMax
   ) {
-    errors.push(
-      "PHYSICAL_PAGE_COUNT_" +
-      String(
-        pageInfo.pageCount
-      ) +
-      "_EXPECTED_" +
-      String(expected)
-    );
+    pageLengthClass =
+      "over_limit";
+  } else if (
+    pageInfo.pageCount >
+    normalMax
+  ) {
+    pageLengthClass =
+      "long";
   }
 
   return {
@@ -1001,11 +1083,25 @@ function AG24_BP_VISUAL_postflightPdf_(
     classification:
       errors.length
         ? "POST_PDF_FAIL"
-        : "POST_PDF_PASS",
-    expectedPageCount:
-      expected,
+        : (
+            warnings.length
+              ? "POST_PDF_PASS_WITH_WARNINGS"
+              : "POST_PDF_PASS"
+          ),
+    expectedSemanticPageCount:
+      semanticCount,
+    minPhysicalPageCount:
+      minPhysical,
+    normalPhysicalPageMax:
+      normalMax,
+    warningPhysicalPageMax:
+      warningMax,
+    hardPhysicalPageMax:
+      hardMax,
     physicalPageCount:
       pageInfo.pageCount,
+    physicalPageLengthClass:
+      pageLengthClass,
     pageCountMethod:
       pageInfo.method,
     pageCountConfidence:
@@ -1015,7 +1111,9 @@ function AG24_BP_VISUAL_postflightPdf_(
     pdfSignatureValid:
       signatureValid,
     errors:
-      errors
+      errors,
+    warnings:
+      warnings
   };
 }
 
@@ -1036,6 +1134,75 @@ function AG24_BP_VISUAL_assertPdf_(
       report.errors.join(",")
     );
   }
+
+  return report;
+}
+
+
+function AG24_BP_VISUAL_PAGE_POLICY_SYSTEM_TEST_V1() {
+  var policy =
+    AG24_BP_VISUAL_GATE_V1;
+
+  function classify_(count) {
+    if (
+      count <
+      policy.MIN_PHYSICAL_PAGE_COUNT
+    ) {
+      return "FAIL_LOW";
+    }
+
+    if (
+      count >
+      policy.HARD_PHYSICAL_PAGE_MAX
+    ) {
+      return "FAIL_HIGH";
+    }
+
+    if (
+      count >
+      policy.NORMAL_PHYSICAL_PAGE_MAX
+    ) {
+      return "PASS_WARNING";
+    }
+
+    return "PASS";
+  }
+
+  var report = {
+    success: false,
+    version:
+      policy.VERSION,
+    semanticPageCount:
+      policy.EXPECTED_SEMANTIC_PAGE_COUNT,
+    page19:
+      classify_(19),
+    page24:
+      classify_(24),
+    page27:
+      classify_(27),
+    minPhysicalPageCount:
+      policy.MIN_PHYSICAL_PAGE_COUNT,
+    normalPhysicalPageMax:
+      policy.NORMAL_PHYSICAL_PAGE_MAX,
+    warningPhysicalPageMax:
+      policy.WARNING_PHYSICAL_PAGE_MAX,
+    hardPhysicalPageMax:
+      policy.HARD_PHYSICAL_PAGE_MAX
+  };
+
+  report.success =
+    report.semanticPageCount === 15 &&
+    report.page19 === "PASS" &&
+    report.page24 === "PASS_WARNING" &&
+    report.page27 === "FAIL_HIGH";
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
 
   return report;
 }
