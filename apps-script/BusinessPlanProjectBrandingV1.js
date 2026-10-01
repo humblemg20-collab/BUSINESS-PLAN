@@ -1450,5 +1450,13 @@ function AG24_BP_PROJECT_BRANDING_SYSTEM_TEST_V1() {
         // Test report remains authoritative.
       }
     }
+
+    Logger.log(
+      JSON.stringify(
+        report,
+        null,
+        2
+      )
+    );
   }
 }
