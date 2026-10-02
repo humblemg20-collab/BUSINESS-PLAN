@@ -51,6 +51,24 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
   var dateSoumission = new Date();
   var identifiant = creerIdentifiantSoumission();
 
+  if (
+    typeof AG24_DATASTORE_storeSubmissionPayloads_ !==
+      "function" ||
+    typeof AG24_DATASTORE_sheetCell_ !==
+      "function"
+  ) {
+    throw new Error(
+      "DATASTORE_PAYLOAD_ENGINE_UNAVAILABLE"
+    );
+  }
+
+  var payloads =
+    AG24_DATASTORE_storeSubmissionPayloads_(
+      identifiant,
+      data,
+      profilCommercial
+    );
+
   var nomPorteur = datastorePremiereValeur_(
     data.promoterName,
     data.nom,
@@ -260,18 +278,26 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
     "",
     prochaineAction,
     "",
-    datastoreJsonSecurise_(data),
-    datastoreJsonSecurise_(profilCommercial)
+    payloads.questionnaire.reference,
+    payloads.commercialProfile.reference
   ];
 
-  ligne = ligne.map(function(cellule) {
-    return AG24_SEC_sheetSafe_(cellule);
-  });
+  ligne = ligne.map(
+    function(cellule, index) {
+      return AG24_DATASTORE_sheetCell_(
+        cellule,
+        "col_" +
+        String(index + 1)
+      );
+    }
+  );
 
   var verrou = LockService.getScriptLock();
   verrou.waitLock(10000);
 
   var prochaineLigne;
+
+  var ligneEcrite = false;
 
   try {
     prochaineLigne = feuille.getLastRow() + 1;
@@ -285,6 +311,8 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
       )
       .setValues([ligne]);
 
+    ligneEcrite = true;
+
     feuille
       .getRange(prochaineLigne, 2)
       .setNumberFormat("dd/MM/yyyy HH:mm:ss");
@@ -295,13 +323,34 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
       .setWrap(true);
 
     SpreadsheetApp.flush();
+
+  } catch (erreurEcriture) {
+    if (
+      !ligneEcrite &&
+      typeof AG24_DATASTORE_cleanupSubmissionPayloads_ ===
+        "function"
+    ) {
+      AG24_DATASTORE_cleanupSubmissionPayloads_(
+        payloads
+      );
+    }
+
+    throw erreurEcriture;
+
   } finally {
     verrou.releaseLock();
   }
 
   AG24_AUDIT_event_('CRM_SUBMISSION_RECORDED', {
     submissionId: identifiant,
-    row: prochaineLigne
+    row: prochaineLigne,
+    questionnaireBytes:
+      payloads.questionnaire.bytes,
+    commercialProfileBytes:
+      payloads.commercialProfile.bytes,
+    payloadStorage:
+      AG24_DATASTORE_PAYLOAD_V1
+        .REFERENCE_VERSION
   });
 
   return {
@@ -312,6 +361,9 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
     documentUrl: documentUrl,
     pdfUrl: pdfUrl,
     pdfDownloadUrl: pdfDownloadUrl,
+    payloadStorage:
+      AG24_DATASTORE_PAYLOAD_V1
+        .REFERENCE_VERSION,
     message: "Soumission enregistrée avec succès."
   };
 }

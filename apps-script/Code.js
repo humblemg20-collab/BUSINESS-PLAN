@@ -457,31 +457,206 @@ function genererBusinessPlan_(data) {
       }
     }
 
-    if (
-  typeof enregistrerSoumission_ !==
-  "function"
-) {
-  throw new Error(
-    "La fonction enregistrerSoumission est absente. Vérifie DataStore.gs."
-  );
-}
+    var crmPersistence = {
+      success: false,
+      skipped: false,
+      error: ""
+    };
 
-enregistrerSoumission_(
-  data,
-  liens,
-  profilCommercial
-);
+    try {
+      if (
+        typeof enregistrerSoumission_ !==
+          "function"
+      ) {
+        throw new Error(
+          "DATASTORE_UNAVAILABLE"
+        );
+      }
 
-if (
-  typeof actualiserDashboardCommercial_ !==
-  "function"
-) {
-  throw new Error(
-    "La fonction actualiserDashboardCommercial est absente. Vérifie Dashboard.gs ou DataStore.gs."
-  );
-}
+      var crmResult =
+        enregistrerSoumission_(
+          data,
+          liens,
+          profilCommercial
+        );
 
-actualiserDashboardCommercial_();
+      crmPersistence = {
+        success:
+          Boolean(
+            crmResult &&
+            crmResult.success
+          ),
+        skipped: false,
+        submissionId:
+          crmResult &&
+          crmResult.id
+            ? String(
+                crmResult.id
+              )
+            : "",
+        row:
+          crmResult &&
+          crmResult.ligne
+            ? Number(
+                crmResult.ligne
+              )
+            : null,
+        payloadStorage:
+          crmResult &&
+          crmResult.payloadStorage
+            ? String(
+                crmResult.payloadStorage
+              )
+            : "",
+        error: ""
+      };
+
+    } catch (erreurCRM) {
+      var messageCRM =
+        erreurCRM &&
+        erreurCRM.message
+          ? String(
+              erreurCRM.message
+            )
+          : String(
+              erreurCRM
+            );
+
+      crmPersistence = {
+        success: false,
+        skipped: false,
+        error:
+          messageCRM.slice(
+            0,
+            240
+          )
+      };
+
+      console.error(
+        "CRM persistence unavailable:",
+        messageCRM
+      );
+
+      if (
+        typeof AG24_AUDIT_event_ ===
+          "function"
+      ) {
+        try {
+          AG24_AUDIT_event_(
+            "CRM_SUBMISSION_PERSISTENCE_FAILED",
+            {
+              projectName:
+                String(
+                  nomProjet || ""
+                ).slice(
+                  0,
+                  120
+                ),
+              error:
+                messageCRM.slice(
+                  0,
+                  240
+                )
+            }
+          );
+        } catch (
+          crmAuditError
+        ) {}
+      }
+    }
+
+    var commercialDashboard = {
+      success: false,
+      skipped: false,
+      error: ""
+    };
+
+    try {
+      if (
+        typeof actualiserDashboardCommercial_ !==
+          "function"
+      ) {
+        throw new Error(
+          "COMMERCIAL_DASHBOARD_UNAVAILABLE"
+        );
+      }
+
+      var dashboardCommercialResult =
+        actualiserDashboardCommercial_();
+
+      commercialDashboard = {
+        success:
+          Boolean(
+            dashboardCommercialResult &&
+            dashboardCommercialResult.success
+          ),
+        skipped: false,
+        totalProspects:
+          dashboardCommercialResult &&
+          dashboardCommercialResult.totalProspects !==
+            undefined
+            ? Number(
+                dashboardCommercialResult.totalProspects
+              )
+            : null,
+        error: ""
+      };
+
+    } catch (
+      erreurDashboardCommercial
+    ) {
+      var messageDashboardCommercial =
+        erreurDashboardCommercial &&
+        erreurDashboardCommercial.message
+          ? String(
+              erreurDashboardCommercial.message
+            )
+          : String(
+              erreurDashboardCommercial
+            );
+
+      commercialDashboard = {
+        success: false,
+        skipped: false,
+        error:
+          messageDashboardCommercial.slice(
+            0,
+            240
+          )
+      };
+
+      console.error(
+        "Commercial dashboard refresh unavailable:",
+        messageDashboardCommercial
+      );
+
+      if (
+        typeof AG24_AUDIT_event_ ===
+          "function"
+      ) {
+        try {
+          AG24_AUDIT_event_(
+            "COMMERCIAL_DASHBOARD_REFRESH_FAILED",
+            {
+              projectName:
+                String(
+                  nomProjet || ""
+                ).slice(
+                  0,
+                  120
+                ),
+              error:
+                messageDashboardCommercial.slice(
+                  0,
+                  240
+                )
+            }
+          );
+        } catch (
+          dashboardAuditError
+        ) {}
+      }
+    }
 
     /*
      * Nettoyage du cache narratif IA après la génération réussie.
@@ -510,6 +685,10 @@ actualiserDashboardCommercial_();
       downloadUrl: pdfDownloadUrl,
       businessPlanPdfDownload: pdfDownloadUrl,
       dashboardSync: dashboardSync,
+      crmPersistence:
+        crmPersistence,
+      commercialDashboard:
+        commercialDashboard,
       projectName: nomProjet,
       documentDesign:
         designResult || null,
