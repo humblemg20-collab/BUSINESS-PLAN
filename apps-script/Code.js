@@ -158,6 +158,8 @@ function genererBusinessPlan_(data) {
   var pdfId = "";
   var pdfAccessToken = "";
   var visualQualityPdf = null;
+  var generationStage = "REQUEST_VALIDATION";
+  var renderInputSafety = null;
 
   try {
     verifierDonneesGeneration_(data);
@@ -174,10 +176,46 @@ function genererBusinessPlan_(data) {
 
     var agBridge = String(data.agBridge || '').trim();
 
+    generationStage =
+      "CONTENT_PREPARATION";
+
     var preparationIA =
       preparerBusinessPlanStandardIA52(donneesPourIA);
 
-    data = preparationIA.donnees;
+    var canonicalData =
+      preparationIA &&
+      preparationIA.donnees &&
+      typeof preparationIA.donnees ===
+        "object"
+        ? preparationIA.donnees
+        : {};
+
+    /*
+     * The canonical project data remains untouched for commercial analysis
+     * and durable persistence. Rendering receives a deterministic bounded
+     * copy so one pathological imported/user field can never exceed a Google
+     * Docs/Sheets single-cell limit.
+     */
+    if (
+      typeof AG24_BP_RENDER_INPUT_prepare_ !==
+        "function"
+    ) {
+      throw new Error(
+        "RENDER_INPUT_SAFETY_UNAVAILABLE"
+      );
+    }
+
+    var renderPrepared =
+      AG24_BP_RENDER_INPUT_prepare_(
+        canonicalData
+      );
+
+    renderInputSafety =
+      renderPrepared.report || null;
+
+    data =
+      renderPrepared.data || {};
+
     data.agBridge = agBridge;
 
     data.logoUpload =
@@ -203,6 +241,9 @@ function genererBusinessPlan_(data) {
     /*
      * Création du Google Docs.
      */
+    generationStage =
+      "DOCUMENT_RENDER";
+
     var document = DocumentApp.create(nomDocument);
     documentId = document.getId();
     var body = document.getBody();
@@ -264,6 +305,9 @@ function genererBusinessPlan_(data) {
         "VISUAL_FIT_ENGINE_UNAVAILABLE"
       );
     }
+
+    generationStage =
+      "PDF_EXPORT";
 
     var pdfFitResult =
       AG24_BP_VISUAL_FIT_pdf_(
@@ -394,7 +438,9 @@ function genererBusinessPlan_(data) {
     ) {
       try {
         profilCommercial =
-          analyserProfilCommercial(data) ||
+          analyserProfilCommercial(
+            canonicalData
+          ) ||
           profilCommercial;
       } catch (erreurProfil) {
         console.warn(
@@ -475,7 +521,7 @@ function genererBusinessPlan_(data) {
 
       var crmResult =
         enregistrerSoumission_(
-          data,
+          canonicalData,
           liens,
           profilCommercial
         );
@@ -692,6 +738,8 @@ function genererBusinessPlan_(data) {
       projectName: nomProjet,
       documentDesign:
         designResult || null,
+      renderInputSafety:
+        renderInputSafety,
       visualQuality:
         {
           preflight:
@@ -703,7 +751,8 @@ function genererBusinessPlan_(data) {
             visualQualityPdf
         },
       promoterName: nettoyerTexte(
-        data.promoterName,
+        canonicalData &&
+        canonicalData.promoterName,
         "Porteur du projet"
       ),
       profilCommercial:
@@ -799,6 +848,30 @@ function genererBusinessPlan_(data) {
       }
     }
 
+    if (
+      typeof AG24_AUDIT_event_ ===
+        "function"
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          "STANDARD_GENERATION_STAGE_FAILED",
+          {
+            stage:
+              String(
+                generationStage || "UNKNOWN"
+              ),
+            error:
+              messageErreur.slice(
+                0,
+                240
+              )
+          }
+        );
+      } catch (
+        stageAuditError
+      ) {}
+    }
+
     console.error(
       "Erreur genererBusinessPlan :",
       erreur
@@ -806,6 +879,8 @@ function genererBusinessPlan_(data) {
 
     return {
       success: false,
+      stage:
+        generationStage,
       message:
         qualityFailure
           ? "Le Business Plan n’a pas passé le contrôle qualité visuel."
