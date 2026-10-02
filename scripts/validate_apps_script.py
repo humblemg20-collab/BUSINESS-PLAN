@@ -723,6 +723,19 @@ if code.exists():
     if "enregistrerSoumission_(" not in datastore_generation_region:
         fail("Generation must still attempt CRM persistence")
 
+# Release evidence must never dirty the canonical worktree
+gitignore_path = ROOT / ".gitignore"
+if not gitignore_path.exists():
+    fail(".gitignore is required")
+else:
+    gitignore_text = gitignore_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    if "release-evidence/" not in gitignore_text:
+        fail("release-evidence/ must be ignored so the release engine cannot dirty its own worktree")
+
+
 # Canonical PowerShell release engine contract
 release_engine_path = ROOT / "scripts" / "release-business-plan.ps1"
 if not release_engine_path.exists():
