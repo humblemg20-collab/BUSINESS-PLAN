@@ -3,6 +3,14 @@
  */
 var AG24_PI_V1_3 = AG24_PI_V1_3 || {};
 
+AG24_PI_V1_3.inferAudience_ = function(canonical) {
+  var instrument = canonical && canonical.funding ? String(canonical.funding.instrument || '') : '';
+  if (instrument === 'BANK_LOAN' || instrument === 'DEBT' || instrument === 'CONVERTIBLE_DEBT') return 'BANK';
+  if (instrument === 'EQUITY' || instrument === 'IMPACT_EQUITY') return 'INVESTOR';
+  if (instrument === 'GRANT') return 'GRANT';
+  return 'GENERIC';
+};
+
 AG24_PI_V1_3.persistRun_ = function(submissionId, runResult) {
   if (typeof AG24_DATASTORE_storeJson_ !== 'function') {
     throw new Error('AG24_DATASTORE_STORE_UNAVAILABLE');
@@ -53,9 +61,9 @@ function runAg24ProjectIntelligenceForSubmissionV1_3(submissionId, options) {
   var source = AG24_PI_V1_3.loadSubmission_(submissionId);
   var canonical = AG24_PI_V1_3.buildCanonical_(source);
 
-  if (options.audience) {
-    canonical.documentContext.audience = String(options.audience);
-  }
+  canonical.documentContext.audience = options.audience
+    ? String(options.audience)
+    : AG24_PI_V1_3.inferAudience_(canonical);
   if (options.currency) {
     canonical.documentContext.currency = String(options.currency);
   }
