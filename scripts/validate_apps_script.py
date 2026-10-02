@@ -615,12 +615,16 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.0.0"',
+        'VERSION: "1.1.0"',
         "MAX_LONG_FIELD_CHARS: 8000",
+        "MAX_NESTED_STRING_CHARS: 8000",
+        "MAX_DEPTH: 12",
         "MAX_SHORT_FIELD_CHARS: 600",
         "MAX_EMAIL_CHARS: 320",
+        "function AG24_BP_RENDER_INPUT_deepBound_(",
         "function AG24_BP_RENDER_INPUT_prepare_(",
         "function AG24_BP_RENDER_INPUT_SYSTEM_TEST_V1()",
+        "transportPayloadRemoved",
         "BUSINESS_PLAN_RENDER_INPUT_BOUNDED",
         "canonicalPreserved",
     ]:
@@ -850,7 +854,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.3.0"',
+        'VERSION: "2.3.1"',
         'MASTER_PAGE_COUNT: 15',
         'MAX_RENDER_TEXT_CHARS: 12000',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
@@ -865,6 +869,9 @@ else:
         "function AG24_BP_V2_buildSemanticModel_",
         "function AG24_BP_V2_renderDocument_",
         "function AG24_BP_V2_RENDER_CELL_LIMIT_SYSTEM_TEST_V1()",
+        "factsGridWritten",
+        "cardsWritten",
+        "actualMaxCellChars",
         "BUSINESS_PLAN_RENDER_TEXT_BOUNDED",
         "function AG24_BP_V2_assertWhiteLabel_",
         '"afrigreen24"',
