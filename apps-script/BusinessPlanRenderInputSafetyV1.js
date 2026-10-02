@@ -11,10 +11,12 @@
  */
 
 var AG24_BP_RENDER_INPUT_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   MAX_LONG_FIELD_CHARS: 8000,
   MAX_SHORT_FIELD_CHARS: 600,
   MAX_EMAIL_CHARS: 320,
+  MAX_NESTED_STRING_CHARS: 8000,
+  MAX_DEPTH: 12,
   LONG_FIELDS: Object.freeze([
     "problem",
     "affectedPeople",
@@ -123,6 +125,134 @@ function AG24_BP_RENDER_INPUT_boundText_(
 }
 
 
+function AG24_BP_RENDER_INPUT_deepBound_(
+  value,
+  path,
+  depth,
+  boundedFields
+) {
+  path =
+    String(path || "root");
+
+  depth =
+    Number(depth || 0);
+
+  boundedFields =
+    boundedFields || [];
+
+  if (
+    depth >
+    AG24_BP_RENDER_INPUT_V1.MAX_DEPTH
+  ) {
+    return null;
+  }
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return value;
+  }
+
+  if (
+    Object.prototype.toString.call(
+      value
+    ) === "[object Date]"
+  ) {
+    return value.toISOString();
+  }
+
+  if (
+    typeof value === "string"
+  ) {
+    var result =
+      AG24_BP_RENDER_INPUT_boundText_(
+        value,
+        AG24_BP_RENDER_INPUT_V1
+          .MAX_NESTED_STRING_CHARS
+      );
+
+    if (
+      result.bounded
+    ) {
+      boundedFields.push({
+        field:
+          path,
+        originalChars:
+          result.originalChars,
+        renderChars:
+          result.storedChars
+      });
+    }
+
+    return result.value;
+  }
+
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    return value.map(
+      function(item, index) {
+        return AG24_BP_RENDER_INPUT_deepBound_(
+          item,
+          path +
+          "[" +
+          String(index) +
+          "]",
+          depth + 1,
+          boundedFields
+        );
+      }
+    );
+  }
+
+  if (
+    typeof value === "object"
+  ) {
+    var output = {};
+
+    Object.keys(value).forEach(
+      function(key) {
+        /*
+         * Binary/data-url payloads and browser-only transport fields never
+         * belong in the render model. Branding is resolved separately.
+         */
+        if (
+          key === "logoUpload" ||
+          key === "projectBrandingToken" ||
+          key === "agBridge" ||
+          key === "base64" ||
+          key === "dataUrl"
+        ) {
+          return;
+        }
+
+        output[key] =
+          AG24_BP_RENDER_INPUT_deepBound_(
+            value[key],
+            path +
+            "." +
+            key,
+            depth + 1,
+            boundedFields
+          );
+      }
+    );
+
+    return output;
+  }
+
+  return String(value);
+}
+
+
 function AG24_BP_RENDER_INPUT_prepare_(
   canonicalData
 ) {
@@ -133,14 +263,20 @@ function AG24_BP_RENDER_INPUT_prepare_(
       ? canonicalData
       : {};
 
-  var copy =
-    JSON.parse(
-      JSON.stringify(
-        canonicalData
-      )
-    );
-
   var boundedFields = [];
+
+  /*
+   * Universal render-only boundary:
+   * every string at every nesting level is bounded before any Google Docs
+   * table/cell API can see it. Canonical source data remains untouched.
+   */
+  var copy =
+    AG24_BP_RENDER_INPUT_deepBound_(
+      canonicalData,
+      "root",
+      0,
+      boundedFields
+    );
 
   function apply_(
     field,
@@ -216,6 +352,10 @@ function AG24_BP_RENDER_INPUT_prepare_(
       boundedFields.length > 0,
     boundedFieldCount:
       boundedFields.length,
+    deepBoundaryApplied: true,
+    maxNestedStringChars:
+      AG24_BP_RENDER_INPUT_V1
+        .MAX_NESTED_STRING_CHARS,
     fields:
       boundedFields
   };
@@ -270,7 +410,28 @@ function AG24_BP_RENDER_INPUT_SYSTEM_TEST_V1() {
     email:
       huge,
     solution:
-      "Solution normale"
+      "Solution normale",
+    nested: {
+      mitigation:
+        huge,
+      deep: {
+        evidence:
+          huge
+      }
+    },
+    collection: [
+      {
+        note:
+          huge
+      }
+    ],
+    transport: {
+      base64:
+        huge,
+      dataUrl:
+        "data:image/png;base64," +
+        huge
+    }
   };
 
   var result =
@@ -299,7 +460,41 @@ function AG24_BP_RENDER_INPUT_SYSTEM_TEST_V1() {
       ).length,
     boundedFieldCount:
       result.report
-        .boundedFieldCount
+        .boundedFieldCount,
+    nestedMitigationChars:
+      String(
+        result.data.nested &&
+        result.data.nested.mitigation ||
+        ""
+      ).length,
+    deepEvidenceChars:
+      String(
+        result.data.nested &&
+        result.data.nested.deep &&
+        result.data.nested.deep.evidence ||
+        ""
+      ).length,
+    collectionNoteChars:
+      String(
+        result.data.collection &&
+        result.data.collection[0] &&
+        result.data.collection[0].note ||
+        ""
+      ).length,
+    transportPayloadRemoved:
+      Boolean(
+        result.data.transport &&
+        !Object.prototype
+          .hasOwnProperty.call(
+            result.data.transport,
+            "base64"
+          ) &&
+        !Object.prototype
+          .hasOwnProperty.call(
+            result.data.transport,
+            "dataUrl"
+          )
+      )
   };
 
   report.success =
@@ -313,7 +508,17 @@ function AG24_BP_RENDER_INPUT_SYSTEM_TEST_V1() {
     report.emailChars <=
       AG24_BP_RENDER_INPUT_V1
         .MAX_EMAIL_CHARS &&
-    report.boundedFieldCount === 3;
+    report.nestedMitigationChars <=
+      AG24_BP_RENDER_INPUT_V1
+        .MAX_NESTED_STRING_CHARS &&
+    report.deepEvidenceChars <=
+      AG24_BP_RENDER_INPUT_V1
+        .MAX_NESTED_STRING_CHARS &&
+    report.collectionNoteChars <=
+      AG24_BP_RENDER_INPUT_V1
+        .MAX_NESTED_STRING_CHARS &&
+    report.transportPayloadRemoved === true &&
+    report.boundedFieldCount >= 6;
 
   Logger.log(
     JSON.stringify(

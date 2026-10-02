@@ -196,6 +196,9 @@ function genererBusinessPlan_(data) {
      * copy so one pathological imported/user field can never exceed a Google
      * Docs/Sheets single-cell limit.
      */
+    generationStage =
+      "RENDER_INPUT_SAFETY";
+
     if (
       typeof AG24_BP_RENDER_INPUT_prepare_ !==
         "function"

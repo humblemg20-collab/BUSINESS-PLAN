@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.3.0",
+  VERSION: "2.3.1",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -1827,16 +1827,28 @@ function AG24_BP_V2_addCards_(
 
   var usable =
     (cards || [])
+      .map(
+        function(card) {
+          if (!card) {
+            return null;
+          }
+
+          return [
+            AG24_BP_V2_text_(
+              card[0]
+            ),
+            AG24_BP_V2_text_(
+              card[1]
+            )
+          ];
+        }
+      )
       .filter(
         function(card) {
           return (
             card &&
-            AG24_BP_V2_text_(
-              card[0]
-            ) &&
-            AG24_BP_V2_text_(
-              card[1]
-            )
+            card[0] &&
+            card[1]
           );
         }
       );
@@ -2028,16 +2040,28 @@ function AG24_BP_V2_addFactsGrid_(
 
   var usable =
     (facts || [])
+      .map(
+        function(item) {
+          if (!item) {
+            return null;
+          }
+
+          return [
+            AG24_BP_V2_text_(
+              item[0]
+            ),
+            AG24_BP_V2_text_(
+              item[1]
+            )
+          ];
+        }
+      )
       .filter(
         function(item) {
           return (
             item &&
-            AG24_BP_V2_text_(
-              item[0]
-            ) &&
-            AG24_BP_V2_text_(
-              item[1]
-            )
+            item[0] &&
+            item[1]
           );
         }
       );
@@ -4209,42 +4233,198 @@ function AG24_BP_V2_getThemeCatalog_() {
 
 
 function AG24_BP_V2_RENDER_CELL_LIMIT_SYSTEM_TEST_V1() {
-  var huge =
-    Array(60001).join(
-      "X"
-    );
-
-  var bounded =
-    AG24_BP_V2_text_(
-      huge
-    );
-
+  var documentId = "";
   var report = {
     success: false,
     version:
       AG24_BP_DESIGN_V2.VERSION,
-    sourceChars:
-      huge.length,
-    renderChars:
-      bounded.length,
+    sourceChars: 0,
+    renderChars: 0,
     maximum:
       AG24_BP_DESIGN_V2
-        .MAX_RENDER_TEXT_CHARS
+        .MAX_RENDER_TEXT_CHARS,
+    factsGridWritten: false,
+    cardsWritten: false,
+    actualMaxCellChars: 0,
+    cleanupSuccess: false,
+    failureCode: ""
   };
 
-  report.success =
-    report.sourceChars > 50000 &&
-    report.renderChars <=
-      report.maximum &&
-    report.renderChars < 50000;
+  try {
+    var huge =
+      Array(60001).join(
+        "X"
+      );
 
-  Logger.log(
-    JSON.stringify(
-      report,
-      null,
-      2
-    )
-  );
+    report.sourceChars =
+      huge.length;
+
+    var bounded =
+      AG24_BP_V2_text_(
+        huge
+      );
+
+    report.renderChars =
+      bounded.length;
+
+    var document =
+      DocumentApp.create(
+        "AG24 Render Cell Limit Test " +
+        String(
+          new Date().getTime()
+        )
+      );
+
+    documentId =
+      document.getId();
+
+    var body =
+      document.getBody();
+
+    var theme =
+      AG24_BP_V2_resolveTheme_(
+        "executive_premium"
+      );
+
+    AG24_BP_V2_addFactsGrid_(
+      body,
+      [
+        [
+          "Champ long",
+          huge
+        ]
+      ],
+      theme
+    );
+
+    report.factsGridWritten =
+      true;
+
+    AG24_BP_V2_addCards_(
+      body,
+      [
+        [
+          "Carte longue",
+          huge
+        ]
+      ],
+      theme
+    );
+
+    report.cardsWritten =
+      true;
+
+    var maxChars = 0;
+
+    function walk_(element) {
+      if (!element) {
+        return;
+      }
+
+      var type = null;
+
+      try {
+        type =
+          element.getType();
+      } catch (typeError) {}
+
+      if (
+        type ===
+          DocumentApp.ElementType.TABLE_CELL
+      ) {
+        maxChars =
+          Math.max(
+            maxChars,
+            String(
+              element
+                .asTableCell()
+                .getText() || ""
+            ).length
+          );
+      }
+
+      if (
+        typeof element.getNumChildren ===
+          "function"
+      ) {
+        for (
+          var index = 0;
+          index <
+            element.getNumChildren();
+          index++
+        ) {
+          walk_(
+            element.getChild(
+              index
+            )
+          );
+        }
+      }
+    }
+
+    walk_(body);
+
+    report.actualMaxCellChars =
+      maxChars;
+
+    document.saveAndClose();
+
+    report.success =
+      report.sourceChars > 50000 &&
+      report.renderChars <=
+        report.maximum &&
+      report.renderChars < 50000 &&
+      report.factsGridWritten === true &&
+      report.cardsWritten === true &&
+      report.actualMaxCellChars <
+        50000;
+
+  } catch (error) {
+    report.failureCode =
+      error &&
+      error.message
+        ? String(
+            error.message
+          )
+        : String(
+            error
+          );
+
+  } finally {
+    if (documentId) {
+      try {
+        var file =
+          DriveApp.getFileById(
+            documentId
+          );
+
+        file.setTrashed(
+          true
+        );
+
+        report.cleanupSuccess =
+          file.isTrashed() ===
+          true;
+      } catch (
+        cleanupError
+      ) {
+        report.cleanupSuccess =
+          false;
+      }
+    }
+
+    report.success =
+      report.success &&
+      report.cleanupSuccess;
+
+    Logger.log(
+      JSON.stringify(
+        report,
+        null,
+        2
+      )
+    );
+  }
 
   return report;
 }
