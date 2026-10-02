@@ -1704,11 +1704,15 @@
         (!pdfDownloadUrl && !securePdfAvailable)
       ) {
         afficherEchecGeneration(
-          resultatServeur && (resultatServeur.error || resultatServeur.message)
-            ? (resultatServeur.error || resultatServeur.message)
+          resultatServeur && (resultatServeur.message || resultatServeur.error)
+            ? (resultatServeur.message || resultatServeur.error)
             : "Le document ou son lien de téléchargement est indisponible."
         );
-        console.error("Résultat reçu du serveur :", resultatServeur);
+
+        console.error(
+          "Résultat reçu du serveur :",
+          resultatServeur
+        );
         return;
       }
 

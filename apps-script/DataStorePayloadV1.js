@@ -11,7 +11,7 @@
  */
 
 var AG24_DATASTORE_PAYLOAD_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.1.0",
   ROOT_FOLDER_NAME: "AG24 Business Plan DataStore",
   OUTPUT_FOLDER_PROPERTY: "AFRIGREEN24_BPB_OUTPUT_FOLDER_ID",
   REFERENCE_VERSION: "DRIVE_JSON_V1",
@@ -563,17 +563,48 @@ function AG24_DATASTORE_sheetCell_(
     return "";
   }
 
+  /*
+   * Preserve native scalar/date types used by Sheets. Arbitrary objects and
+   * arrays are serialized before the same deterministic length guard.
+   */
   if (
-    typeof value !==
-      "string"
-  ) {
-    return AG24_SEC_sheetSafe_(
+    Object.prototype.toString.call(
       value
-    );
+    ) === "[object Date]"
+  ) {
+    return value;
   }
 
-  var text =
-    String(value)
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  var text;
+
+  if (
+    typeof value === "string"
+  ) {
+    text =
+      value;
+  } else {
+    try {
+      text =
+        JSON.stringify(
+          value
+        );
+    } catch (error) {
+      text =
+        String(
+          value
+        );
+    }
+  }
+
+  text =
+    String(text || "")
       .replace(
         /\u0000/g,
         ""
@@ -666,12 +697,15 @@ function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1() {
     roundTripExact: false,
     longCellChars: 0,
     longCellBounded: false,
+    objectCellBounded: false,
+    sheetWriteSuccess: false,
     cleanupSuccess: false,
     failureCode: ""
   };
 
   var fileIds = [];
   var folderId = "";
+  var spreadsheetId = "";
 
   try {
     var huge =
@@ -772,11 +806,72 @@ function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1() {
       AG24_DATASTORE_PAYLOAD_V1
         .SHEET_HARD_LIMIT;
 
+    var objectCell =
+      AG24_DATASTORE_sheetCell_(
+        {
+          payload:
+            Array(60001).join(
+              "Q"
+            )
+        },
+        "synthetic-object"
+      );
+
+    report.objectCellBounded =
+      String(
+        objectCell || ""
+      ).length <=
+        AG24_DATASTORE_PAYLOAD_V1
+          .SHEET_SAFE_LIMIT;
+
+    /*
+     * Real Google Sheets regression, not only an in-memory shape test.
+     */
+    var spreadsheet =
+      SpreadsheetApp.create(
+        "AG24 DataStore Cell Limit Test " +
+        String(
+          new Date().getTime()
+        )
+      );
+
+    spreadsheetId =
+      spreadsheet.getId();
+
+    var sheet =
+      spreadsheet.getSheets()[0];
+
+    sheet
+      .getRange(
+        1,
+        1,
+        1,
+        3
+      )
+      .setValues([
+        [
+          cell,
+          objectCell,
+          stored.questionnaire.reference
+        ]
+      ]);
+
+    SpreadsheetApp.flush();
+
+    report.sheetWriteSuccess =
+      String(
+        sheet
+          .getRange(1, 1)
+          .getValue() || ""
+      ).length > 0;
+
     report.success =
       report.sourceChars > 50000 &&
       report.referenceUnderCellLimit &&
       report.roundTripExact &&
-      report.longCellBounded;
+      report.longCellBounded &&
+      report.objectCellBounded &&
+      report.sheetWriteSuccess;
 
   } catch (error) {
     report.failureCode =
@@ -820,6 +915,20 @@ function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1() {
       ) {}
     }
 
+    if (spreadsheetId) {
+      try {
+        DriveApp
+          .getFileById(
+            spreadsheetId
+          )
+          .setTrashed(
+            true
+          );
+      } catch (
+        cleanupSpreadsheetError
+      ) {}
+    }
+
     var filesClean =
       fileIds.every(
         function(fileId) {
@@ -836,8 +945,26 @@ function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1() {
         }
       );
 
+    var spreadsheetClean =
+      !spreadsheetId ||
+      (
+        function() {
+          try {
+            return DriveApp
+              .getFileById(
+                spreadsheetId
+              )
+              .isTrashed() ===
+              true;
+          } catch (error) {
+            return true;
+          }
+        }
+      )();
+
     report.cleanupSuccess =
-      filesClean;
+      filesClean &&
+      spreadsheetClean;
 
     report.success =
       report.success &&
@@ -866,6 +993,10 @@ function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1() {
             report.referenceChars,
           longCellChars:
             report.longCellChars,
+          objectCellBounded:
+            report.objectCellBounded,
+          sheetWriteSuccess:
+            report.sheetWriteSuccess,
           cleanupSuccess:
             report.cleanupSuccess,
           failureCode:

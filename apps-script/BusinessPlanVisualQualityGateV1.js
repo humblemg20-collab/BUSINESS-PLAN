@@ -21,7 +21,7 @@
  */
 
 var AG24_BP_VISUAL_GATE_V1 = Object.freeze({
-  VERSION: "1.2.0",
+  VERSION: "1.3.0",
   EXPECTED_SEMANTIC_PAGE_COUNT: 15,
   MIN_PHYSICAL_PAGE_COUNT: 15,
   NORMAL_PHYSICAL_PAGE_MAX: 22,
@@ -575,10 +575,14 @@ function AG24_BP_VISUAL_preflight_(
         pageReport
       );
 
+      /*
+       * Content density is advisory now that physical pagination is adaptive.
+       * Hard service limits are enforced by the render-input safety layer.
+       */
       if (
         pageReport.overCapacity
       ) {
-        errors.push(
+        warnings.push(
           "PAGE_" +
           String(
             page.pageNumber
@@ -590,7 +594,7 @@ function AG24_BP_VISUAL_preflight_(
       if (
         pageReport.oversizedBlock
       ) {
-        errors.push(
+        warnings.push(
           "PAGE_" +
           String(
             page.pageNumber
