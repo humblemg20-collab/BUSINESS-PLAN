@@ -434,6 +434,57 @@ function AG24_DATASTORE_storeSubmissionPayloads_(
 }
 
 
+function AG24_DATASTORE_cleanupSubmissionPayloads_(
+  stored
+) {
+  stored =
+    stored || {};
+
+  var entries = [
+    stored.questionnaire,
+    stored.commercialProfile
+  ].filter(Boolean);
+
+  entries.forEach(
+    function(entry) {
+      try {
+        if (entry.fileId) {
+          DriveApp
+            .getFileById(
+              entry.fileId
+            )
+            .setTrashed(
+              true
+            );
+        }
+      } catch (
+        cleanupFileError
+      ) {}
+    }
+  );
+
+  var folderId =
+    entries.length &&
+    entries[0].folderId
+      ? entries[0].folderId
+      : "";
+
+  if (folderId) {
+    try {
+      DriveApp
+        .getFolderById(
+          folderId
+        )
+        .setTrashed(
+          true
+        );
+    } catch (
+      cleanupFolderError
+    ) {}
+  }
+}
+
+
 function AG24_DATASTORE_resolveReference_(
   referenceText
 ) {
