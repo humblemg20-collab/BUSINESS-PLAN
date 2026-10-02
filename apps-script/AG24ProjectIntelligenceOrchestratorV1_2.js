@@ -78,8 +78,23 @@ AG24_PI_V1_2.Orchestrator = {
     options=options||{};
     var current=AG24_PI_V1_1.Util.clone(project||{});
     AG24_PI_V1_1.Provenance.ensure(current);
+
+    /*
+     * Initial full recalculation is mandatory.
+     * A canonical snapshot may already contain all upstream inputs before
+     * orchestration starts. In that case, derived fields (MRR, ARR, debt
+     * service, DSCR...) must be materialized BEFORE the first rule audit.
+     */
+    var initialRecalc=AG24_PI_V1_1.Recalculator.recalculate(current,[]);
+    current=initialRecalc.project;
+
     var audit=AG24_PI_V1.Engine.evaluate(current);
-    var history=[];
+    var history=[{
+      iteration:0,
+      changedPaths:[],
+      impactedOutputs:initialRecalc.impactedOutputs,
+      phase:'INITIAL_RECALCULATION'
+    }];
     var stop='WAITING_FOR_INPUT_OR_ADAPTER';
     var max=Math.max(1,Math.min(20,Number(options.maxIterations||8)));
 
@@ -108,7 +123,7 @@ AG24_PI_V1_2.Orchestrator = {
       audit:audit,
       nextQuestion:AG24_PI_V1_2_nextQuestion_(audit),
       stopReason:stop,
-      iterations:history.length,
+      iterations:history.filter(function(x){return x.iteration>0;}).length,
       history:history
     };
   }
@@ -121,6 +136,17 @@ function testAg24ProjectIntelligenceOrchestratorV1_2() {
   var waiting=AG24_PI_V1_2.Orchestrator.run(source,{});
   ag24AssertV12_(waiting.audit.summary.gaps===13,'baseline gaps');
   ag24AssertV12_(JSON.stringify(source)===before,'input mutation');
+
+  var preloaded=AG24_PI_V1.EcoLoopGoldenFixtureV1();
+  preloaded.traction.payingCustomers=12;
+  preloaded.debt.interestRate=8;
+  preloaded.debt.termMonths=36;
+  preloaded.financialModel.cfads=30000;
+  var preloadedRun=AG24_PI_V1_2.Orchestrator.run(preloaded,{});
+  ag24AssertV12_(preloadedRun.project.financialModel.mrr===2640,'preloaded MRR');
+  ag24AssertV12_(preloadedRun.project.financialModel.arr===31680,'preloaded ARR');
+  ag24AssertV12_(preloadedRun.project.debt.annualDebtService>0,'preloaded debt service');
+  ag24AssertV12_(isFinite(preloadedRun.project.debt.dscr),'preloaded DSCR');
 
   var r=AG24_PI_V1_2.Orchestrator.run(source,{
     canonicalValues:{
