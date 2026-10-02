@@ -33,6 +33,7 @@ required = [
     APP / "BusinessPlanVisualRegressionPreviewV1.js",
     APP / "BusinessPlanProjectBrandingV1.js",
     APP / "BusinessPlanAdaptivePdfFitV1.js",
+    APP / "BusinessPlanRenderInputSafetyV1.js",
 ]
 
 for path in required:
@@ -208,6 +209,20 @@ if (APP / "BusinessPlanImport.js").exists():
     )
     if "AG24_OPENAI_extractBusinessPlan_" not in text:
         fail("Business Plan import extraction is not routed through OpenAI")
+
+    for marker in [
+        'VERSION: "5.1.0"',
+        "MAX_EXTRACTED_LONG_FIELD_CHARS: 8000",
+        "MAX_EXTRACTED_SHORT_FIELD_CHARS: 600",
+        "MAX_EXTRACTED_EMAIL_CHARS: 320",
+        "function BP_IMPORT_fieldMaxChars_(",
+        "function BP_IMPORT_boundText_(",
+        "valueTruncated:",
+        "BUSINESS_PLAN_IMPORT_FIELD_BOUNDED",
+        "function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1()",
+    ]:
+        if marker not in text:
+            fail(f"Business Plan import field-limit marker missing: {marker}")
 
 if (APP / "BusinessPlanBancableGenerator.js").exists():
     text = (APP / "BusinessPlanBancableGenerator.js").read_text(
@@ -589,6 +604,36 @@ else:
 
 
 
+# Business Plan Render Input Safety V1 contract
+render_input_path = APP / "BusinessPlanRenderInputSafetyV1.js"
+if not render_input_path.exists():
+    fail("BusinessPlanRenderInputSafetyV1.js is required")
+else:
+    render_input_text = render_input_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        "MAX_LONG_FIELD_CHARS: 8000",
+        "MAX_SHORT_FIELD_CHARS: 600",
+        "MAX_EMAIL_CHARS: 320",
+        "function AG24_BP_RENDER_INPUT_prepare_(",
+        "function AG24_BP_RENDER_INPUT_SYSTEM_TEST_V1()",
+        "BUSINESS_PLAN_RENDER_INPUT_BOUNDED",
+        "canonicalPreserved",
+    ]:
+        if marker not in render_input_text:
+            fail(f"Render Input Safety V1 marker missing: {marker}")
+
+    if "UrlFetchApp.fetch(" in render_input_text:
+        fail("Render Input Safety must remain deterministic and offline")
+
+    if "preparerBusinessPlanStandardIA52(" in render_input_text:
+        fail("Render Input Safety must never trigger an AI call")
+
+
 # Business Plan DataStore Large Payload V1 contract
 datastore_payload_path = APP / "DataStorePayloadV1.js"
 if not datastore_payload_path.exists():
@@ -600,7 +645,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.0.0"',
+        'VERSION: "1.1.0"',
         'REFERENCE_VERSION: "DRIVE_JSON_V1"',
         "SHEET_HARD_LIMIT: 50000",
         "SHEET_SAFE_LIMIT: 12000",
@@ -611,6 +656,9 @@ else:
         "DATASTORE_PAYLOAD_EXTERNALIZED",
         "DATASTORE_CELL_TRUNCATED",
         "function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1()",
+        "SpreadsheetApp.create(",
+        "sheetWriteSuccess",
+        "objectCellBounded",
         "DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_PASSED",
         "projectBrandingToken",
         "logoUpload",
@@ -800,8 +848,9 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.2.0"',
+        'VERSION: "2.3.0"',
         'MASTER_PAGE_COUNT: 15',
+        'MAX_RENDER_TEXT_CHARS: 12000',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
         'DEFAULT_THEME: "executive_premium"',
         'grammar: "executive"',
@@ -813,6 +862,8 @@ else:
         '"impact_sustainability"',
         "function AG24_BP_V2_buildSemanticModel_",
         "function AG24_BP_V2_renderDocument_",
+        "function AG24_BP_V2_RENDER_CELL_LIMIT_SYSTEM_TEST_V1()",
+        "BUSINESS_PLAN_RENDER_TEXT_BOUNDED",
         "function AG24_BP_V2_assertWhiteLabel_",
         '"afrigreen24"',
         "AG24_BP_V2_addCover_",
@@ -844,7 +895,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.2.0"',
+        'VERSION: "1.3.0"',
         "EXPECTED_SEMANTIC_PAGE_COUNT: 15",
         "MIN_PHYSICAL_PAGE_COUNT: 15",
         "NORMAL_PHYSICAL_PAGE_MAX: 22",
@@ -856,6 +907,7 @@ else:
         "function AG24_BP_VISUAL_minSignals_",
         "contentSignals:",
         "function AG24_BP_VISUAL_assertPreflight_",
+        "Content density is advisory",
         "function AG24_BP_VISUAL_getTextLayout_",
         "function AG24_BP_VISUAL_countPdfPages_",
         "function AG24_BP_VISUAL_postflightPdf_",
@@ -902,6 +954,14 @@ if code.exists():
 
     if "AG24_BP_V2_renderDocument_(" not in code_text:
         fail("Standard Business Plan production path must use Design System V2")
+    if "AG24_BP_RENDER_INPUT_prepare_(" not in code_text:
+        fail("Standard generation must create a bounded render-only copy")
+    if "var canonicalData =" not in code_text:
+        fail("Standard generation must preserve canonical data separately from render data")
+    if "renderInputSafety:" not in code_text:
+        fail("Render input safety observability is missing from generation response")
+    if "STANDARD_GENERATION_STAGE_FAILED" not in code_text:
+        fail("Generation stage failure observability is missing")
     if "AG24_BP_VISUAL_FIT_pdf_(" not in code_text:
         fail("Standard Business Plan production path must use Adaptive PDF Fit V1")
     if "fitApplied:" not in code_text or "initialPhysicalPageCount:" not in code_text:
