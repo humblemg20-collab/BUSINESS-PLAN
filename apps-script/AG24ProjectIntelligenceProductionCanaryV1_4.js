@@ -44,7 +44,21 @@ AG24_PI_V1_4.summarize_ = function(result) {
     blocking: summary.blocking,
     financierReady: audit.generation ? audit.generation.financierReadyAllowed : false,
     stopReason: run.stopReason || null,
-    nextQuestion: run.nextQuestion ? run.nextQuestion.question : null
+    nextQuestion: run.nextQuestion ? run.nextQuestion.question : null,
+    blockingGaps: (audit.gaps || []).filter(function(g){ return g.severity === 'BLOCKING'; }).map(function(g){
+      return {ruleId:g.ruleId,fieldId:g.fieldId,code:g.code,reason:g.reason,action:g.action};
+    }),
+    criticalGaps: (audit.gaps || []).filter(function(g){ return g.severity === 'CRITICAL'; }).map(function(g){
+      return {ruleId:g.ruleId,fieldId:g.fieldId,code:g.code,reason:g.reason,action:g.action};
+    }),
+    corePresence: {
+      projectName: Boolean(run.project && run.project.identity && String(run.project.identity.projectName || '').trim()),
+      country: Boolean(run.project && run.project.identity && String(run.project.identity.country || '').trim()),
+      sector: Boolean(run.project && run.project.identity && String(run.project.identity.sector || '').trim()),
+      stage: Boolean(run.project && run.project.identity && String(run.project.identity.stage || '').trim()),
+      fundingAmount: Boolean(run.project && run.project.funding && run.project.funding.amount !== null && run.project.funding.amount !== undefined),
+      fundingInstrument: Boolean(run.project && run.project.funding && String(run.project.funding.instrument || '').trim())
+    }
   };
 };
 
@@ -74,6 +88,9 @@ function runAg24ProjectIntelligenceLatestSubmissionCanaryV1_4() {
   Logger.log('FINANCIER_READY=' + summary.financierReady);
   Logger.log('STOP_REASON=' + summary.stopReason);
   Logger.log('NEXT_QUESTION=' + (summary.nextQuestion || 'NONE'));
+  Logger.log('CORE_PRESENCE=' + JSON.stringify(summary.corePresence));
+  Logger.log('BLOCKING_GAPS=' + JSON.stringify(summary.blockingGaps));
+  Logger.log('CRITICAL_GAPS=' + JSON.stringify(summary.criticalGaps));
 
   if (typeof AG24_AUDIT_event_ === 'function') {
     AG24_AUDIT_event_('PROJECT_INTELLIGENCE_PRODUCTION_CANARY_PASSED', {
@@ -86,7 +103,9 @@ function runAg24ProjectIntelligenceLatestSubmissionCanaryV1_4() {
       major: summary.major,
       blocking: summary.blocking,
       financierReady: summary.financierReady,
-      stopReason: summary.stopReason
+      stopReason: summary.stopReason,
+      blockingRuleIds: summary.blockingGaps.map(function(g){ return g.ruleId; }),
+      criticalRuleIds: summary.criticalGaps.map(function(g){ return g.ruleId; })
     });
   }
 
