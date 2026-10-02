@@ -589,6 +589,88 @@ else:
 
 
 
+# Business Plan DataStore Large Payload V1 contract
+datastore_payload_path = APP / "DataStorePayloadV1.js"
+if not datastore_payload_path.exists():
+    fail("DataStorePayloadV1.js is required")
+else:
+    datastore_payload_text = datastore_payload_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        'VERSION: "1.0.0"',
+        'REFERENCE_VERSION: "DRIVE_JSON_V1"',
+        "SHEET_HARD_LIMIT: 50000",
+        "SHEET_SAFE_LIMIT: 12000",
+        "function AG24_DATASTORE_storeSubmissionPayloads_(",
+        "function AG24_DATASTORE_cleanupSubmissionPayloads_(",
+        "function AG24_DATASTORE_resolveReference_(",
+        "function AG24_DATASTORE_sheetCell_(",
+        "DATASTORE_PAYLOAD_EXTERNALIZED",
+        "DATASTORE_CELL_TRUNCATED",
+        "function AG24_DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_V1()",
+        "DATASTORE_LARGE_PAYLOAD_SYSTEM_TEST_PASSED",
+        "projectBrandingToken",
+        "logoUpload",
+        "agBridge",
+    ]:
+        if marker not in datastore_payload_text:
+            fail(f"DataStore Large Payload V1 marker missing: {marker}")
+
+    if "DriveApp.Access.ANYONE_WITH_LINK" in datastore_payload_text:
+        fail("DataStore payload files must remain private")
+
+    if "UrlFetchApp.fetch(" in datastore_payload_text:
+        fail("DataStore payload storage must remain deterministic and offline")
+
+datastore_path = APP / "DataStore.js"
+if not datastore_path.exists():
+    fail("DataStore.js is required")
+else:
+    datastore_text = datastore_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in [
+        "AG24_DATASTORE_storeSubmissionPayloads_(",
+        "payloads.questionnaire.reference",
+        "payloads.commercialProfile.reference",
+        "AG24_DATASTORE_sheetCell_(",
+        "AG24_DATASTORE_cleanupSubmissionPayloads_(",
+        "payloadStorage:",
+    ]:
+        if marker not in datastore_text:
+            fail(f"DataStore payload integration marker missing: {marker}")
+
+    if "datastoreJsonSecurise_(data)," in datastore_text:
+        fail("Full questionnaire JSON must not be written directly to one Sheets cell")
+
+    if "datastoreJsonSecurise_(profilCommercial)" in datastore_text:
+        fail("Full commercial profile JSON must not be written directly to one Sheets cell")
+
+if code.exists():
+    datastore_generation_region = code_text[
+        code_text.find("var crmPersistence ="):
+        code_text.find("reinitialiserBusinessPlanStandardIA52_();")
+        if code_text.find("reinitialiserBusinessPlanStandardIA52_();") > 0
+        else len(code_text)
+    ]
+
+    for marker in [
+        "CRM_SUBMISSION_PERSISTENCE_FAILED",
+        "COMMERCIAL_DASHBOARD_REFRESH_FAILED",
+        "crmPersistence:",
+        "commercialDashboard:",
+    ]:
+        if marker not in code_text:
+            fail(f"Non-blocking CRM generation marker missing: {marker}")
+
+    if "enregistrerSoumission_(" not in datastore_generation_region:
+        fail("Generation must still attempt CRM persistence")
+
 # Canonical PowerShell release engine contract
 release_engine_path = ROOT / "scripts" / "release-business-plan.ps1"
 if not release_engine_path.exists():
