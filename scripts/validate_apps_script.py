@@ -734,6 +734,8 @@ else:
         "WORKTREE_DIRTY",
         "CANONICAL_MAIN_MISMATCH",
         "APPS_SCRIPT_HEAD_PUSH=PASS",
+        "APPS_SCRIPT_HEAD_PUSH=SKIPPED_BY_CALLER",
+        "[switch]$SkipPush",
         "Wait-DeploymentVersion",
         "DEPLOYMENT_PROPAGATION_TIMEOUT",
         "Wait-ProductionHealth",
