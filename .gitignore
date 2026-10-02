@@ -6,3 +6,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Local release engine evidence (logs/state); never commit runtime artifacts.
+release-evidence/
