@@ -173,3 +173,25 @@ AG24_PI_V1_3.buildCanonical_ = function(source) {
 
   return p;
 };
+
+function testAg24ProjectIntelligenceAdapterV1_3() {
+  var p=AG24_PI_V1_3.buildCanonical_({
+    submissionId:'TEST-V13',
+    row:2,
+    questionnaire:{projectName:'EcoLoop',country:'CM',sector:'SOLAR_ENERGY',stage:'EARLY_REVENUE',fundingAmount:150000,fundingType:'BANK_LOAN',currency:'EUR',payingCustomers:12,averageMonthlyPrice:220,interestRate:8,termMonths:36,cfads:30000},
+    questionnaireReference:{fileId:'TEST'}
+  });
+  if(p.identity.stage!=='EARLY_REVENUE'||p.funding.amount!==150000||p.funding.instrument!=='BANK_LOAN') throw new Error('AG24_V1_3_ADAPTER_MAPPING_FAILED');
+  p.documentContext.audience='BANK';
+  var r=AG24_PI_V1_2.Orchestrator.run(p,{});
+  if(r.project.financialModel.mrr!==2640||!isFinite(r.project.debt.dscr)) throw new Error('AG24_V1_3_ORCHESTRATION_FAILED');
+  Logger.log('AG24_PROJECT_INTELLIGENCE_ADAPTER_V1_3=PASS');
+  Logger.log('GAPS_AFTER_CANONICAL='+r.audit.summary.gaps);
+  return true;
+}
+function runAg24ProjectIntelligenceAllTestsV1_3() {
+  runAg24ProjectIntelligenceAllTestsV1_2();
+  testAg24ProjectIntelligenceAdapterV1_3();
+  Logger.log('AG24_PROJECT_INTELLIGENCE_ALL_TESTS_V1_3=PASS');
+  return true;
+}
