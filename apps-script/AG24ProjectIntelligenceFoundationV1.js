@@ -54,7 +54,7 @@ AG24_PI_V1.BusinessPlanRulesV1 = [
   {id:'BANK_FUNDING_AMOUNT_V1',kind:'REQ',field:'funding.amount',when:{'documentContext.audience':['BANK'],'funding.instrument':['BANK_LOAN','DEBT']},severity:'BLOCKING',action:'REQUEST_USER'},
   {id:'BANK_INTEREST_RATE_V1',kind:'REQ',field:'debt.interestRate',when:{'documentContext.audience':['BANK'],'funding.instrument':['BANK_LOAN','DEBT']},severity:'CRITICAL',action:'REQUEST_USER'},
   {id:'BANK_TERM_MONTHS_V1',kind:'REQ',field:'debt.termMonths',when:{'documentContext.audience':['BANK'],'funding.instrument':['BANK_LOAN','DEBT']},severity:'CRITICAL',action:'REQUEST_USER'},
-  {id:'BANK_CFADS_V1',kind:'REQ',field:'financialModel.cfads',when:{'documentContext.audience':['BANK'],'identity.stage':['EARLY_REVENUE','GROWTH','ESTABLISHED_SME']},severity:'CRITICAL',action:'CALCULATE'},
+  {id:'BANK_CFADS_V1',kind:'REQ',field:'financialModel.cfads',when:{'documentContext.audience':['BANK'],'identity.stage':['EARLY_REVENUE','GROWTH','ESTABLISHED_SME']},severity:'CRITICAL',action:'FETCH_CANONICAL'},
   {id:'BANK_DSCR_V1',kind:'CALC_READY',field:'debt.dscr',formula:'DSCR_V1',when:{'documentContext.audience':['BANK'],'funding.instrument':['BANK_LOAN','DEBT'],'identity.stage':['EARLY_REVENUE','GROWTH','ESTABLISHED_SME']},severity:'CRITICAL',action:'CALCULATE'},
   {id:'MARKET_ORDER_TAM_SAM_V1',kind:'COMPARE',left:'market.sam.value',op:'<=',right:'market.tam.value',severity:'BLOCKING',code:'SAM_GT_TAM'},
   {id:'MARKET_ORDER_SAM_SOM_V1',kind:'COMPARE',left:'market.som.value',op:'<=',right:'market.sam.value',severity:'BLOCKING',code:'SOM_GT_SAM'},
@@ -96,7 +96,7 @@ AG24_PI_V1.Engine = (function(){
   function evaluate(project){
     var p=U.clone(project||{}), ev=[], gaps=[];
     AG24_PI_V1.BusinessPlanRulesV1.forEach(function(r){var x=evalRule(p,r);ev.push(x);if(!x.pass&&x.status!==S.NOT_APPLICABLE)gaps.push({gapId:'GAP_'+r.id,ruleId:r.id,fieldId:x.fieldId,code:x.code,status:x.status,severity:x.severity,reason:x.reason,action:x.action});});
-    var counts=readiness(gaps); var next=gaps.map(function(g){return {ruleId:g.ruleId,fieldId:g.fieldId,action:g.action,severity:g.severity,priority:U.severityWeight(g.severity)*10+(g.fieldId==='debt.dscr'?10:g.fieldId==='financialModel.cfads'?9:0)};}).sort(function(a,b){return b.priority-a.priority;}).slice(0,10);
+    var counts=readiness(gaps); var next=gaps.filter(function(g){return g.status!==S.NOT_COMPUTABLE;}).map(function(g){return {ruleId:g.ruleId,fieldId:g.fieldId,action:g.action,severity:g.severity,priority:U.severityWeight(g.severity)*10+(g.fieldId==='financialModel.cfads'?9:0)};}).sort(function(a,b){return b.priority-a.priority;}).slice(0,10);
     return {engineVersion:AG24_PI_V1.VERSION,snapshotId:U.get(p,'metadata.snapshotId')||null,context:{audience:U.get(p,'documentContext.audience')||'GENERIC',stage:U.get(p,'identity.stage')||null,financingType:U.get(p,'funding.instrument')||'NONE',sector:U.get(p,'identity.sector')||null,country:U.get(p,'identity.country')||null},evaluations:ev,gaps:gaps,nextActions:next,summary:{totalRules:ev.length,gaps:gaps.length,major:counts.major,critical:counts.critical,blocking:counts.blocking,readiness:counts.readiness},generation:{auditAllowed:true,workingDraftAllowed:counts.blocking===0,financierReadyAllowed:counts.blocking===0&&counts.critical===0&&counts.major===0}};
   }
   return {evaluate:evaluate};
@@ -141,8 +141,16 @@ function testAg24ProjectIntelligenceEcoLoopV1(){
   ag24AssertCodeV1_(r,'RISK_ASSESSMENT_V1','RISK_ASSESSMENT_INCOMPLETE');
   ag24AssertCodeV1_(r,'ROADMAP_6_12_24_V1','ROADMAP_HORIZONS_INCOMPLETE');
   ag24AssertV1_(r.generation.financierReadyAllowed===false,'EcoLoop must not be financier-ready');
+  ag24AssertV1_(!r.nextActions.some(function(x){return x.ruleId==='BANK_DSCR_V1';}),'DSCR must not be proposed while dependencies are missing');
+  ag24AssertV1_(r.nextActions.some(function(x){return x.ruleId==='BANK_CFADS_V1'&&x.action==='FETCH_CANONICAL';}),'CFADS must resolve upstream data before calculation');
   Logger.log('AG24_PROJECT_INTELLIGENCE_FOUNDATION_V1=PASS');
-  Logger.log(JSON.stringify(r));
+  Logger.log('READINESS='+r.summary.readiness);
+  Logger.log('GAPS='+r.summary.gaps);
+  Logger.log('CRITICAL='+r.summary.critical);
+  Logger.log('MAJOR='+r.summary.major);
+  Logger.log('BLOCKING='+r.summary.blocking);
+  Logger.log('FINANCIER_READY='+r.generation.financierReadyAllowed);
+  Logger.log('NEXT_ACTIONS='+JSON.stringify(r.nextActions));
   return r;
 }
 function testAg24ProjectIntelligenceDeterminismV1(){ var a=AG24_PI_V1.Engine.evaluate(AG24_PI_V1.EcoLoopGoldenFixtureV1()),b=AG24_PI_V1.Engine.evaluate(AG24_PI_V1.EcoLoopGoldenFixtureV1()); ag24AssertV1_(JSON.stringify(a)===JSON.stringify(b),'determinism'); Logger.log('AG24_PROJECT_INTELLIGENCE_DETERMINISM_V1=PASS'); return true; }
