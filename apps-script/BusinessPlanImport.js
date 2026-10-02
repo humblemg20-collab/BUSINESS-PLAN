@@ -18,13 +18,17 @@
  */
 
 const BP_IMPORT_AI_CONFIG = Object.freeze({
-  VERSION: "5.0.0",
+  VERSION: "5.1.0",
   SCHEMA_VERSION: "afrigreen24_bp_import_v5",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
   MIN_TEXT_CHARS: 80,
   PREVIEW_CHARS: 1800,
   FOUND_CONFIDENCE: 0.82,
+  MAX_EXTRACTED_LONG_FIELD_CHARS: 8000,
+  MAX_EXTRACTED_SHORT_FIELD_CHARS: 600,
+  MAX_EXTRACTED_EMAIL_CHARS: 320,
+  MAX_EVIDENCE_CHARS: 1500,
 
   ALLOWED_MIME_TYPES: Object.freeze([
     "application/pdf",
@@ -392,24 +396,139 @@ function normaliserResultatOpenAIBusinessPlan_(
 }
 
 
+function BP_IMPORT_fieldMaxChars_(
+  field
+) {
+  if (
+    field === "email"
+  ) {
+    return BP_IMPORT_AI_CONFIG
+      .MAX_EXTRACTED_EMAIL_CHARS;
+  }
+
+  if (
+    [
+      "projectName",
+      "promoterName",
+      "country",
+      "stage",
+      "sector",
+      "fundingType",
+      "fundingNeed"
+    ].indexOf(
+      String(field || "")
+    ) !== -1
+  ) {
+    return BP_IMPORT_AI_CONFIG
+      .MAX_EXTRACTED_SHORT_FIELD_CHARS;
+  }
+
+  return BP_IMPORT_AI_CONFIG
+    .MAX_EXTRACTED_LONG_FIELD_CHARS;
+}
+
+
+function BP_IMPORT_boundText_(
+  value,
+  maximum
+) {
+  var text =
+    nettoyerValeurImportBP_(
+      value
+    );
+
+  var limit =
+    Math.max(
+      1,
+      Number(maximum || 1)
+    );
+
+  if (
+    text.length <= limit
+  ) {
+    return {
+      value:
+        text,
+      bounded:
+        false,
+      originalChars:
+        text.length,
+      retainedChars:
+        text.length
+    };
+  }
+
+  var candidate =
+    text.slice(
+      0,
+      limit
+    );
+
+  var breakAt =
+    Math.max(
+      candidate.lastIndexOf(". "),
+      candidate.lastIndexOf("; "),
+      candidate.lastIndexOf(", "),
+      candidate.lastIndexOf(" ")
+    );
+
+  if (
+    breakAt >
+    Math.floor(
+      limit * 0.72
+    )
+  ) {
+    candidate =
+      candidate.slice(
+        0,
+        breakAt + 1
+      );
+  }
+
+  candidate =
+    candidate.trim();
+
+  return {
+    value:
+      candidate,
+    bounded:
+      true,
+    originalChars:
+      text.length,
+    retainedChars:
+      candidate.length
+  };
+}
+
+
 function construireChampBusinessPlanVerifie_(
   field,
   item,
   texteSource
 ) {
+  var boundedValue =
+    BP_IMPORT_boundText_(
+      item.value,
+      BP_IMPORT_fieldMaxChars_(
+        field
+      )
+    );
 
   var value =
     normaliserValeurCanoniqueImportBP_(
       field,
-      nettoyerValeurImportBP_(
-        item.value
-      )
+      boundedValue.value
+    );
+
+  var boundedEvidence =
+    BP_IMPORT_boundText_(
+      item.evidence,
+      BP_IMPORT_AI_CONFIG
+        .MAX_EVIDENCE_CHARS
     );
 
   var evidence =
-    nettoyerValeurImportBP_(
-      item.evidence
-    );
+    boundedEvidence.value;
 
   var confidence =
     Number(
@@ -429,6 +548,28 @@ function construireChampBusinessPlanVerifie_(
       )
     );
 
+  if (
+    boundedValue.bounded &&
+    typeof AG24_AUDIT_event_ ===
+      "function"
+  ) {
+    AG24_AUDIT_event_(
+      "BUSINESS_PLAN_IMPORT_FIELD_BOUNDED",
+      {
+        field:
+          String(
+            field || ""
+          ),
+        originalChars:
+          boundedValue
+            .originalChars,
+        retainedChars:
+          boundedValue
+            .retainedChars
+      }
+    );
+  }
+
   if (!value) {
     return {
       value: "",
@@ -436,7 +577,9 @@ function construireChampBusinessPlanVerifie_(
         BP_IMPORT_STATUS.MISSING,
       confidence: 0,
       evidence: "",
-      evidenceVerified: false
+      evidenceVerified: false,
+      valueTruncated:
+        boundedValue.bounded
     };
   }
 
@@ -447,14 +590,11 @@ function construireChampBusinessPlanVerifie_(
     );
 
   /*
-   * FOUND uniquement si :
-   * - OpenAI propose une valeur ;
-   * - l'extrait preuve existe réellement dans le document ;
-   * - confiance >= 0.82.
-   *
-   * Sinon l'utilisateur devra confirmer.
+   * A bounded extraction can never be silently accepted as FOUND: the user
+   * must confirm the retained structured value.
    */
   var status =
+    !boundedValue.bounded &&
     evidenceVerified &&
     confidence >=
       BP_IMPORT_AI_CONFIG.FOUND_CONFIDENCE
@@ -477,7 +617,13 @@ function construireChampBusinessPlanVerifie_(
       evidence,
 
     evidenceVerified:
-      evidenceVerified
+      evidenceVerified,
+
+    valueTruncated:
+      boundedValue.bounded,
+
+    originalValueChars:
+      boundedValue.originalChars
   };
 }
 
@@ -1462,4 +1608,96 @@ function TEST_BP_STAGE_FUNDING_MAPPING_LOCAL_() {
     failed: erreurs.length,
     results: results
   };
+}
+
+function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1() {
+  var huge =
+    Array(60001).join(
+      "X"
+    );
+
+  var source =
+    "Problème : " +
+    huge;
+
+  var field =
+    construireChampBusinessPlanVerifie_(
+      "problem",
+      {
+        value:
+          huge,
+        evidence:
+          "Problème : " +
+          huge.slice(
+            0,
+            100
+          ),
+        confidence:
+          0.99
+      },
+      source
+    );
+
+  var email =
+    construireChampBusinessPlanVerifie_(
+      "email",
+      {
+        value:
+          huge,
+        evidence:
+          huge.slice(
+            0,
+            50
+          ),
+        confidence:
+          0.99
+      },
+      source
+    );
+
+  var report = {
+    success: false,
+    version:
+      BP_IMPORT_AI_CONFIG.VERSION,
+    problemChars:
+      String(
+        field.value || ""
+      ).length,
+    problemStatus:
+      field.status,
+    problemTruncated:
+      field.valueTruncated ===
+      true,
+    emailChars:
+      String(
+        email.value || ""
+      ).length,
+    emailTruncated:
+      email.valueTruncated ===
+      true
+  };
+
+  report.success =
+    report.problemChars <=
+      BP_IMPORT_AI_CONFIG
+        .MAX_EXTRACTED_LONG_FIELD_CHARS &&
+    report.problemStatus ===
+      BP_IMPORT_STATUS.TO_CONFIRM &&
+    report.problemTruncated ===
+      true &&
+    report.emailChars <=
+      BP_IMPORT_AI_CONFIG
+        .MAX_EXTRACTED_EMAIL_CHARS &&
+    report.emailTruncated ===
+      true;
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 }
