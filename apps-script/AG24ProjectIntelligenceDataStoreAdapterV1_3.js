@@ -129,7 +129,7 @@ AG24_PI_V1_3.buildCanonical_ = function(source) {
       revenueToDate:N(F(q,['revenueToDate','chiffreAffairesCumule','revenueHistorical'],null))
     },
     funding:{
-      amount:N(F(q,['fundingAmount','montantFinancement','montantRecherche','amountRequested'],idx.fundingAmount||null)),
+      amount:N(F(q,['fundingNeed','fundingAmount','montantFinancement','montantRecherche','amountRequested'],idx.fundingAmount||null)),
       currency:String(F(q,['fundingCurrency','currency','devise'],'XAF')),
       instrument:AG24_PI_V1_3.financing_(F(q,['fundingType','typeFinancement','financingType'],idx.fundingType||''))
     },
@@ -195,7 +195,7 @@ function testAg24ProjectIntelligenceAdapterV1_3() {
   var p=AG24_PI_V1_3.buildCanonical_({
     submissionId:'TEST-V13',
     row:2,
-    questionnaire:{projectName:'EcoLoop',country:'CM',sector:'SOLAR_ENERGY',stage:'EARLY_REVENUE',fundingAmount:150000,fundingType:'BANK_LOAN',currency:'EUR',payingCustomers:12,averageMonthlyPrice:220,interestRate:8,termMonths:36,cfads:30000},
+    questionnaire:{projectName:'EcoLoop',country:'CM',sector:'SOLAR_ENERGY',stage:'EARLY_REVENUE',fundingNeed:'150000 EUR',fundingType:'BANK_LOAN',currency:'EUR',payingCustomers:12,averageMonthlyPrice:220,interestRate:8,termMonths:36,cfads:30000},
     questionnaireReference:{fileId:'TEST'}
   });
   if(p.identity.stage!=='EARLY_REVENUE'||p.funding.amount!==150000||p.funding.instrument!=='BANK_LOAN') throw new Error('AG24_V1_3_ADAPTER_MAPPING_FAILED');
@@ -227,6 +227,7 @@ function testAg24ProjectIntelligenceAdapterV1_3() {
   Logger.log('AG24_PROJECT_INTELLIGENCE_ADAPTER_V1_3=PASS');
   Logger.log('GAPS_AFTER_CANONICAL='+r.audit.summary.gaps);
   Logger.log('AG24_PROJECT_INTELLIGENCE_INDEX_FALLBACK_V1_3=PASS');
+  Logger.log('AG24_PROJECT_INTELLIGENCE_FUNDING_NEED_ALIAS_V1_3=PASS');
   return true;
 }
 function runAg24ProjectIntelligenceAllTestsV1_3() {
