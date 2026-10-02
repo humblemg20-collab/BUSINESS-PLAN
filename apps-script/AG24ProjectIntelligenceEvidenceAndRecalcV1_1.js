@@ -115,7 +115,7 @@ AG24_PI_V1_1.Provenance = (function(){
       source:meta.source||null,
       evidenceRefs:U.unique(meta.evidenceRefs||[]),
       confidence:meta.confidence||null,
-      updatedAt:meta.updatedAt||U.now_()
+      updatedAt:meta.updatedAt||U.now()
     };
     return out;
   }
@@ -145,7 +145,8 @@ AG24_PI_V1_1.Provenance = (function(){
   }
 
   function get(project, fieldPath){
-    return U.get(project,'metadata.provenance.'+fieldPath);
+    if(!project || !project.metadata || !project.metadata.provenance) return null;
+    return project.metadata.provenance[fieldPath] || null;
   }
 
   function evidenceExists_(project, evidenceId){
@@ -194,7 +195,9 @@ AG24_PI_V1_1.Provenance = (function(){
         return {ok:strictEvidenceOk,status:strictEvidenceOk?'PASS':'FAIL',fieldPath:fieldPath,policy:policy,truthStatus:truth,reason:strictEvidenceOk?null:'STRICT_EVIDENCE_REQUIRED'};
       }
       if(truth===T.CALCULATED){
-        var calc=U.get(project,'metadata.calculations.'+fieldPath);
+        var calc=project && project.metadata && project.metadata.calculations
+          ? project.metadata.calculations[fieldPath]
+          : null;
         var calcOk=!!(calc&&calc.formulaId&&calc.inputs&&Object.keys(calc.inputs).length);
         return {ok:calcOk,status:calcOk?'PASS':'FAIL',fieldPath:fieldPath,policy:policy,truthStatus:truth,reason:calcOk?null:'CALCULATION_PROVENANCE_REQUIRED'};
       }
@@ -314,7 +317,7 @@ AG24_PI_V1_1.Recalculator = (function(){
       formulaId:formula.formulaId,
       engineVersion:AG24_PI_V1_1.VERSION,
       inputs:inputSnapshot,
-      computedAt:U.now_()
+      computedAt:U.now()
     };
     project.metadata.provenance[formula.output]={
       fieldPath:formula.output,
@@ -322,7 +325,7 @@ AG24_PI_V1_1.Recalculator = (function(){
       source:{type:AG24_PI_V1_1.SOURCE_TYPE.SYSTEM_CALCULATION,ref:formula.formulaId},
       evidenceRefs:[],
       confidence:'DETERMINISTIC',
-      updatedAt:U.now_()
+      updatedAt:U.now()
     };
   }
 
@@ -405,6 +408,9 @@ function testAg24ProjectIntelligenceProvenanceV1_1(){
     evidenceRefs:['EVID_STANDARD_BP_001'],
     confidence:'HIGH'
   });
+
+  var stored=AG24_PI_V1_1.Provenance.get(p,'businessModel.averageMonthlyPrice');
+  ag24AssertV11_(stored && stored.truthStatus==='DOCUMENTED','dotted field provenance must be retrievable');
 
   var v=AG24_PI_V1_1.Provenance.validate(
     p,
