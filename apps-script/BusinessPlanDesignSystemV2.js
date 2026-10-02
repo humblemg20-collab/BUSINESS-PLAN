@@ -15,8 +15,9 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.2.0",
+  VERSION: "2.3.0",
   MASTER_PAGE_COUNT: 15,
+  MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
   DEFAULT_THEME: "executive_premium",
   ALLOWED_THEMES: Object.freeze([
@@ -124,9 +125,71 @@ function AG24_BP_V2_text_(value) {
     return "";
   }
 
-  return String(value)
-    .replace(/\s+/g, " ")
-    .trim();
+  var text =
+    String(value)
+      .replace(/\s+/g, " ")
+      .trim();
+
+  var maximum =
+    AG24_BP_DESIGN_V2
+      .MAX_RENDER_TEXT_CHARS;
+
+  if (
+    text.length <= maximum
+  ) {
+    return text;
+  }
+
+  var candidate =
+    text.slice(
+      0,
+      maximum
+    );
+
+  var breakAt =
+    Math.max(
+      candidate.lastIndexOf(". "),
+      candidate.lastIndexOf("; "),
+      candidate.lastIndexOf(", "),
+      candidate.lastIndexOf(" ")
+    );
+
+  if (
+    breakAt >
+    Math.floor(
+      maximum * 0.72
+    )
+  ) {
+    candidate =
+      candidate.slice(
+        0,
+        breakAt + 1
+      );
+  }
+
+  candidate =
+    candidate.trim();
+
+  if (
+    typeof AG24_AUDIT_event_ ===
+      "function"
+  ) {
+    try {
+      AG24_AUDIT_event_(
+        "BUSINESS_PLAN_RENDER_TEXT_BOUNDED",
+        {
+          originalChars:
+            text.length,
+          renderChars:
+            candidate.length
+        }
+      );
+    } catch (
+      auditError
+    ) {}
+  }
+
+  return candidate;
 }
 
 
@@ -4142,4 +4205,46 @@ function AG24_BP_V2_getThemeCatalog_() {
         };
       }
     );
+}
+
+
+function AG24_BP_V2_RENDER_CELL_LIMIT_SYSTEM_TEST_V1() {
+  var huge =
+    Array(60001).join(
+      "X"
+    );
+
+  var bounded =
+    AG24_BP_V2_text_(
+      huge
+    );
+
+  var report = {
+    success: false,
+    version:
+      AG24_BP_DESIGN_V2.VERSION,
+    sourceChars:
+      huge.length,
+    renderChars:
+      bounded.length,
+    maximum:
+      AG24_BP_DESIGN_V2
+        .MAX_RENDER_TEXT_CHARS
+  };
+
+  report.success =
+    report.sourceChars > 50000 &&
+    report.renderChars <=
+      report.maximum &&
+    report.renderChars < 50000;
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 }
