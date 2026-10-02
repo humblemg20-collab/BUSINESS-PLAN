@@ -73,13 +73,29 @@ AG24_PI_V1_3.loadSubmission_ = function(submissionId) {
     row:row,
     questionnaire:AG24_DATASTORE_resolveReference_(qRefText)||{},
     commercialProfile:cRefText?AG24_DATASTORE_resolveReference_(cRefText):{},
-    questionnaireReference:JSON.parse(qRefText)
+    questionnaireReference:JSON.parse(qRefText),
+    index:{
+      ownerName:values[2],
+      projectName:values[5],
+      country:values[6],
+      sector:values[7],
+      stage:values[8],
+      problem:values[9],
+      solution:values[10],
+      targetCustomers:values[11],
+      revenueModel:values[12],
+      team:values[13],
+      fundingAmount:values[14],
+      fundingType:values[15],
+      useOfFunds:values[16]
+    }
   };
 };
 
 AG24_PI_V1_3.buildCanonical_ = function(source) {
   source=source||{};
   var q=source.questionnaire||{};
+  var idx=source.index||{};
   var F=AG24_PI_V1_3.first_, N=AG24_PI_V1_3.number_;
   var p={
     schemaVersion:'AG24_CANONICAL_PROJECT_V1',
@@ -87,17 +103,17 @@ AG24_PI_V1_3.buildCanonical_ = function(source) {
       audience:'GENERIC',
       language:String(F(q,['language','langue'],'fr')),
       currency:String(F(q,['currency','devise'],'XAF')),
-      country:String(F(q,['country','pays','projectCountry'],''))
+      country:String(F(q,['country','pays','projectCountry'],idx.country||''))
     },
     identity:{
-      projectName:String(F(q,['projectName','nomProjet','projet','titreProjet'],'')),
-      ownerName:String(F(q,['promoterName','nom','porteurProjet','nomPorteur','fullName'],'')),
-      country:String(F(q,['country','pays','projectCountry'],'')),
-      sector:String(F(q,['sector','secteur','activitySector'],'')),
-      stage:AG24_PI_V1_3.stage_(F(q,['stage','stade','projectStage'],''))
+      projectName:String(F(q,['projectName','nomProjet','projet','titreProjet'],idx.projectName||'')),
+      ownerName:String(F(q,['promoterName','nom','porteurProjet','nomPorteur','fullName'],idx.ownerName||'')),
+      country:String(F(q,['country','pays','projectCountry'],idx.country||'')),
+      sector:String(F(q,['sector','secteur','activitySector'],idx.sector||'')),
+      stage:AG24_PI_V1_3.stage_(F(q,['stage','stade','projectStage'],idx.stage||''))
     },
-    problem:{statement:String(F(q,['problem','probleme','projectProblem'],''))},
-    solution:{description:String(F(q,['solution','projectSolution'],''))},
+    problem:{statement:String(F(q,['problem','probleme','projectProblem'],idx.problem||''))},
+    solution:{description:String(F(q,['solution','projectSolution'],idx.solution||''))},
     market:{
       tam:{value:N(F(q,['tam','tamValue','marketTam'],null))},
       sam:{value:N(F(q,['sam','samValue','marketSam'],null))},
@@ -113,9 +129,9 @@ AG24_PI_V1_3.buildCanonical_ = function(source) {
       revenueToDate:N(F(q,['revenueToDate','chiffreAffairesCumule','revenueHistorical'],null))
     },
     funding:{
-      amount:N(F(q,['fundingAmount','montantFinancement','montantRecherche','amountRequested'],null)),
+      amount:N(F(q,['fundingAmount','montantFinancement','montantRecherche','amountRequested'],idx.fundingAmount||null)),
       currency:String(F(q,['fundingCurrency','currency','devise'],'XAF')),
-      instrument:AG24_PI_V1_3.financing_(F(q,['fundingType','typeFinancement','financingType'],''))
+      instrument:AG24_PI_V1_3.financing_(F(q,['fundingType','typeFinancement','financingType'],idx.fundingType||''))
     },
     debt:{
       interestRate:N(F(q,['interestRate','tauxInteretAnnuel','annualInterestRate'],null)),
@@ -132,7 +148,8 @@ AG24_PI_V1_3.buildCanonical_ = function(source) {
       snapshotId:'SUBMISSION_'+String(source.submissionId||''),
       sourceSubmissionId:String(source.submissionId||''),
       sourceRow:Number(source.row||0),
-      source:'AFRIGREEN24_DATASTORE'
+      source:'AFRIGREEN24_DATASTORE',
+      crmIndexFallbackAvailable:Boolean(source.index && Object.keys(source.index).length)
     }
   };
 
@@ -185,8 +202,31 @@ function testAg24ProjectIntelligenceAdapterV1_3() {
   p.documentContext.audience='BANK';
   var r=AG24_PI_V1_2.Orchestrator.run(p,{});
   if(r.project.financialModel.mrr!==2640||!isFinite(r.project.debt.dscr)) throw new Error('AG24_V1_3_ORCHESTRATION_FAILED');
+  var fallback=AG24_PI_V1_3.buildCanonical_({
+    submissionId:'TEST-V13-FALLBACK',
+    row:3,
+    questionnaire:{currency:'EUR'},
+    index:{
+      projectName:'Fallback Project',
+      country:'CM',
+      sector:'SOLAR_ENERGY',
+      stage:'EARLY_REVENUE',
+      fundingAmount:'150000 EUR',
+      fundingType:'Prêt bancaire'
+    },
+    questionnaireReference:{fileId:'TEST_FALLBACK'}
+  });
+  if(
+    fallback.identity.projectName!=='Fallback Project' ||
+    fallback.identity.country!=='CM' ||
+    fallback.identity.stage!=='EARLY_REVENUE' ||
+    fallback.funding.amount!==150000 ||
+    fallback.funding.instrument!=='BANK_LOAN'
+  ) throw new Error('AG24_V1_3_INDEX_FALLBACK_FAILED');
+
   Logger.log('AG24_PROJECT_INTELLIGENCE_ADAPTER_V1_3=PASS');
   Logger.log('GAPS_AFTER_CANONICAL='+r.audit.summary.gaps);
+  Logger.log('AG24_PROJECT_INTELLIGENCE_INDEX_FALLBACK_V1_3=PASS');
   return true;
 }
 function runAg24ProjectIntelligenceAllTestsV1_3() {
