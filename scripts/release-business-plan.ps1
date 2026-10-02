@@ -1,6 +1,7 @@
 param(
   [string]$DeploymentId = "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
-  [string]$ExpectedScriptId = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
+  [string]$ExpectedScriptId = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz",
+  [switch]$SkipPush
 )
 
 Set-StrictMode -Version Latest
@@ -336,12 +337,17 @@ try {
   Write-Host "PREVIOUS_VERSION=$previousVersion"
 
   Write-Host ""
-  Write-Host "[5/8] Push canonical source to Apps Script HEAD"
+  Write-Host "[5/8] Apps Script HEAD synchronization"
 
-  $push = Invoke-Clasp -Arguments @("push", "--force")
-  Assert-Native -Result $push -Step "clasp push"
-  Write-Host $push.Text
-  Write-Host "APPS_SCRIPT_HEAD_PUSH=PASS"
+  if ($SkipPush) {
+    Write-Host "APPS_SCRIPT_HEAD_PUSH=SKIPPED_BY_CALLER"
+  }
+  else {
+    $push = Invoke-Clasp -Arguments @("push", "--force")
+    Assert-Native -Result $push -Step "clasp push"
+    Write-Host $push.Text
+    Write-Host "APPS_SCRIPT_HEAD_PUSH=PASS"
+  }
 
   Write-Host ""
   Write-Host "[6/8] Update existing production deployment"
