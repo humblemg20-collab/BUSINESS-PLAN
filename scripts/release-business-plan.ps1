@@ -250,7 +250,7 @@ try {
   }
 
   Write-Host ""
-  Write-Host "[1/8] Canonical Git main"
+  Write-Host "[1/8] Canonical Git branch"
 
   $dirty = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "status", "--porcelain")
   Assert-Native -Result $dirty -Step "git status"
@@ -259,23 +259,32 @@ try {
     throw "WORKTREE_DIRTY: commit or discard local changes before release."
   }
 
-  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "checkout", "main")) -Step "git checkout main"
   Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "fetch", "origin")) -Step "git fetch origin"
-  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "pull", "--ff-only", "origin", "main")) -Step "git pull main"
+  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "checkout", $CanonicalBranch)) -Step "git checkout canonical branch"
+  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "pull", "--ff-only", "origin", $CanonicalBranch)) -Step "git pull canonical branch"
+
+  $branchResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "branch", "--show-current")
+  Assert-Native -Result $branchResult -Step "git branch --show-current"
+  $currentBranch = $branchResult.Text.Trim()
+
+  if ($currentBranch -ne $CanonicalBranch) {
+    throw "CANONICAL_BRANCH_MISMATCH"
+  }
 
   $headResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", "HEAD")
   Assert-Native -Result $headResult -Step "git rev-parse HEAD"
   $head = $headResult.Text.Trim()
 
-  $originResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", "origin/main")
-  Assert-Native -Result $originResult -Step "git rev-parse origin/main"
-  $originMain = $originResult.Text.Trim()
+  $originResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", ("origin/" + $CanonicalBranch))
+  Assert-Native -Result $originResult -Step "git rev-parse origin canonical branch"
+  $originCanonical = $originResult.Text.Trim()
 
-  Write-Host "LOCAL_MAIN=$head"
-  Write-Host "ORIGIN_MAIN=$originMain"
+  Write-Host "CANONICAL_BRANCH=$CanonicalBranch"
+  Write-Host "LOCAL_SHA=$head"
+  Write-Host "ORIGIN_SHA=$originCanonical"
 
-  if ($head -ne $originMain) {
-    throw "CANONICAL_MAIN_MISMATCH"
+  if ($head -ne $originCanonical) {
+    throw "CANONICAL_BRANCH_SHA_MISMATCH"
   }
 
   $state.canonicalSha = $head
