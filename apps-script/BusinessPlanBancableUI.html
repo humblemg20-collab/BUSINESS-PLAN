@@ -5307,8 +5307,7 @@
 
       if(
         !result ||
-        !result.pdfId ||
-        !result.pdfUrl
+        !result.pdfId
       ){
 
         console.warn(
@@ -5335,6 +5334,19 @@
 
             console.log(
               '[AfriGreen24 Documents] Synchronisation réussie :',
+              response
+            );
+
+            if(
+              result &&
+              response &&
+              typeof response === 'object'
+            ){
+              result.dashboardSync =
+                response;
+            }
+
+            afficherStatutSynchronisationDashboard_(
               response
             );
 
