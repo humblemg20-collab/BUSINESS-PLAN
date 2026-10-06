@@ -752,7 +752,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.10.0\"",
+        "ExpectedRegressionVersion = \"1.11.0\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -778,7 +778,7 @@ else:
 # Premium Financeur release-readiness contract
 premium_contracts = {
     "AG24PremiumDocumentRegressionSuiteV1.js": [
-        'VERSION:"1.10.0"',
+        'VERSION:"1.11.0"',
         "FINANCEUR_PRODUCTION_ROUTE",
         "FINANCEUR_CANARY_SELECTION",
     ],
@@ -811,6 +811,33 @@ premium_contracts = {
         "BP_DASHBOARD_SYNC_syncStoredFinanceur_",
         "BANCABLE_DASHBOARD_SYNC_PASSED",
         "idempotencyKey:",
+    ],
+    "AG24PremiumDocumentHardeningV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_PREMIUM_HARDEN_isSentinel_",
+        "AG24_PREMIUM_HARDEN_money_",
+        "AG24_PREMIUM_HARDEN_renumberSections_",
+        "AG24_PREMIUM_DOCUMENT_HARDENING_SYSTEM_TEST_V1",
+    ],
+    "AG24PremiumRealWorldQaV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_PREMIUM_REALWORLD_QA_SYSTEM_TEST_V1",
+        "unknownCurrencySafe",
+        "sequentialNumbering",
+    ],
+    "AG24PremiumFinancialStoryV1.js": [
+        'VERSION: "1.1.0"',
+        "devise à confirmer",
+        "currencyConfirmed",
+    ],
+    "AG24PremiumFinancialSectionV1.js": [
+        'VERSION:"1.1.0"',
+        "Readiness financière",
+        "BANK_FINANCIAL_STRUCTURE_REQUIRED",
+    ],
+    "AG24PremiumCompetitionSectionV1.js": [
+        'VERSION:"1.1.0"',
+        "AG24_PREMIUM_COMPETITION_isSentinel_",
     ],
 }
 
@@ -930,7 +957,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.8.0"',
+        'VERSION: "2.9.0"',
         'MASTER_PAGE_COUNT: 15',
         'MAX_RENDER_TEXT_CHARS: 12000',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
