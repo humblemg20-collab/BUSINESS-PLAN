@@ -5,7 +5,7 @@
  * regression suite -> latest real-data shadow canary -> compact persisted proof.
  */
 var AG24_PREMIUM_FINANCEUR_RELEASE_GATE_V1 = Object.freeze({
-  VERSION:"1.0.0",
+  VERSION:"1.1.0",
   LAST_RESULT_PROPERTY:"AFRIGREEN24_PREMIUM_FINANCEUR_RELEASE_GATE_LAST"
 });
 
@@ -13,6 +13,8 @@ function AG24_PREMIUM_FINANCEUR_RELEASE_GATE_persist_(report) {
   var compact = {
     version:report.version,
     success:report.success,
+    blocked:report.blocked,
+    state:report.state,
     executedAt:report.executedAt,
     regressionSuccess:report.regressionSuccess,
     regressionVersion:report.regressionVersion,
@@ -20,9 +22,13 @@ function AG24_PREMIUM_FINANCEUR_RELEASE_GATE_persist_(report) {
     regressionTotalTests:report.regressionTotalTests,
     canarySuccess:report.canarySuccess,
     canaryDossierId:report.canaryDossierId,
+    nextCandidateId:report.nextCandidateId,
+    nextCandidateProjectName:report.nextCandidateProjectName,
+    nextAction:report.nextAction,
     renderer:report.renderer,
     physicalPageCount:report.physicalPageCount,
     cleanupSuccess:report.cleanupSuccess,
+    blockingCode:report.blockingCode,
     failureCode:report.failureCode
   };
 
@@ -37,6 +43,8 @@ function AG24_PREMIUM_FINANCEUR_RELEASE_GATE_persist_(report) {
 function runAg24PremiumFinanceurReleaseReadinessGateV1() {
   var report = {
     success:false,
+    blocked:false,
+    state:"RUNNING",
     version:AG24_PREMIUM_FINANCEUR_RELEASE_GATE_V1.VERSION,
     executedAt:new Date().toISOString(),
     regressionSuccess:false,
@@ -45,9 +53,13 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
     regressionTotalTests:0,
     canarySuccess:false,
     canaryDossierId:"",
+    nextCandidateId:"",
+    nextCandidateProjectName:"",
+    nextAction:"",
     renderer:"",
     physicalPageCount:0,
     cleanupSuccess:false,
+    blockingCode:"",
     failureCode:""
   };
 
@@ -95,6 +107,18 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
       canary && canary.dossierId
         ? String(canary.dossierId)
         : "";
+    report.nextCandidateId =
+      canary && canary.nextCandidateId
+        ? String(canary.nextCandidateId)
+        : "";
+    report.nextCandidateProjectName =
+      canary && canary.nextCandidateProjectName
+        ? String(canary.nextCandidateProjectName)
+        : "";
+    report.nextAction =
+      canary && canary.nextAction
+        ? String(canary.nextAction)
+        : "";
     report.renderer =
       canary && canary.renderer
         ? String(canary.renderer)
@@ -107,6 +131,16 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
       Boolean(canary && canary.cleanupSuccess === true);
 
     if (!report.canarySuccess) {
+      if (canary && canary.blocked === true) {
+        report.blocked = true;
+        report.state =
+          canary.state || "WAITING_FOR_REAL_DOSSIER";
+        report.blockingCode =
+          canary.blockingCode || "CANARY_PREREQUISITE_BLOCKED";
+        report.failureCode = "";
+        return report;
+      }
+
       report.failureCode =
         canary && canary.failureCode
           ? String(canary.failureCode)
@@ -121,8 +155,12 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
       report.cleanupSuccess === true;
 
     if (!report.success) {
+      report.state = "FAILED";
       report.failureCode =
         "PREMIUM_FINANCEUR_RELEASE_READINESS_FAILED";
+    } else {
+      report.state = "PASSED";
+      report.blocked = false;
     }
 
   } catch (error) {
@@ -132,6 +170,10 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
           ? String(error.message)
           : String(error);
     }
+
+    if (!report.blocked) {
+      report.state = "FAILED";
+    }
   } finally {
     AG24_PREMIUM_FINANCEUR_RELEASE_GATE_persist_(report);
 
@@ -140,18 +182,26 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
         AG24_AUDIT_event_(
           report.success
             ? "PREMIUM_FINANCEUR_RELEASE_READINESS_PASSED"
-            : "PREMIUM_FINANCEUR_RELEASE_READINESS_FAILED",
+            : report.blocked
+              ? "PREMIUM_FINANCEUR_RELEASE_READINESS_BLOCKED"
+              : "PREMIUM_FINANCEUR_RELEASE_READINESS_FAILED",
           {
             version:report.version,
+            state:report.state,
+            blocked:report.blocked,
             regressionSuccess:report.regressionSuccess,
             regressionVersion:report.regressionVersion,
             regressionPassedTests:report.regressionPassedTests,
             regressionTotalTests:report.regressionTotalTests,
             canarySuccess:report.canarySuccess,
             canaryDossierId:report.canaryDossierId,
+            nextCandidateId:report.nextCandidateId,
+            nextCandidateProjectName:report.nextCandidateProjectName,
+            nextAction:report.nextAction,
             renderer:report.renderer,
             physicalPageCount:report.physicalPageCount,
             cleanupSuccess:report.cleanupSuccess,
+            blockingCode:report.blockingCode,
             failureCode:report.failureCode
           }
         );
