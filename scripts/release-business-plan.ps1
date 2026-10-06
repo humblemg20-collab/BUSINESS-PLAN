@@ -302,6 +302,32 @@ try {
 
   Write-Host "SCRIPT_ID=$($claspJson.scriptId)"
 
+  $regressionPath = Join-Path $AppsScript "AG24PremiumDocumentRegressionSuiteV1.js"
+  $readinessPath = Join-Path $AppsScript "AG24PremiumFinanceurReleaseReadinessGateV1.js"
+
+  if (-not (Test-Path $regressionPath)) {
+    throw "REGRESSION_SUITE_SOURCE_MISSING"
+  }
+
+  if (-not (Test-Path $readinessPath)) {
+    throw "RELEASE_READINESS_GATE_SOURCE_MISSING"
+  }
+
+  $regressionSource = Get-Content $regressionPath -Raw
+  $readinessSource = Get-Content $readinessPath -Raw
+
+  if ($regressionSource -notmatch ('VERSION:"' + [regex]::Escape($ExpectedRegressionVersion) + '"')) {
+    throw "REGRESSION_VERSION_MISMATCH"
+  }
+
+  if ($readinessSource -notmatch ('VERSION:"' + [regex]::Escape($ExpectedReadinessGateVersion) + '"')) {
+    throw "READINESS_GATE_VERSION_MISMATCH"
+  }
+
+  Write-Host "REGRESSION_SOURCE_VERSION=$ExpectedRegressionVersion"
+  Write-Host "READINESS_GATE_SOURCE_VERSION=$ExpectedReadinessGateVersion"
+  Write-Host "PREMIUM_SOURCE_CONTRACT=PASS"
+
   Set-Location $AppsScript
 
   Write-Host ""
