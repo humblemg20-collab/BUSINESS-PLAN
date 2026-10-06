@@ -73,6 +73,55 @@ function AG24_PREMIUM_FIN_SECTION_metricStatus_(project, metricId) {
   return provenance ? provenance.truthStatus : null;
 }
 
+function AG24_PREMIUM_FIN_SECTION_isBank_(
+  data,
+  projectIntelligence
+) {
+  data = data || {};
+
+  var audience =
+    projectIntelligence
+      ? (
+          AG24_PREMIUM_EVIDENCE_BRIDGE_get_(
+            projectIntelligence,
+            "documentContext.audience"
+          ) || ""
+        )
+      : (
+          data.documentAudience ||
+          data.audience ||
+          ""
+        );
+
+  var fundingType =
+    String(
+      data.fundingType ||
+      data.financingType ||
+      ""
+    ).toUpperCase();
+
+  return (
+    String(audience).toUpperCase() === "BANK" ||
+    fundingType.indexOf("BANK") !== -1 ||
+    fundingType.indexOf("BANQUE") !== -1 ||
+    fundingType.indexOf("PRÊT") !== -1 ||
+    fundingType.indexOf("PRET") !== -1
+  );
+}
+
+function AG24_PREMIUM_FIN_SECTION_readinessLabel_(field) {
+  var labels = {
+    currency:"devise",
+    "funding.amount":"montant recherché",
+    "debt.interestRate":"taux d’intérêt",
+    "debt.termMonths":"durée de remboursement",
+    "debt.annualDebtService":"service annuel de la dette",
+    "debt.dscr":"DSCR / capacité de remboursement"
+  };
+
+  return labels[field] || field;
+}
+
 function AG24_PREMIUM_FIN_SECTION_build_(data, projectIntelligence) {
   var sourceData =
     projectIntelligence
