@@ -9,7 +9,7 @@
  * Deterministic. No AI call. No persistence side effect.
  */
 var AG24_PREMIUM_DOCUMENT_SPEC_V1 = Object.freeze({
-  VERSION: "1.0.2",
+  VERSION: "1.1.0",
   PRODUCT: "BUSINESS_PLAN",
   SUPPORTED_AUDIENCES: Object.freeze([
     "GENERIC",
@@ -224,9 +224,10 @@ var AG24_PREMIUM_DOCUMENT_SPEC_V1 = Object.freeze({
     BANK: Object.freeze({
       label: "Bank / lender",
       order: Object.freeze([
-        "executive-summary","project","traction","market","business-model",
-        "operations","team-governance","financial-story","funding",
-        "risks","go-to-market","impact","roadmap","evidence-appendix","closing"
+        "executive-summary","project","market","business-model",
+        "go-to-market","operations","team-governance","traction",
+        "financial-story","funding","risks","impact","roadmap",
+        "evidence-appendix","closing"
       ]),
       required: Object.freeze([
         "executive-summary","project","traction","financial-story",
