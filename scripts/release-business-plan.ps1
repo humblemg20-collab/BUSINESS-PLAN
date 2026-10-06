@@ -345,8 +345,12 @@ try {
     $validation = Invoke-Native -File $pyCommand.Source -Arguments @("-3", $validatorPath)
   }
 
-  Assert-Native -Result $validation -Step "local Apps Script validation"
+  $validationLogPath = Join-Path $EvidenceDir "local-validation.log"
+  $validation.Text | Set-Content -Path $validationLogPath -Encoding UTF8
   Write-Host $validation.Text
+  Write-Host "LOCAL_VALIDATION_LOG=$validationLogPath"
+
+  Assert-Native -Result $validation -Step "local Apps Script validation"
   Write-Host "LOCAL_APPS_SCRIPT_VALIDATION=PASS"
 
   Set-Location $AppsScript
