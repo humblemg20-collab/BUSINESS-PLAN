@@ -9,7 +9,7 @@
  * Deterministic. No AI call. No persistence side effect.
  */
 var AG24_PREMIUM_DOCUMENT_SPEC_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.0.1",
   PRODUCT: "BUSINESS_PLAN",
   SUPPORTED_AUDIENCES: Object.freeze([
     "GENERIC",
@@ -404,12 +404,6 @@ function AG24_PREMIUM_DOC_buildPlan_(options) {
     return Boolean(availableMap[id]);
   });
 
-  available.forEach(function(id) {
-    if (orderedAvailable.indexOf(id) === -1) {
-      orderedAvailable.push(id);
-    }
-  });
-
   var missingRequired = profile.required.filter(function(id) {
     return !availableMap[id];
   });
@@ -450,6 +444,9 @@ function AG24_PREMIUM_DOC_buildPlan_(options) {
       bodyModules: modulePlans
     },
     availableModules: available,
+    omittedAvailableModules: available.filter(function(id) {
+      return profile.order.indexOf(id) === -1;
+    }),
     missingRequiredModules: missingRequired,
     missingPremiumModules: missingPremiumModules,
     productionReady:
@@ -512,6 +509,17 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
     var investorMarket = investorOrder.indexOf("market");
     var investorFunding = investorOrder.indexOf("funding");
 
+    var bankProfileIsolation =
+      bankOrder.indexOf("problem") === -1 &&
+      bankOrder.indexOf("solution") === -1 &&
+      bankOrder.indexOf("competition") === -1 &&
+      bankOrder[bankOrder.length - 1] === "closing";
+
+    var investorProfileIsolation =
+      investorOrder.indexOf("project") === -1 &&
+      investorOrder.indexOf("operations") === -1 &&
+      investorOrder[investorOrder.length - 1] === "closing";
+
     report.success =
       report.deterministic === true &&
       report.bankAudience === "BANK" &&
@@ -525,6 +533,8 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       investorMarket !== -1 &&
       investorFunding !== -1 &&
       investorMarket < investorFunding &&
+      bankProfileIsolation === true &&
+      investorProfileIsolation === true &&
       report.bankMissingRequired.length === 0 &&
       report.investorMissingRequired.length === 0 &&
       report.bankMissingRequired.indexOf("financial-story") === -1 &&
