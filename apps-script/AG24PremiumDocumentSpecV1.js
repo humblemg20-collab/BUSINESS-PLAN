@@ -350,15 +350,18 @@ function AG24_PREMIUM_DOC_currentV2Capabilities_() {
     "problem",
     "solution",
     "market",
+    "competition",
     "traction",
     "business-model",
     "go-to-market",
     "operations",
+    "team-governance",
     "financial-story",
     "funding",
     "impact",
     "risks",
     "roadmap",
+    "evidence-appendix",
     "closing"
   ];
 }
@@ -522,10 +525,8 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       investorMarket !== -1 &&
       investorFunding !== -1 &&
       investorMarket < investorFunding &&
-      report.bankMissingRequired.indexOf("team-governance") !== -1 &&
-      report.bankMissingRequired.indexOf("evidence-appendix") !== -1 &&
-      report.investorMissingRequired.indexOf("competition") !== -1 &&
-      report.investorMissingRequired.indexOf("team-governance") !== -1 &&
+      report.bankMissingRequired.length === 0 &&
+      report.investorMissingRequired.length === 0 &&
       report.bankMissingRequired.indexOf("financial-story") === -1 &&
       report.investorMissingRequired.indexOf("traction") === -1;
 
