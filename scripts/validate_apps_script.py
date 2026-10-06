@@ -752,7 +752,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.12.0\"",
+        "ExpectedRegressionVersion = \"1.12.1\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -778,7 +778,7 @@ else:
 # Premium Financeur release-readiness contract
 premium_contracts = {
     "AG24PremiumDocumentRegressionSuiteV1.js": [
-        'VERSION:"1.12.0"',
+        'VERSION:"1.12.1"',
         "FINANCEUR_PRODUCTION_ROUTE",
         "FINANCEUR_CANARY_SELECTION",
     ],
