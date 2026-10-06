@@ -129,7 +129,7 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
         bankReadiness !== -1
           ? bankReadiness
           : bankFinancialStory;
-      var bankFunding = text.indexOf("Objectif financé");
+      var bankFunding = text.indexOf("Demande de financement");
       var bankProblem = text.indexOf("Problème et opportunité");
       var bankSolution = text.indexOf("Solution et proposition de valeur");
       var bankCompetition = text.indexOf("Concurrence & positionnement");
