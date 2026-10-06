@@ -5,7 +5,7 @@
  * the audience composer and that rendered section order changes by audience.
  */
 var AG24_PREMIUM_AUDIENCE_INTEGRATION_V1 = Object.freeze({
-  VERSION:"1.0.0"
+  VERSION:"1.0.1"
 });
 
 function AG24_PREMIUM_AUDIENCE_INTEGRATION_fixture_(audience) {
@@ -120,7 +120,10 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
       var bankTraction = text.indexOf("Traction & preuves");
       var bankMarket = text.indexOf("Marché et clientèle");
       var bankFinancial = text.indexOf("Financial Story");
-      var bankFunding = text.indexOf("Financement");
+      var bankFunding = text.indexOf("Objectif financé");
+      var bankProblem = text.indexOf("Problème et opportunité");
+      var bankSolution = text.indexOf("Solution et proposition de valeur");
+      var bankCompetition = text.indexOf("Concurrence & positionnement");
 
       result.orderPass =
         bankTraction !== -1 &&
@@ -128,12 +131,20 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
         bankFinancial !== -1 &&
         bankFunding !== -1 &&
         bankTraction < bankMarket &&
-        bankFinancial < bankFunding;
+        bankFinancial < bankFunding &&
+        bankProblem === -1 &&
+        bankSolution === -1 &&
+        bankCompetition === -1;
     } else if (audience === "INVESTOR") {
       var investorProblem = text.indexOf("Problème et opportunité");
       var investorMarket = text.indexOf("Marché et clientèle");
       var investorCompetition = text.indexOf("Concurrence & positionnement");
       var investorTraction = text.indexOf("Traction & preuves");
+
+      var investorProject =
+        text.indexOf("Présentation du projet");
+      var investorOperations =
+        text.indexOf("Équipe et organisation opérationnelle");
 
       result.orderPass =
         investorProblem !== -1 &&
@@ -142,7 +153,9 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
         investorTraction !== -1 &&
         investorProblem < investorMarket &&
         investorMarket < investorCompetition &&
-        investorCompetition < investorTraction;
+        investorCompetition < investorTraction &&
+        investorProject === -1 &&
+        investorOperations === -1;
     }
 
     reopened.saveAndClose();
