@@ -9,7 +9,7 @@
  * Deterministic. No AI call. No persistence side effect.
  */
 var AG24_PREMIUM_DOCUMENT_SPEC_V1 = Object.freeze({
-  VERSION: "1.0.1",
+  VERSION: "1.0.2",
   PRODUCT: "BUSINESS_PLAN",
   SUPPORTED_AUDIENCES: Object.freeze([
     "GENERIC",
@@ -380,6 +380,86 @@ function AG24_PREMIUM_DOC_unique_(values) {
   return output;
 }
 
+function AG24_PREMIUM_DOC_referenceAlignment_(audience, orderedModules) {
+  orderedModules =
+    Array.isArray(orderedModules)
+      ? orderedModules.slice()
+      : [];
+
+  if (
+    typeof AG24_BP_REFERENCE_getBlueprint_ !==
+      "function"
+  ) {
+    return {
+      available:false,
+      blueprintId:"",
+      referenceOrder:[],
+      sharedModules:[],
+      missingReferenceModules:[],
+      extraModules:[],
+      exactOrderMatch:false
+    };
+  }
+
+  var blueprint =
+    AG24_BP_REFERENCE_getBlueprint_(
+      audience
+    );
+
+  var referenceOrder =
+    blueprint &&
+    Array.isArray(blueprint.order)
+      ? blueprint.order.slice()
+      : [];
+
+  var moduleMap = {};
+  orderedModules.forEach(function(id) {
+    moduleMap[id] = true;
+  });
+
+  var referenceMap = {};
+  referenceOrder.forEach(function(id) {
+    referenceMap[id] = true;
+  });
+
+  var shared =
+    referenceOrder.filter(function(id) {
+      return Boolean(moduleMap[id]);
+    });
+
+  var missing =
+    referenceOrder.filter(function(id) {
+      return !moduleMap[id];
+    });
+
+  var extra =
+    orderedModules.filter(function(id) {
+      return !referenceMap[id];
+    });
+
+  var currentSharedOrder =
+    orderedModules.filter(function(id) {
+      return Boolean(referenceMap[id]);
+    });
+
+  return {
+    available:true,
+    blueprintId:
+      String(
+        blueprint &&
+        blueprint.id ||
+        ""
+      ),
+    referenceOrder:referenceOrder,
+    sharedModules:shared,
+    missingReferenceModules:missing,
+    extraModules:extra,
+    exactOrderMatch:
+      JSON.stringify(currentSharedOrder) ===
+      JSON.stringify(shared)
+  };
+}
+
 function AG24_PREMIUM_DOC_buildPlan_(options) {
   options = options || {};
 
@@ -425,6 +505,12 @@ function AG24_PREMIUM_DOC_buildPlan_(options) {
     };
   });
 
+  var referenceAlignment =
+    AG24_PREMIUM_DOC_referenceAlignment_(
+      audience,
+      orderedAvailable
+    );
+
   return {
     success: true,
     version: AG24_PREMIUM_DOCUMENT_SPEC_V1.VERSION,
@@ -451,7 +537,9 @@ function AG24_PREMIUM_DOC_buildPlan_(options) {
     missingPremiumModules: missingPremiumModules,
     productionReady:
       missingRequired.length === 0 &&
-      AG24_PREMIUM_DOCUMENT_SPEC_V1.QUALITY_GATES.requireFlowPagination === true
+      AG24_PREMIUM_DOCUMENT_SPEC_V1.QUALITY_GATES.requireFlowPagination === true,
+    referenceBenchmark:
+      referenceAlignment
   };
 }
 
@@ -475,6 +563,8 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
     fixedSemanticPageLabels: null,
     preserveDedicatedHardBreaks: null,
     representationRulesPass: false,
+    benchmarkAvailable: false,
+    benchmarkBlueprintId: "",
     failureCode: ""
   };
 
@@ -494,6 +584,17 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       bankA.layout.fixedSemanticPageLabels;
     report.preserveDedicatedHardBreaks =
       bankA.layout.preserveDedicatedHardBreaks;
+
+    report.benchmarkAvailable =
+      Boolean(
+        bankA.referenceBenchmark &&
+        bankA.referenceBenchmark.available
+      );
+
+    report.benchmarkBlueprintId =
+      bankA.referenceBenchmark
+        ? bankA.referenceBenchmark.blueprintId
+        : "";
 
     report.representationRulesPass =
       AG24_PREMIUM_DOC_recommendRepresentation_("TIME_SERIES") === "line_chart" &&
@@ -527,6 +628,8 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       report.fixedSemanticPageLabels === false &&
       report.preserveDedicatedHardBreaks === 2 &&
       report.representationRulesPass === true &&
+      report.benchmarkAvailable === true &&
+      report.benchmarkBlueprintId === "BANK_REFERENCE_V1" &&
       bankFunding !== -1 &&
       bankImpact !== -1 &&
       bankFunding < bankImpact &&
