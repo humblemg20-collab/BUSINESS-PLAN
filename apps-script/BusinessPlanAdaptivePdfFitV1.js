@@ -19,7 +19,7 @@
  */
 
 var AG24_BP_VISUAL_FIT_V1 = Object.freeze({
-  VERSION: "1.2.0",
+  VERSION: "1.3.0",
   MAX_ATTEMPTS: 3,
   SETTLE_MS: 900,
   PROFILES: Object.freeze([
@@ -652,6 +652,27 @@ function AG24_BP_VISUAL_FIT_try_(
       )
     );
 
+  var flowEnabled =
+    options.flowPagination !== false &&
+    typeof AG24_BP_FLOW_normalizeDocument_ ===
+      "function";
+
+  var minPhysical =
+    Number(
+      options.minPhysicalPageCount ||
+      (
+        flowEnabled
+          ? 8
+          : (
+              typeof AG24_BP_VISUAL_GATE_V1 !==
+                "undefined"
+                ? AG24_BP_VISUAL_GATE_V1
+                    .MIN_PHYSICAL_PAGE_COUNT
+                : 15
+            )
+      )
+    );
+
   var hardPhysicalMax =
     Number(
       options.hardPhysicalPageMax ||
@@ -663,6 +684,18 @@ function AG24_BP_VISUAL_FIT_try_(
           : 26
       )
     );
+
+  var flowReport = null;
+
+  if (flowEnabled) {
+    flowReport =
+      AG24_BP_FLOW_normalizeDocument_(
+        documentId,
+        {
+          preserveHardBreaks: 2
+        }
+      );
+  }
 
   var blob =
     AG24_BP_VISUAL_FIT_exportPdf_(
@@ -676,6 +709,8 @@ function AG24_BP_VISUAL_FIT_try_(
       {
         expectedSemanticPageCount:
           semanticCount,
+        minPhysicalPageCount:
+          minPhysical,
         hardPhysicalPageMax:
           hardPhysicalMax
       }
@@ -687,8 +722,12 @@ function AG24_BP_VISUAL_FIT_try_(
     applied: false,
     expectedSemanticPageCount:
       semanticCount,
+    minPhysicalPageCount:
+      minPhysical,
     hardPhysicalPageMax:
       hardPhysicalMax,
+    flowPagination:
+      flowReport,
     initialPageCount:
       report.physicalPageCount,
     finalPageCount:
@@ -720,9 +759,10 @@ function AG24_BP_VISUAL_FIT_try_(
   }
 
   /*
-   * 15-22 pages: normal.
-   * 23-26 pages: valid with warning.
-   * >26 pages: only this class is eligible for deterministic compaction.
+   * In FLOW mode, physical pages are allowed to be fewer than the
+   * 15 semantic blocks because sections can continue on the same page.
+   * Long-document thresholds remain unchanged; only extreme overflow
+   * is eligible for deterministic compaction.
    */
   if (
     report.success
@@ -817,6 +857,8 @@ function AG24_BP_VISUAL_FIT_try_(
         {
           expectedSemanticPageCount:
             semanticCount,
+          minPhysicalPageCount:
+            minPhysical,
           hardPhysicalPageMax:
             hardPhysicalMax
         }
@@ -967,6 +1009,19 @@ function AG24_BP_VISUAL_FIT_pdf_(
               options.expectedSemanticPageCount ||
               options.expectedPageCount ||
               15
+            ),
+      minPhysicalPageCount:
+        result.recovery &&
+        result.recovery.minPhysicalPageCount
+          ? result.recovery
+              .minPhysicalPageCount
+          : (
+              options.minPhysicalPageCount ||
+              (
+                typeof AG24_BP_FLOW_normalizeDocument_ === "function"
+                  ? 8
+                  : 15
+              )
             ),
       hardPhysicalPageMax:
         result.recovery &&
