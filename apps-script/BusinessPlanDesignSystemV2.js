@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.3.3",
+  VERSION: "2.4.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -4296,6 +4296,8 @@ function AG24_BP_V2_renderDocument_(
     data
   );
 
+  var premiumRenderedSections = [];
+
   model.sections.forEach(
     function(section, index) {
       AG24_BP_V2_addMasterSectionPage_(
@@ -4305,6 +4307,50 @@ function AG24_BP_V2_renderDocument_(
         theme,
         index + 3
       );
+
+      if (
+        section.id === "market" &&
+        typeof AG24_PREMIUM_TRACTION_render_ === "function"
+      ) {
+        var tractionResult =
+          AG24_PREMIUM_TRACTION_render_(
+            body,
+            data,
+            options.projectIntelligence || null,
+            theme
+          );
+
+        if (
+          tractionResult &&
+          tractionResult.rendered
+        ) {
+          premiumRenderedSections.push(
+            "traction"
+          );
+        }
+      }
+
+      if (
+        section.id === "operations" &&
+        typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
+      ) {
+        var financialSectionResult =
+          AG24_PREMIUM_FIN_SECTION_render_(
+            body,
+            data,
+            options.projectIntelligence || null,
+            theme
+          );
+
+        if (
+          financialSectionResult &&
+          financialSectionResult.rendered
+        ) {
+          premiumRenderedSections.push(
+            "financial-story"
+          );
+        }
+      }
     }
   );
 
@@ -4366,6 +4412,8 @@ function AG24_BP_V2_renderDocument_(
       visualPreflight,
     premiumDocumentPlan:
       premiumDocumentPlan,
+    premiumRenderedSections:
+      premiumRenderedSections,
     whiteLabel:
       true
   };
