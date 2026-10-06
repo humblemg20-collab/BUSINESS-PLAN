@@ -5,7 +5,7 @@
  * Deterministic orchestration; individual tests keep their own cleanup.
  */
 var AG24_PREMIUM_REGRESSION_V1 = Object.freeze({
-  VERSION:"1.4.0"
+  VERSION:"1.4.1"
 });
 
 function AG24_PREMIUM_REGRESSION_RUN_TEST_(name, fn) {
