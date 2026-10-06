@@ -389,13 +389,14 @@ function AG24_PREMIUM_BANCABLE_projectIntelligence_(dossier, modele) {
     "debt.termMonths",
     "debt.gracePeriodMonths"
   ].forEach(function(path) {
-    var value = AG24_PREMIUM_VISUALS_get_
-      ? AG24_PREMIUM_VISUALS_get_(project,path)
-      : path.split(".").reduce(function(current,key) {
-          return current === null || current === undefined
-            ? undefined
-            : current[key];
-        },project);
+    var value =
+      typeof AG24_PREMIUM_VISUALS_get_ === "function"
+        ? AG24_PREMIUM_VISUALS_get_(project,path)
+        : path.split(".").reduce(function(current,key) {
+            return current === null || current === undefined
+              ? undefined
+              : current[key];
+          },project);
 
     if (
       value !== null &&
