@@ -4097,6 +4097,58 @@ function AG24_BP_V2_renderDocument_(
       data
     );
 
+  /*
+   * Premium Document Planner V1 is advisory at this stage:
+   * it resolves audience, editorial order and structural gaps without
+   * mutating the validated V2 renderer or canonical project truth.
+   */
+  var premiumDocumentPlan = null;
+
+  if (
+    typeof AG24_PREMIUM_DOC_buildPlan_ ===
+    "function"
+  ) {
+    premiumDocumentPlan =
+      AG24_PREMIUM_DOC_buildPlan_({
+        audience:
+          options.audience ||
+          data.documentAudience ||
+          data.audience ||
+          data.fundingType ||
+          "GENERIC",
+        availableModules:
+          typeof AG24_PREMIUM_DOC_currentV2Capabilities_ ===
+          "function"
+            ? AG24_PREMIUM_DOC_currentV2Capabilities_()
+            : null
+      });
+
+    if (
+      typeof AG24_AUDIT_event_ ===
+      "function"
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          "PREMIUM_DOCUMENT_PLAN_RESOLVED",
+          {
+            version:
+              premiumDocumentPlan.version,
+            audience:
+              premiumDocumentPlan.audience,
+            productionReady:
+              premiumDocumentPlan.productionReady,
+            missingRequiredModules:
+              premiumDocumentPlan.missingRequiredModules,
+            missingPremiumModules:
+              premiumDocumentPlan.missingPremiumModules
+          }
+        );
+      } catch (
+        premiumPlanAuditError
+      ) {}
+    }
+  }
+
   if (
     typeof AG24_BP_VISUAL_assertPreflight_ !==
     "function"
@@ -4206,6 +4258,8 @@ function AG24_BP_V2_renderDocument_(
     ],
     visualQualityPreflight:
       visualPreflight,
+    premiumDocumentPlan:
+      premiumDocumentPlan,
     whiteLabel:
       true
   };
