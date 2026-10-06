@@ -161,11 +161,11 @@ function BP_DASHBOARD_SYNC_syncStoredFinanceur_(
       success:true,
       skipped:false,
       at:new Date().toISOString(),
-      downstream:
-        response &&
-        typeof response === 'object'
-          ? response
-          : {}
+      downstreamAccepted:
+        Boolean(
+          response &&
+          response.success === true
+        )
     };
 
     BP_DASHBOARD_SYNC_persistState_(
