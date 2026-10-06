@@ -5,16 +5,32 @@
  * or the richer Project Intelligence canonical snapshot when available.
  */
 var AG24_PREMIUM_FIN_SECTION_V1 = Object.freeze({
-  VERSION:"1.0.0"
+  VERSION:"1.1.0"
 });
 
 function AG24_PREMIUM_FIN_SECTION_flattenCanonical_(project) {
   if (!project) return null;
 
   var currency =
-    AG24_PREMIUM_EVIDENCE_BRIDGE_get_(project,"documentContext.currency") ||
-    AG24_PREMIUM_EVIDENCE_BRIDGE_get_(project,"funding.currency") ||
-    "EUR";
+    AG24_PREMIUM_EVIDENCE_BRIDGE_get_(
+      project,
+      "documentContext.currency"
+    ) ||
+    AG24_PREMIUM_EVIDENCE_BRIDGE_get_(
+      project,
+      "funding.currency"
+    ) ||
+    "";
+
+  if (
+    typeof AG24_PREMIUM_HARDEN_currency_ ===
+      "function"
+  ) {
+    currency =
+      AG24_PREMIUM_HARDEN_currency_(
+        currency
+      );
+  }
 
   return {
     currency:currency,
