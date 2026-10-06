@@ -8,7 +8,7 @@
  * this composer. This engine owns the ordered body modules only.
  */
 var AG24_PREMIUM_AUDIENCE_COMPOSER_V1 = Object.freeze({
-  VERSION:"1.0.1"
+  VERSION:"1.1.0"
 });
 
 function AG24_PREMIUM_AUDIENCE_COMPOSER_sectionMap_(model) {
@@ -161,8 +161,35 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_renderModule_(
       );
 
     case "closing":
+      var beforeClosingResult = null;
+
+      if (
+        typeof options.beforeClosingRenderer === "function"
+      ) {
+        beforeClosingResult =
+          options.beforeClosingRenderer(
+            body,
+            model,
+            data,
+            theme,
+            options
+          ) || {};
+
+        if (beforeClosingResult.success === false) {
+          throw new Error(
+            beforeClosingResult.failureCode ||
+            "BEFORE_CLOSING_EXTENSION_FAILED"
+          );
+        }
+      }
+
       AG24_BP_V2_addClosing_(body,model,data,theme);
-      return {success:true,rendered:true};
+
+      return {
+        success:true,
+        rendered:true,
+        beforeClosingResult:beforeClosingResult
+      };
 
     default:
       return {
