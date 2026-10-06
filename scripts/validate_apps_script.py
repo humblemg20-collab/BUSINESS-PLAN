@@ -833,7 +833,8 @@ premium_contracts = {
     "AG24PremiumFinancialSectionV1.js": [
         'VERSION:"1.1.0"',
         "Readiness financière",
-        "BANK_FINANCIAL_STRUCTURE_REQUIRED",
+        "AG24_PREMIUM_HARDEN_financialReadiness_",
+        "readinessRequired",
     ],
     "AG24PremiumCompetitionSectionV1.js": [
         'VERSION:"1.1.0"',
