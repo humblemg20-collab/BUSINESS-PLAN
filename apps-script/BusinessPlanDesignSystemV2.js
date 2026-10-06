@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.5.0",
+  VERSION: "2.6.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -3867,31 +3867,52 @@ function AG24_BP_V2_addRoadmapPage_(
     );
   }
 
-  AG24_BP_V2_addProcessFlow_(
-    body,
-    [
+  var premiumTimelineRendered = false;
+
+  if (
+    typeof AG24_PREMIUM_VISUALS_renderTimeline_ === "function"
+  ) {
+    var premiumTimelineResult =
+      AG24_PREMIUM_VISUALS_renderTimeline_(
+        body,
+        model.roadmap,
+        theme
+      );
+
+    premiumTimelineRendered =
+      Boolean(
+        premiumTimelineResult &&
+        premiumTimelineResult.rendered
+      );
+  }
+
+  if (!premiumTimelineRendered) {
+    AG24_BP_V2_addProcessFlow_(
+      body,
       [
-        "AUJOURD’HUI",
-        model.roadmap.now
+        [
+          "AUJOURD’HUI",
+          model.roadmap.now
+        ],
+        [
+          "6 MOIS",
+          model.roadmap.sixMonths ||
+          "À formaliser"
+        ],
+        [
+          "12 MOIS",
+          model.roadmap.twelveMonths ||
+          "À formaliser"
+        ],
+        [
+          "24 MOIS",
+          model.roadmap.twentyFourMonths ||
+          "À formaliser"
+        ]
       ],
-      [
-        "6 MOIS",
-        model.roadmap.sixMonths ||
-        "À formaliser"
-      ],
-      [
-        "12 MOIS",
-        model.roadmap.twelveMonths ||
-        "À formaliser"
-      ],
-      [
-        "24 MOIS",
-        model.roadmap.twentyFourMonths ||
-        "À formaliser"
-      ]
-    ],
-    theme
-  );
+      theme
+    );
+  }
 
   AG24_BP_V2_addCards_(
     body,
@@ -4312,6 +4333,27 @@ function AG24_BP_V2_renderDocument_(
         section.id === "market"
       ) {
         if (
+          typeof AG24_PREMIUM_VISUALS_renderMarket_ === "function"
+        ) {
+          var marketVisualResult =
+            AG24_PREMIUM_VISUALS_renderMarket_(
+              body,
+              data,
+              options.projectIntelligence || null,
+              theme
+            );
+
+          if (
+            marketVisualResult &&
+            marketVisualResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "market-visual"
+            );
+          }
+        }
+
+        if (
           typeof AG24_PREMIUM_COMPETITION_render_ === "function"
         ) {
           var competitionResult =
@@ -4350,6 +4392,28 @@ function AG24_BP_V2_renderDocument_(
               "traction"
             );
           }
+        }
+      }
+
+      if (
+        section.id === "funding" &&
+        typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
+      ) {
+        var allocationVisualResult =
+          AG24_PREMIUM_VISUALS_renderAllocation_(
+            body,
+            data,
+            options.projectIntelligence || null,
+            theme
+          );
+
+        if (
+          allocationVisualResult &&
+          allocationVisualResult.rendered
+        ) {
+          premiumRenderedSections.push(
+            "funding-allocation-visual"
+          );
         }
       }
 
