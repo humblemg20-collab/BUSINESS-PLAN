@@ -199,6 +199,138 @@ function AG24_PREMIUM_ACCEPTANCE_record_(report) {
   return compact;
 }
 
+function AG24_PREMIUM_ACCEPTANCE_isSynthetic_(value) {
+  return /(?:TEST|FIXTURE|CANARY)/i.test(
+    String(value || "")
+  );
+}
+
+function AG24_PREMIUM_ACCEPTANCE_discoverFinanceurIds_() {
+  var properties =
+    PropertiesService
+      .getScriptProperties()
+      .getProperties();
+
+  var prefix =
+    String(BPB_CONFIG.PREFIXE_STOCKAGE) + ":";
+
+  var suffix =
+    ":GENERATION_FINANCEUR:COUNT";
+
+  return Object.keys(properties)
+    .filter(function(key) {
+      return (
+        key.indexOf(prefix) === 0 &&
+        key.slice(-suffix.length) === suffix
+      );
+    })
+    .map(function(key) {
+      return key.slice(
+        prefix.length,
+        key.length - suffix.length
+      );
+    })
+    .filter(function(id,index,self) {
+      return (
+        id &&
+        self.indexOf(id) === index &&
+        !AG24_PREMIUM_ACCEPTANCE_isSynthetic_(id)
+      );
+    });
+}
+
+function runAg24PremiumProductionAcceptanceLatestV1() {
+  var candidates =
+    AG24_PREMIUM_ACCEPTANCE_discoverFinanceurIds_()
+      .map(function(id) {
+        var generation =
+          BPB_lireJsonChunked_(
+            BPB_cle_(
+              id,
+              "GENERATION_FINANCEUR"
+            )
+          );
+
+        return {
+          dossierId:id,
+          generation:generation,
+          time:
+            generation && generation.genereLe
+              ? new Date(generation.genereLe).getTime()
+              : 0
+        };
+      })
+      .filter(function(item) {
+        return (
+          item.generation &&
+          item.generation.statut === "FINANCEUR_GENERE" &&
+          !AG24_PREMIUM_ACCEPTANCE_isSynthetic_(
+            item.generation.nomProjet
+          )
+        );
+      })
+      .sort(function(a,b) {
+        return b.time - a.time;
+      });
+
+  if (!candidates.length) {
+    var waiting = {
+      success:false,
+      blocked:true,
+      state:"WAITING_FOR_REAL_PRODUCTION_GENERATION",
+      version:AG24_PREMIUM_PRODUCTION_ACCEPTANCE_V1.VERSION,
+      evaluatedAt:new Date().toISOString(),
+      failureCode:"",
+      nextAction:
+        "Attendre la prochaine génération Financeur réelle puis relancer l’acceptance."
+    };
+
+    Logger.log(
+      JSON.stringify(waiting,null,2)
+    );
+
+    return waiting;
+  }
+
+  var selected = candidates[0];
+  var source =
+    BPB_obtenirDossierUnifie_(
+      selected.dossierId
+    );
+
+  var bridge =
+    String(
+      source &&
+      source.meta &&
+      source.meta.agBridge
+        ? source.meta.agBridge
+        : ""
+    ).trim();
+
+  var report =
+    AG24_PREMIUM_ACCEPTANCE_evaluate_(
+      selected.generation,
+      {
+        dashboardExpected:Boolean(bridge),
+        verifyDriveFiles:true
+      }
+    );
+
+  report.blocked = false;
+  report.state =
+    report.success
+      ? "PASSED"
+      : "FAILED";
+
+  AG24_PREMIUM_ACCEPTANCE_record_(report);
+
+  Logger.log(
+    JSON.stringify(report,null,2)
+  );
+
+  return report;
+}
+
 function AG24_PREMIUM_PRODUCTION_ACCEPTANCE_SYSTEM_TEST_V1() {
   var base = {
     statut:"FINANCEUR_GENERE",
