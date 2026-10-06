@@ -3,7 +3,7 @@
  * Deterministic metric model for premium documents.
  */
 var AG24_PREMIUM_FIN_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.0.1",
   MAX_METRICS: 6
 });
 
@@ -115,6 +115,19 @@ function AG24_PREMIUM_FIN_buildStory_(data) {
     "cfads","CFADS",AG24_PREMIUM_FIN_money_(cfads,currency),"DECLARED"
   );
 
+  var funding = AG24_PREMIUM_FIN_first_(data, [
+    "fundingNeed","fundingAmount","montantDemande"
+  ]);
+  var fundingNumber = AG24_PREMIUM_FIN_num_(funding);
+  if (funding !== null) add(
+    "funding",
+    "Financement recherché",
+    fundingNumber !== null
+      ? AG24_PREMIUM_FIN_money_(fundingNumber,currency)
+      : String(funding),
+    "DECLARED"
+  );
+
   return {
     success:true,
     version:AG24_PREMIUM_FIN_V1.VERSION,
@@ -130,7 +143,8 @@ function AG24_PREMIUM_FIN_STORY_SYSTEM_TEST_V1() {
     mrr:8100,
     payingCustomers:18,
     grossMargin:42,
-    cfads:72000
+    cfads:72000,
+    fundingNeed:150000
   };
   var a = AG24_PREMIUM_FIN_buildStory_(input);
   var b = AG24_PREMIUM_FIN_buildStory_(input);
@@ -141,11 +155,15 @@ function AG24_PREMIUM_FIN_STORY_SYSTEM_TEST_V1() {
       JSON.stringify(a) === JSON.stringify(b) &&
       a.calculations.arrFromMrr === true &&
       arr && arr.value === "€97.2k" &&
-      arr.truthStatus === "CALCULATED",
+      arr.truthStatus === "CALCULATED" &&
+      a.metrics.some(function(x){
+        return x.id === "funding" && x.value === "€150k";
+      }),
     version:AG24_PREMIUM_FIN_V1.VERSION,
     deterministic:JSON.stringify(a) === JSON.stringify(b),
     arrFromMrr:a.calculations.arrFromMrr,
     arrValue:arr ? arr.value : "",
+    fundingPresent:a.metrics.some(function(x){return x.id === "funding";}),
     metricIds:a.metrics.map(function(x){return x.id;}),
     failureCode:""
   };
