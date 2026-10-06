@@ -200,12 +200,30 @@ function AG24_PREMIUM_FIN_SECTION_build_(data, projectIntelligence) {
     });
   }
 
+  var bankContext =
+    AG24_PREMIUM_FIN_SECTION_isBank_(
+      data,
+      projectIntelligence
+    );
+
+  var readiness =
+    bankContext &&
+    typeof AG24_PREMIUM_HARDEN_financialReadiness_ ===
+      "function"
+      ? AG24_PREMIUM_HARDEN_financialReadiness_(
+          data || {},
+          projectIntelligence || null
+        )
+      : null;
+
   return {
     success:true,
     version:AG24_PREMIUM_FIN_SECTION_V1.VERSION,
     story:story,
     debtMetrics:debtMetrics,
-    hasProjectIntelligence:Boolean(projectIntelligence)
+    hasProjectIntelligence:Boolean(projectIntelligence),
+    bankContext:bankContext,
+    readiness:readiness
   };
 }
 
