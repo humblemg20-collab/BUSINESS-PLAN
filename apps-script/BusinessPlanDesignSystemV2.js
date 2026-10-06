@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.3.2",
+  VERSION: "2.3.3",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -3758,11 +3758,64 @@ function AG24_BP_V2_addRiskPage_(
     .setFontSize(9)
     .setSpacingAfter(12);
 
-  AG24_BP_V2_addRiskRegister_(
-    body,
-    model.risks,
-    theme
-  );
+  /*
+   * Premium Risk Matrix V1 becomes the preferred deterministic renderer.
+   * Fallback to the validated V2 register if the premium component is absent
+   * or there are no normalized risks to render.
+   */
+  var premiumRiskRendered = false;
+
+  if (
+    typeof AG24_PREMIUM_RISK_fromModel_ ===
+      "function" &&
+    typeof AG24_PREMIUM_RISK_render_ ===
+      "function"
+  ) {
+    var premiumRisks =
+      AG24_PREMIUM_RISK_fromModel_(
+        model.risks
+      );
+
+    premiumRiskRendered =
+      Boolean(
+        AG24_PREMIUM_RISK_render_(
+          body,
+          premiumRisks,
+          theme
+        )
+      );
+
+    if (
+      premiumRiskRendered &&
+      typeof AG24_AUDIT_event_ ===
+        "function"
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          "PREMIUM_RISK_MATRIX_RENDERED",
+          {
+            version:
+              AG24_PREMIUM_RISK_MATRIX_V1 &&
+              AG24_PREMIUM_RISK_MATRIX_V1.VERSION
+                ? AG24_PREMIUM_RISK_MATRIX_V1.VERSION
+                : "",
+            riskCount:
+              premiumRisks.length
+          }
+        );
+      } catch (
+        premiumRiskAuditError
+      ) {}
+    }
+  }
+
+  if (!premiumRiskRendered) {
+    AG24_BP_V2_addRiskRegister_(
+      body,
+      model.risks,
+      theme
+    );
+  }
 
   AG24_BP_V2_addPageLabel_(
     body,
