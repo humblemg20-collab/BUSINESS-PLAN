@@ -177,6 +177,23 @@ function BPB3_reponseClientGeneration_(generation) {
         : Number(generation.score),
     niveau: String(generation.niveau || ''),
     moteurRedaction: String(generation.moteurRedaction || ''),
+    documentRenderer:
+      String(
+        generation.documentRenderer || ''
+      ),
+    premiumFallbackUsed:
+      Boolean(
+        generation.premiumFallbackUsed
+      ),
+    premiumRendererVersion:
+      String(
+        generation.premiumRendererVersion || ''
+      ),
+    physicalPageCount:
+      generation.physicalPageCount === null ||
+      generation.physicalPageCount === undefined
+        ? undefined
+        : Number(generation.physicalPageCount),
     dashboardSync:
       generation.dashboardSync &&
       typeof generation.dashboardSync === 'object'
@@ -1232,6 +1249,64 @@ function BPB3_creerDocumentFinanceur_(dossier, modele, folder) {
   };
 }
 
+function BPB3_creerDocumentFinanceurRoute_(dossier, modeleFinancier, folder) {
+  var resultat;
+
+  if (
+    typeof AG24_PREMIUM_BANCABLE_RENDERER_createWithFallback_ ===
+      'function'
+  ) {
+    resultat =
+      AG24_PREMIUM_BANCABLE_RENDERER_createWithFallback_(
+        dossier,
+        modeleFinancier,
+        folder
+      );
+  } else {
+    resultat =
+      BPB3_creerDocumentFinanceur_(
+        dossier,
+        modeleFinancier,
+        folder
+      );
+
+    resultat.renderer =
+      'LEGACY_NO_PREMIUM_ENGINE';
+  }
+
+  if (
+    typeof AG24_AUDIT_event_ ===
+      'function'
+  ) {
+    try {
+      AG24_AUDIT_event_(
+        'BANCABLE_FINANCEUR_RENDERER_SELECTED',
+        {
+          dossierId:
+            String(
+              dossier && dossier.dossierId
+                ? dossier.dossierId
+                : ''
+            ),
+          renderer:
+            String(
+              resultat && resultat.renderer
+                ? resultat.renderer
+                : 'LEGACY'
+            ),
+          premiumFallbackUsed:
+            Boolean(
+              resultat &&
+              resultat.renderer === 'LEGACY_FALLBACK'
+            )
+        }
+      );
+    } catch (auditError) {}
+  }
+
+  return resultat;
+}
+
 function genererBusinessPlanFinanceur_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
@@ -1260,7 +1335,11 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
     const modeleFinancier = BPB3_construireModeleFinancier_(dossier);
     dossier.narratifIA = BPB5_obtenirNarratifIA_(dossier, modeleFinancier);
     const folder = BPB3_obtenirDossierSortie_();
-    const resultatDocument = BPB3_creerDocumentFinanceur_(dossier, modeleFinancier, folder);
+    const resultatDocument = BPB3_creerDocumentFinanceurRoute_(
+      dossier,
+      modeleFinancier,
+      folder
+    );
     const generation = {
       statut: 'FINANCEUR_GENERE',
       typeDocument: 'BUSINESS_PLAN_FINANCEUR',
@@ -1274,7 +1353,27 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
       pdfId: resultatDocument.pdfId,
       pdfUrl: resultatDocument.pdfUrl,
       folderId: folder.getId(),
-      folderUrl: folder.getUrl()
+      folderUrl: folder.getUrl(),
+      documentRenderer:
+        String(
+          resultatDocument.renderer ||
+          'LEGACY'
+        ),
+      premiumFallbackUsed:
+        resultatDocument.renderer ===
+          'LEGACY_FALLBACK',
+      premiumRendererVersion:
+        resultatDocument.version
+          ? String(resultatDocument.version)
+          : '',
+      physicalPageCount:
+        resultatDocument.visualQualityPdf &&
+        resultatDocument.visualQualityPdf.physicalPageCount
+          ? Number(
+              resultatDocument.visualQualityPdf
+                .physicalPageCount
+            )
+          : null
     };
     BPB3_enregistrerSucces_(id, generation, 'FINANCEUR');
 
