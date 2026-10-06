@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.7.0",
+  VERSION: "2.8.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -4339,7 +4339,11 @@ function AG24_BP_V2_renderDocument_(
         premiumDocumentPlan,
         {
           projectIntelligence:
-            options.projectIntelligence || null
+            options.projectIntelligence || null,
+          beforeClosingRenderer:
+            options.beforeClosingRenderer || null,
+          extensionContext:
+            options.extensionContext || null
         }
       );
 
