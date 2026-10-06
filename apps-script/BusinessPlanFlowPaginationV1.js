@@ -9,7 +9,7 @@
  * Deterministic. No AI. Idempotent.
  */
 var AG24_BP_FLOW_V1 = Object.freeze({
-  VERSION: "1.0.0",
+  VERSION: "1.0.1",
   PRESERVE_HARD_BREAKS: 2,
   SEMANTIC_PAGE_LABEL_RE: /^\s*\d+\s*\/\s*15\s*$/
 });
@@ -69,6 +69,29 @@ function AG24_BP_FLOW_removeElement_(element) {
   }
 }
 
+/**
+ * Google Docs can refuse to remove the terminal paragraph of a document.
+ * A semantic "n / 15" label may therefore survive removeFromParent() when
+ * it is the final body paragraph. In that case, clearing its text is the
+ * deterministic fallback. The visual label is gone while document validity
+ * is preserved.
+ */
+function AG24_BP_FLOW_removeLabel_(paragraph) {
+  if (!paragraph) return false;
+
+  try {
+    paragraph.removeFromParent();
+    return true;
+  } catch (removeError) {}
+
+  try {
+    paragraph.setText("");
+    return true;
+  } catch (clearError) {
+    return false;
+  }
+}
+
 function AG24_BP_FLOW_normalizeDocument_(documentId, options) {
   options = options || {};
 
@@ -96,10 +119,9 @@ function AG24_BP_FLOW_normalizeDocument_(documentId, options) {
   }
 
   for (var j = state.labels.length - 1; j >= 0; j--) {
-    try {
-      state.labels[j].removeFromParent();
+    if (AG24_BP_FLOW_removeLabel_(state.labels[j])) {
       removedLabels++;
-    } catch (labelError) {}
+    }
   }
 
   document.saveAndClose();
