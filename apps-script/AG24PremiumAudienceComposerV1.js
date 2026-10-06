@@ -8,7 +8,7 @@
  * this composer. This engine owns the ordered body modules only.
  */
 var AG24_PREMIUM_AUDIENCE_COMPOSER_V1 = Object.freeze({
-  VERSION:"1.0.0"
+  VERSION:"1.0.1"
 });
 
 function AG24_PREMIUM_AUDIENCE_COMPOSER_sectionMap_(model) {
@@ -304,7 +304,11 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_SYSTEM_TEST_V1() {
       bankOrder.indexOf("financial-story") <
         bankOrder.indexOf("funding") &&
       bankOrder.indexOf("funding") <
-        bankOrder.indexOf("impact");
+        bankOrder.indexOf("impact") &&
+      bankOrder.indexOf("problem") === -1 &&
+      bankOrder.indexOf("solution") === -1 &&
+      bankOrder.indexOf("competition") === -1 &&
+      bankOrder[bankOrder.length - 1] === "closing";
 
     report.investorOrderPass =
       investorOrder.indexOf("problem") <
@@ -312,13 +316,17 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_SYSTEM_TEST_V1() {
       investorOrder.indexOf("competition") <
         investorOrder.indexOf("traction") &&
       investorOrder.indexOf("traction") <
-        investorOrder.indexOf("financial-story");
+        investorOrder.indexOf("financial-story") &&
+      investorOrder.indexOf("project") === -1 &&
+      investorOrder.indexOf("operations") === -1 &&
+      investorOrder[investorOrder.length - 1] === "closing";
 
     report.grantOrderPass =
       grantOrder.indexOf("impact") <
         grantOrder.indexOf("market") &&
       grantOrder.indexOf("roadmap") <
-        grantOrder.indexOf("funding");
+        grantOrder.indexOf("funding") &&
+      grantOrder[grantOrder.length - 1] === "closing";
 
     report.ordersDifferent =
       JSON.stringify(bankOrder) !== JSON.stringify(investorOrder) &&
