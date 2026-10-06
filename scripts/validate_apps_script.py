@@ -747,9 +747,15 @@ else:
     )
 
     for marker in [
-        "BUSINESS PLAN POWERSHELL RELEASE ENGINE V1",
+        "BUSINESS PLAN POWERSHELL RELEASE ENGINE V2",
         "WORKTREE_DIRTY",
-        "CANONICAL_MAIN_MISMATCH",
+        "CanonicalBranch = \"work/apps-script-v92\"",
+        "CANONICAL_BRANCH_MISMATCH",
+        "CANONICAL_BRANCH_SHA_MISMATCH",
+        "ExpectedRegressionVersion = \"1.9.0\"",
+        "ExpectedReadinessGateVersion = \"1.2.0\"",
+        "PREMIUM_SOURCE_CONTRACT=PASS",
+        "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
         "APPS_SCRIPT_HEAD_PUSH=PASS",
         "APPS_SCRIPT_HEAD_PUSH=SKIPPED_BY_CALLER",
         "[switch]$SkipPush",
@@ -768,6 +774,50 @@ else:
 
     if '$WebAppUrl + "?health=openai-config"' not in release_engine_text:
         fail("PowerShell release engine must build health URL explicitly")
+
+# Premium Financeur release-readiness contract
+premium_contracts = {
+    "AG24PremiumDocumentRegressionSuiteV1.js": [
+        'VERSION:"1.9.0"',
+        "FINANCEUR_PRODUCTION_ROUTE",
+        "FINANCEUR_CANARY_SELECTION",
+    ],
+    "AG24PremiumFinanceurProductionCanaryV1.js": [
+        'VERSION:"1.2.0"',
+        "AUDIT_READY_SHADOW",
+        "sourceGenerationUnchanged",
+        "PREMIUM_FINANCEUR_REAL_CANARY_PASSED",
+    ],
+    "AG24PremiumFinanceurReleaseReadinessGateV1.js": [
+        'VERSION:"1.2.0"',
+        "technicalReleaseReady",
+        "productionDeliveryGatePreserved",
+        "PREMIUM_FINANCEUR_RELEASE_READINESS_PASSED",
+    ],
+    "AG24PremiumBancableRendererV1.js": [
+        'VERSION:"1.0.0"',
+        "PREMIUM_BANCABLE_FINANCEUR_RENDERED",
+        "LEGACY_FALLBACK",
+    ],
+}
+
+for filename, markers in premium_contracts.items():
+    premium_path = APP / filename
+    if not premium_path.exists():
+        fail(f"Premium release contract file missing: {filename}")
+        continue
+
+    premium_text = premium_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in markers:
+        if marker not in premium_text:
+            fail(
+                f"Premium release contract marker missing in {filename}: {marker}"
+            )
+
 
 # Business Plan Adaptive PDF Fit V1 contract
 pdf_fit_path = APP / "BusinessPlanAdaptivePdfFitV1.js"
@@ -867,7 +917,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.3.1"',
+        'VERSION: "2.8.0"',
         'MASTER_PAGE_COUNT: 15',
         'MAX_RENDER_TEXT_CHARS: 12000',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
