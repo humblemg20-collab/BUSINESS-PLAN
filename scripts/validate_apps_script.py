@@ -840,6 +840,39 @@ premium_contracts = {
         'VERSION:"1.1.0"',
         "AG24_PREMIUM_COMPETITION_isSentinel_",
     ],
+    "AG24BusinessPlanReferenceBenchmarkV1.js": [
+        'VERSION:"1.0.0"',
+        "BANK_REFERENCE_V1",
+        "BPIFRANCE",
+        "SBA",
+        "FUTURPRENEUR",
+        "AG24_BP_REFERENCE_SYSTEM_TEST_V1",
+    ],
+    "AG24BankReferenceComponentsV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_BANK_REF_renderExecutiveSummary_",
+        "AG24_BANK_REF_renderFundingRequest_",
+        "AG24_BANK_REF_renderRiskRegister_",
+        "AG24_BANK_REFERENCE_COMPONENTS_SYSTEM_TEST_V1",
+    ],
+    "AG24PremiumDocumentSpecV1.js": [
+        'VERSION: "1.1.0"',
+        "referenceBenchmark:",
+        "AG24_PREMIUM_DOC_referenceAlignment_",
+    ],
+    "AG24PremiumAudienceComposerV1.js": [
+        'VERSION:"1.2.0"',
+        "bankReferenceActive",
+        "AG24_BANK_REF_renderExecutiveSummary_",
+        "AG24_BANK_REF_renderFundingRequest_",
+        "AG24_BANK_REF_renderRiskRegister_",
+    ],
+    "AG24PremiumAudienceIntegrationV1.js": [
+        'VERSION:"1.1.0"',
+        "bankBusinessModel",
+        "bankGoToMarket",
+        "bankTeam",
+    ],
 }
 
 for filename, markers in premium_contracts.items():
