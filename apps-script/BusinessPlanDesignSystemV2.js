@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.4.0",
+  VERSION: "2.5.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -4309,46 +4309,92 @@ function AG24_BP_V2_renderDocument_(
       );
 
       if (
-        section.id === "market" &&
-        typeof AG24_PREMIUM_TRACTION_render_ === "function"
+        section.id === "market"
       ) {
-        var tractionResult =
-          AG24_PREMIUM_TRACTION_render_(
-            body,
-            data,
-            options.projectIntelligence || null,
-            theme
-          );
+        if (
+          typeof AG24_PREMIUM_COMPETITION_render_ === "function"
+        ) {
+          var competitionResult =
+            AG24_PREMIUM_COMPETITION_render_(
+              body,
+              data,
+              theme
+            );
+
+          if (
+            competitionResult &&
+            competitionResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "competition"
+            );
+          }
+        }
 
         if (
-          tractionResult &&
-          tractionResult.rendered
+          typeof AG24_PREMIUM_TRACTION_render_ === "function"
         ) {
-          premiumRenderedSections.push(
-            "traction"
-          );
+          var tractionResult =
+            AG24_PREMIUM_TRACTION_render_(
+              body,
+              data,
+              options.projectIntelligence || null,
+              theme
+            );
+
+          if (
+            tractionResult &&
+            tractionResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "traction"
+            );
+          }
         }
       }
 
       if (
-        section.id === "operations" &&
-        typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
+        section.id === "operations"
       ) {
-        var financialSectionResult =
-          AG24_PREMIUM_FIN_SECTION_render_(
-            body,
-            data,
-            options.projectIntelligence || null,
-            theme
-          );
+        if (
+          typeof AG24_PREMIUM_TEAM_GOV_render_ === "function"
+        ) {
+          var teamGovernanceResult =
+            AG24_PREMIUM_TEAM_GOV_render_(
+              body,
+              data,
+              theme
+            );
+
+          if (
+            teamGovernanceResult &&
+            teamGovernanceResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "team-governance"
+            );
+          }
+        }
 
         if (
-          financialSectionResult &&
-          financialSectionResult.rendered
+          typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
         ) {
-          premiumRenderedSections.push(
-            "financial-story"
-          );
+          var financialSectionResult =
+            AG24_PREMIUM_FIN_SECTION_render_(
+              body,
+              data,
+              options.projectIntelligence || null,
+              theme
+            );
+
+          if (
+            financialSectionResult &&
+            financialSectionResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "financial-story"
+            );
+          }
         }
       }
     }
@@ -4365,6 +4411,27 @@ function AG24_BP_V2_renderDocument_(
     model,
     theme
   );
+
+  if (
+    options.projectIntelligence &&
+    typeof AG24_PREMIUM_EVIDENCE_APPENDIX_render_ === "function"
+  ) {
+    var evidenceAppendixResult =
+      AG24_PREMIUM_EVIDENCE_APPENDIX_render_(
+        body,
+        options.projectIntelligence,
+        theme
+      );
+
+    if (
+      evidenceAppendixResult &&
+      evidenceAppendixResult.rendered
+    ) {
+      premiumRenderedSections.push(
+        "evidence-appendix"
+      );
+    }
+  }
 
   AG24_BP_V2_addClosing_(
     body,
