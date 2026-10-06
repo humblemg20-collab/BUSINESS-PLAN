@@ -5,7 +5,7 @@
  * Deterministic orchestration; individual tests keep their own cleanup.
  */
 var AG24_PREMIUM_REGRESSION_V1 = Object.freeze({
-  VERSION:"1.10.0"
+  VERSION:"1.11.0"
 });
 
 function AG24_PREMIUM_REGRESSION_RUN_TEST_(name, fn) {
@@ -188,6 +188,18 @@ function AG24_PREMIUM_DOCUMENT_REGRESSION_SUITE_V1() {
       "PRODUCTION_ACCEPTANCE",
       typeof AG24_PREMIUM_PRODUCTION_ACCEPTANCE_SYSTEM_TEST_V1 === "function"
         ? AG24_PREMIUM_PRODUCTION_ACCEPTANCE_SYSTEM_TEST_V1
+        : null
+    ],
+    [
+      "DOCUMENT_HARDENING",
+      typeof AG24_PREMIUM_DOCUMENT_HARDENING_SYSTEM_TEST_V1 === "function"
+        ? AG24_PREMIUM_DOCUMENT_HARDENING_SYSTEM_TEST_V1
+        : null
+    ],
+    [
+      "REAL_WORLD_QA",
+      typeof AG24_PREMIUM_REALWORLD_QA_SYSTEM_TEST_V1 === "function"
+        ? AG24_PREMIUM_REALWORLD_QA_SYSTEM_TEST_V1
         : null
     ]
   ];
