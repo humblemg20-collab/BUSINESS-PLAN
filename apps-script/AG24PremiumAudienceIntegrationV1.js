@@ -5,7 +5,7 @@
  * the audience composer and that rendered section order changes by audience.
  */
 var AG24_PREMIUM_AUDIENCE_INTEGRATION_V1 = Object.freeze({
-  VERSION:"1.0.1"
+  VERSION:"1.0.2"
 });
 
 function AG24_PREMIUM_AUDIENCE_INTEGRATION_fixture_(audience) {
@@ -119,7 +119,12 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
     if (audience === "BANK") {
       var bankTraction = text.indexOf("Traction & preuves");
       var bankMarket = text.indexOf("Marché et clientèle");
-      var bankFinancial = text.indexOf("Financial Story");
+      var bankFinancialStory = text.indexOf("Financial Story");
+      var bankReadiness = text.indexOf("Readiness financière");
+      var bankFinancial =
+        bankReadiness !== -1
+          ? bankReadiness
+          : bankFinancialStory;
       var bankFunding = text.indexOf("Objectif financé");
       var bankProblem = text.indexOf("Problème et opportunité");
       var bankSolution = text.indexOf("Solution et proposition de valeur");
@@ -144,7 +149,7 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
       var investorProject =
         text.indexOf("Présentation du projet");
       var investorOperations =
-        text.indexOf("Équipe et organisation opérationnelle");
+        text.indexOf("Organisation opérationnelle");
 
       result.orderPass =
         investorProblem !== -1 &&
