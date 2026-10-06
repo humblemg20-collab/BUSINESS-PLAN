@@ -1045,8 +1045,9 @@ function AG24_BP_VISUAL_FIT_pdf_(
  * Runtime regression test for the recovery contract.
  *
  * The production renderer is not called and no AI is used.
- * We intentionally create four semantic pages that overflow, then verify
- * that the bounded compaction engine restores the physical 15-page master.
+ * This test isolates the legacy hard-page overflow/compaction contract, so
+ * FLOW pagination is explicitly disabled here. Flow behavior has its own
+ * deterministic regression test in BusinessPlanFlowPaginationV1.js.
  */
 function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
   var documentId = "";
@@ -1124,7 +1125,8 @@ function AG24_BP_VISUAL_FIT_SYSTEM_TEST_V1() {
         documentId,
         "visual-fit-policy.pdf",
         {
-          expectedSemanticPageCount: 15
+          expectedSemanticPageCount: 15,
+          flowPagination: false
         }
       );
 
