@@ -16,7 +16,7 @@
  * not persist a production generation record or sync the dashboard.
  */
 var AG24_PREMIUM_FINANCEUR_CANARY_V1 = Object.freeze({
-  VERSION:"1.1.0",
+  VERSION:"1.2.0",
   MAX_SCAN:25,
   LAST_RESULT_PROPERTY:"AFRIGREEN24_PREMIUM_FINANCEUR_CANARY_LAST"
 });
@@ -97,22 +97,55 @@ function AG24_PREMIUM_FINANCEUR_CANARY_candidateMeta_(id) {
   };
 }
 
-function AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics) {
-  diagnostics = Array.isArray(diagnostics) ? diagnostics : [];
-
-  var validationReady = diagnostics.filter(function(item) {
-    return item && item.reason === "FINAL_VALIDATION_REQUIRED";
-  });
-
-  if (validationReady.length) {
+function AG24_PREMIUM_FINANCEUR_CANARY_authorizationMode_(
+  auditReady,
+  validation
+) {
+  if (auditReady !== true) {
     return {
-      state:"WAITING_FOR_FINAL_VALIDATION",
-      nextCandidateId:String(validationReady[0].dossierId || ""),
-      nextCandidateProjectName:String(validationReady[0].projectName || ""),
-      nextAction:
-        "Le dossier est audité et prêt techniquement. Le porteur doit effectuer la validation finale avant le canary réel."
+      allowed:false,
+      shadowOnly:false,
+      finalValidationReady:false,
+      state:"WAITING_FOR_AUDIT_READY_DOSSIER",
+      mode:"AUDIT_NOT_READY"
     };
   }
+
+  var finalValidationReady =
+    Boolean(
+      validation &&
+      validation.informationsExactes === true &&
+      validation.decisionFinanceur === true
+    );
+
+  if (finalValidationReady) {
+    return {
+      allowed:true,
+      shadowOnly:false,
+      finalValidationReady:true,
+      state:"ELIGIBLE_VALIDATED",
+      mode:"FINAL_VALIDATION_READY"
+    };
+  }
+
+  /*
+   * A shadow canary is reversible and non-delivering:
+   * no GENERATION_FINANCEUR persistence, no Dashboard sync, all artifacts
+   * are deleted. Therefore an audit-ready real dossier is sufficient for
+   * technical release validation. Production delivery still requires the
+   * final human validation in genererBusinessPlanFinanceur_.
+   */
+  return {
+    allowed:true,
+    shadowOnly:true,
+    finalValidationReady:false,
+    state:"SHADOW_ELIGIBLE_AUDIT_READY",
+    mode:"AUDIT_READY_SHADOW"
+  };
+}
+
+function AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics) {
+  diagnostics = Array.isArray(diagnostics) ? diagnostics : [];
 
   var auditPending = diagnostics.filter(function(item) {
     return item && item.reason === "AUDIT_NOT_READY";
@@ -124,7 +157,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics) {
       nextCandidateId:String(auditPending[0].dossierId || ""),
       nextCandidateProjectName:String(auditPending[0].projectName || ""),
       nextAction:
-        "Aucun dossier n'est encore prêt techniquement pour la génération Financeur. Finaliser les corrections de l'audit."
+        "Aucun dossier réel n'est encore prêt techniquement. Finaliser les corrections de l'audit Bancable."
     };
   }
 
@@ -133,7 +166,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics) {
     nextCandidateId:"",
     nextCandidateProjectName:"",
     nextAction:
-      "Créer ou compléter un dossier Bancable réel jusqu'à l'audit puis à la validation finale."
+      "Créer ou compléter un dossier Bancable réel jusqu'à un audit prêt pour génération."
   };
 }
 
@@ -150,6 +183,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
       );
 
   var diagnostics = [];
+  var firstShadowCandidate = null;
 
   for (var index=0; index<candidates.length; index++) {
     var candidate = candidates[index];
@@ -182,10 +216,13 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
           source.bancable
         );
 
-      if (
-        !analysis.audit ||
-        analysis.audit.pretPourGeneration !== true
-      ) {
+      var auditReady =
+        Boolean(
+          analysis.audit &&
+          analysis.audit.pretPourGeneration === true
+        );
+
+      if (!auditReady) {
         diagnostics.push({
           dossierId:id,
           projectName:projectName,
@@ -202,35 +239,46 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
           BPB_cle_(id,"VALIDATION_FINALE")
         );
 
-      if (
-        !validation ||
-        validation.informationsExactes !== true ||
-        validation.decisionFinanceur !== true
-      ) {
-        diagnostics.push({
-          dossierId:id,
-          projectName:projectName,
-          eligible:false,
-          auditReady:true,
-          finalValidationReady:false,
-          reason:"FINAL_VALIDATION_REQUIRED"
-        });
-        continue;
-      }
+      var authorization =
+        AG24_PREMIUM_FINANCEUR_CANARY_authorizationMode_(
+          true,
+          validation
+        );
 
-      return {
+      var resolved = {
         success:true,
-        state:"ELIGIBLE",
         blocked:false,
+        state:authorization.state,
         dossierId:id,
         projectName:projectName,
         source:source,
         analysis:analysis,
         diagnostics:diagnostics,
+        shadowOnly:authorization.shadowOnly,
+        shadowAuthorizationMode:authorization.mode,
+        finalValidationReady:authorization.finalValidationReady,
         nextCandidateId:"",
         nextCandidateProjectName:"",
         nextAction:""
       };
+
+      if (authorization.finalValidationReady) {
+        return resolved;
+      }
+
+      if (!firstShadowCandidate) {
+        firstShadowCandidate = resolved;
+      }
+
+      diagnostics.push({
+        dossierId:id,
+        projectName:projectName,
+        eligible:true,
+        auditReady:true,
+        finalValidationReady:false,
+        shadowOnly:true,
+        reason:"AUDIT_READY_SHADOW_CANDIDATE"
+      });
 
     } catch (error) {
       diagnostics.push({
@@ -245,6 +293,11 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
     }
   }
 
+  if (firstShadowCandidate) {
+    firstShadowCandidate.diagnostics = diagnostics;
+    return firstShadowCandidate;
+  }
+
   var wait =
     AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics);
 
@@ -254,10 +307,13 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
     state:wait.state,
     dossierId:"",
     diagnostics:diagnostics,
+    shadowOnly:false,
+    shadowAuthorizationMode:"",
+    finalValidationReady:false,
     nextCandidateId:wait.nextCandidateId,
     nextCandidateProjectName:wait.nextCandidateProjectName,
     nextAction:wait.nextAction,
-    blockingCode:"NO_ELIGIBLE_BANCABLE_DOSSIER",
+    blockingCode:"NO_AUDIT_READY_REAL_BANCABLE_DOSSIER",
     failureCode:""
   };
 }
@@ -290,16 +346,31 @@ function AG24_PREMIUM_FINANCEUR_CANARY_resolveDossier_(dossierId) {
       source.standard.nomProjet
     );
 
+  if (/(?:\btest\b|fixture|canary)/i.test(projectName)) {
+    return {
+      success:false,
+      blocked:false,
+      state:"FAILED",
+      dossierId:id,
+      projectName:projectName,
+      diagnostics:[],
+      failureCode:"SYNTHETIC_PROJECT_NAME_REJECTED"
+    };
+  }
+
   var analysis =
     analyserBusinessPlanBancable(
       source.standard,
       source.bancable
     );
 
-  if (
-    !analysis.audit ||
-    analysis.audit.pretPourGeneration !== true
-  ) {
+  var auditReady =
+    Boolean(
+      analysis.audit &&
+      analysis.audit.pretPourGeneration === true
+    );
+
+  if (!auditReady) {
     return {
       success:false,
       blocked:true,
@@ -307,10 +378,13 @@ function AG24_PREMIUM_FINANCEUR_CANARY_resolveDossier_(dossierId) {
       dossierId:id,
       projectName:projectName,
       diagnostics:[],
+      shadowOnly:false,
+      shadowAuthorizationMode:"",
+      finalValidationReady:false,
       nextCandidateId:id,
       nextCandidateProjectName:projectName,
       nextAction:
-        "Finaliser les corrections de l'audit avant le canary réel.",
+        "Finaliser les corrections de l'audit Bancable avant le canary réel.",
       blockingCode:"AUDIT_NOT_READY",
       failureCode:""
     };
@@ -321,36 +395,24 @@ function AG24_PREMIUM_FINANCEUR_CANARY_resolveDossier_(dossierId) {
       BPB_cle_(id,"VALIDATION_FINALE")
     );
 
-  if (
-    !validation ||
-    validation.informationsExactes !== true ||
-    validation.decisionFinanceur !== true
-  ) {
-    return {
-      success:false,
-      blocked:true,
-      state:"WAITING_FOR_FINAL_VALIDATION",
-      dossierId:id,
-      projectName:projectName,
-      diagnostics:[],
-      nextCandidateId:id,
-      nextCandidateProjectName:projectName,
-      nextAction:
-        "Le porteur doit effectuer la validation finale avant le canary réel.",
-      blockingCode:"FINAL_VALIDATION_REQUIRED",
-      failureCode:""
-    };
-  }
+  var authorization =
+    AG24_PREMIUM_FINANCEUR_CANARY_authorizationMode_(
+      true,
+      validation
+    );
 
   return {
     success:true,
     blocked:false,
-    state:"ELIGIBLE",
+    state:authorization.state,
     dossierId:id,
     projectName:projectName,
     source:source,
     analysis:analysis,
     diagnostics:[],
+    shadowOnly:authorization.shadowOnly,
+    shadowAuthorizationMode:authorization.mode,
+    finalValidationReady:authorization.finalValidationReady,
     nextCandidateId:"",
     nextCandidateProjectName:"",
     nextAction:""
@@ -368,6 +430,9 @@ function AG24_PREMIUM_FINANCEUR_CANARY_persist_(report) {
     nextCandidateId:report.nextCandidateId,
     nextCandidateProjectName:report.nextCandidateProjectName,
     nextAction:report.nextAction,
+    shadowOnly:report.shadowOnly,
+    shadowAuthorizationMode:report.shadowAuthorizationMode,
+    finalValidationReady:report.finalValidationReady,
     renderer:report.renderer,
     premiumFallbackUsed:report.premiumFallbackUsed,
     pdfCreated:report.pdfCreated,
@@ -401,6 +466,9 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
     nextCandidateId:"",
     nextCandidateProjectName:"",
     nextAction:"",
+    shadowOnly:false,
+    shadowAuthorizationMode:"",
+    finalValidationReady:false,
     renderer:"",
     premiumFallbackUsed:false,
     premiumComposerActive:false,
@@ -452,6 +520,11 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
     report.dossierId = id;
     report.state = "RUNNING";
     report.blocked = false;
+    report.shadowOnly = Boolean(resolved.shadowOnly === true);
+    report.shadowAuthorizationMode =
+      resolved.shadowAuthorizationMode || "";
+    report.finalValidationReady =
+      Boolean(resolved.finalValidationReady === true);
 
     var generationBefore =
       BPB_lireJsonChunked_(
@@ -613,6 +686,9 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
             blocked:report.blocked,
             dossierId:report.dossierId,
             nextCandidateId:report.nextCandidateId,
+            shadowOnly:report.shadowOnly,
+            shadowAuthorizationMode:report.shadowAuthorizationMode,
+            finalValidationReady:report.finalValidationReady,
             renderer:report.renderer,
             premiumFallbackUsed:
               report.premiumFallbackUsed,
@@ -650,6 +726,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_SELECTION_SYSTEM_TEST_V1() {
     syntheticRejected:false,
     orderingDeterministic:false,
     waitStateClassification:false,
+    shadowPolicyPass:false,
     failureCode:""
   };
 
@@ -685,11 +762,6 @@ function AG24_PREMIUM_FINANCEUR_CANARY_SELECTION_SYSTEM_TEST_V1() {
     var waitState =
       AG24_PREMIUM_FINANCEUR_CANARY_waitState_([
         {
-          dossierId:"BPB_REAL_1",
-          projectName:"Projet réel",
-          reason:"FINAL_VALIDATION_REQUIRED"
-        },
-        {
           dossierId:"BPB_REAL_2",
           projectName:"Projet audit",
           reason:"AUDIT_NOT_READY"
@@ -697,13 +769,37 @@ function AG24_PREMIUM_FINANCEUR_CANARY_SELECTION_SYSTEM_TEST_V1() {
       ]);
 
     report.waitStateClassification =
-      waitState.state === "WAITING_FOR_FINAL_VALIDATION" &&
-      waitState.nextCandidateId === "BPB_REAL_1";
+      waitState.state === "WAITING_FOR_AUDIT_READY_DOSSIER" &&
+      waitState.nextCandidateId === "BPB_REAL_2";
+
+    var shadowAuthorization =
+      AG24_PREMIUM_FINANCEUR_CANARY_authorizationMode_(
+        true,
+        null
+      );
+
+    var validatedAuthorization =
+      AG24_PREMIUM_FINANCEUR_CANARY_authorizationMode_(
+        true,
+        {
+          informationsExactes:true,
+          decisionFinanceur:true
+        }
+      );
+
+    report.shadowPolicyPass =
+      shadowAuthorization.allowed === true &&
+      shadowAuthorization.shadowOnly === true &&
+      shadowAuthorization.mode === "AUDIT_READY_SHADOW" &&
+      validatedAuthorization.allowed === true &&
+      validatedAuthorization.shadowOnly === false &&
+      validatedAuthorization.finalValidationReady === true;
 
     report.success =
       report.syntheticRejected === true &&
       report.orderingDeterministic === true &&
-      report.waitStateClassification === true;
+      report.waitStateClassification === true &&
+      report.shadowPolicyPass === true;
 
     if (!report.success) {
       report.failureCode =
