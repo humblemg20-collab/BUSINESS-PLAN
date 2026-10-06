@@ -16,7 +16,7 @@
  * not persist a production generation record or sync the dashboard.
  */
 var AG24_PREMIUM_FINANCEUR_CANARY_V1 = Object.freeze({
-  VERSION:"1.0.0",
+  VERSION:"1.1.0",
   MAX_SCAN:25,
   LAST_RESULT_PROPERTY:"AFRIGREEN24_PREMIUM_FINANCEUR_CANARY_LAST"
 });
@@ -97,6 +97,46 @@ function AG24_PREMIUM_FINANCEUR_CANARY_candidateMeta_(id) {
   };
 }
 
+function AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics) {
+  diagnostics = Array.isArray(diagnostics) ? diagnostics : [];
+
+  var validationReady = diagnostics.filter(function(item) {
+    return item && item.reason === "FINAL_VALIDATION_REQUIRED";
+  });
+
+  if (validationReady.length) {
+    return {
+      state:"WAITING_FOR_FINAL_VALIDATION",
+      nextCandidateId:String(validationReady[0].dossierId || ""),
+      nextCandidateProjectName:String(validationReady[0].projectName || ""),
+      nextAction:
+        "Le dossier est audité et prêt techniquement. Le porteur doit effectuer la validation finale avant le canary réel."
+    };
+  }
+
+  var auditPending = diagnostics.filter(function(item) {
+    return item && item.reason === "AUDIT_NOT_READY";
+  });
+
+  if (auditPending.length) {
+    return {
+      state:"WAITING_FOR_AUDIT_READY_DOSSIER",
+      nextCandidateId:String(auditPending[0].dossierId || ""),
+      nextCandidateProjectName:String(auditPending[0].projectName || ""),
+      nextAction:
+        "Aucun dossier n'est encore prêt techniquement pour la génération Financeur. Finaliser les corrections de l'audit."
+    };
+  }
+
+  return {
+    state:"WAITING_FOR_REAL_DOSSIER",
+    nextCandidateId:"",
+    nextCandidateProjectName:"",
+    nextAction:
+      "Créer ou compléter un dossier Bancable réel jusqu'à l'audit puis à la validation finale."
+  };
+}
+
 function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
   var candidates =
     AG24_PREMIUM_FINANCEUR_CANARY_discoverIds_()
@@ -116,24 +156,6 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
     var id = candidate.dossierId;
 
     try {
-      var validation =
-        BPB_lireJsonChunked_(
-          BPB_cle_(id,"VALIDATION_FINALE")
-        );
-
-      if (
-        !validation ||
-        validation.informationsExactes !== true ||
-        validation.decisionFinanceur !== true
-      ) {
-        diagnostics.push({
-          dossierId:id,
-          eligible:false,
-          reason:"FINAL_VALIDATION_MISSING"
-        });
-        continue;
-      }
-
       var source =
         BPB_obtenirDossierUnifie_(id);
 
@@ -147,6 +169,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
       if (/(?:\btest\b|fixture|canary)/i.test(projectName)) {
         diagnostics.push({
           dossierId:id,
+          projectName:projectName,
           eligible:false,
           reason:"SYNTHETIC_PROJECT_NAME"
         });
@@ -165,18 +188,48 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
       ) {
         diagnostics.push({
           dossierId:id,
+          projectName:projectName,
           eligible:false,
+          auditReady:false,
+          finalValidationReady:false,
           reason:"AUDIT_NOT_READY"
+        });
+        continue;
+      }
+
+      var validation =
+        BPB_lireJsonChunked_(
+          BPB_cle_(id,"VALIDATION_FINALE")
+        );
+
+      if (
+        !validation ||
+        validation.informationsExactes !== true ||
+        validation.decisionFinanceur !== true
+      ) {
+        diagnostics.push({
+          dossierId:id,
+          projectName:projectName,
+          eligible:false,
+          auditReady:true,
+          finalValidationReady:false,
+          reason:"FINAL_VALIDATION_REQUIRED"
         });
         continue;
       }
 
       return {
         success:true,
+        state:"ELIGIBLE",
+        blocked:false,
         dossierId:id,
+        projectName:projectName,
         source:source,
         analysis:analysis,
-        diagnostics:diagnostics
+        diagnostics:diagnostics,
+        nextCandidateId:"",
+        nextCandidateProjectName:"",
+        nextAction:""
       };
 
     } catch (error) {
@@ -192,11 +245,20 @@ function AG24_PREMIUM_FINANCEUR_CANARY_selectLatestEligible_() {
     }
   }
 
+  var wait =
+    AG24_PREMIUM_FINANCEUR_CANARY_waitState_(diagnostics);
+
   return {
     success:false,
+    blocked:true,
+    state:wait.state,
     dossierId:"",
     diagnostics:diagnostics,
-    failureCode:"NO_ELIGIBLE_BANCABLE_DOSSIER"
+    nextCandidateId:wait.nextCandidateId,
+    nextCandidateProjectName:wait.nextCandidateProjectName,
+    nextAction:wait.nextAction,
+    blockingCode:"NO_ELIGIBLE_BANCABLE_DOSSIER",
+    failureCode:""
   };
 }
 
@@ -210,9 +272,47 @@ function AG24_PREMIUM_FINANCEUR_CANARY_resolveDossier_(dossierId) {
   if (AG24_PREMIUM_FINANCEUR_CANARY_isSyntheticId_(id)) {
     return {
       success:false,
+      blocked:false,
+      state:"FAILED",
       dossierId:id,
       diagnostics:[],
       failureCode:"SYNTHETIC_DOSSIER_REJECTED"
+    };
+  }
+
+  var source =
+    BPB_obtenirDossierUnifie_(id);
+
+  var projectName =
+    AG24_PREMIUM_FINANCEUR_CANARY_text_(
+      source &&
+      source.standard &&
+      source.standard.nomProjet
+    );
+
+  var analysis =
+    analyserBusinessPlanBancable(
+      source.standard,
+      source.bancable
+    );
+
+  if (
+    !analysis.audit ||
+    analysis.audit.pretPourGeneration !== true
+  ) {
+    return {
+      success:false,
+      blocked:true,
+      state:"WAITING_FOR_AUDIT_READY_DOSSIER",
+      dossierId:id,
+      projectName:projectName,
+      diagnostics:[],
+      nextCandidateId:id,
+      nextCandidateProjectName:projectName,
+      nextAction:
+        "Finaliser les corrections de l'audit avant le canary réel.",
+      blockingCode:"AUDIT_NOT_READY",
+      failureCode:""
     };
   }
 
@@ -228,39 +328,32 @@ function AG24_PREMIUM_FINANCEUR_CANARY_resolveDossier_(dossierId) {
   ) {
     return {
       success:false,
+      blocked:true,
+      state:"WAITING_FOR_FINAL_VALIDATION",
       dossierId:id,
+      projectName:projectName,
       diagnostics:[],
-      failureCode:"FINAL_VALIDATION_MISSING"
-    };
-  }
-
-  var source =
-    BPB_obtenirDossierUnifie_(id);
-
-  var analysis =
-    analyserBusinessPlanBancable(
-      source.standard,
-      source.bancable
-    );
-
-  if (
-    !analysis.audit ||
-    analysis.audit.pretPourGeneration !== true
-  ) {
-    return {
-      success:false,
-      dossierId:id,
-      diagnostics:[],
-      failureCode:"AUDIT_NOT_READY"
+      nextCandidateId:id,
+      nextCandidateProjectName:projectName,
+      nextAction:
+        "Le porteur doit effectuer la validation finale avant le canary réel.",
+      blockingCode:"FINAL_VALIDATION_REQUIRED",
+      failureCode:""
     };
   }
 
   return {
     success:true,
+    blocked:false,
+    state:"ELIGIBLE",
     dossierId:id,
+    projectName:projectName,
     source:source,
     analysis:analysis,
-    diagnostics:[]
+    diagnostics:[],
+    nextCandidateId:"",
+    nextCandidateProjectName:"",
+    nextAction:""
   };
 }
 
@@ -268,14 +361,20 @@ function AG24_PREMIUM_FINANCEUR_CANARY_persist_(report) {
   var compact = {
     version:report.version,
     success:report.success,
+    blocked:report.blocked,
+    state:report.state,
     executedAt:report.executedAt,
     dossierId:report.dossierId,
+    nextCandidateId:report.nextCandidateId,
+    nextCandidateProjectName:report.nextCandidateProjectName,
+    nextAction:report.nextAction,
     renderer:report.renderer,
     premiumFallbackUsed:report.premiumFallbackUsed,
     pdfCreated:report.pdfCreated,
     physicalPageCount:report.physicalPageCount,
     sourceGenerationUnchanged:report.sourceGenerationUnchanged,
     cleanupSuccess:report.cleanupSuccess,
+    blockingCode:report.blockingCode,
     failureCode:report.failureCode
   };
 
@@ -294,9 +393,14 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
 
   var report = {
     success:false,
+    blocked:false,
+    state:"RUNNING",
     version:AG24_PREMIUM_FINANCEUR_CANARY_V1.VERSION,
     executedAt:new Date().toISOString(),
     dossierId:"",
+    nextCandidateId:"",
+    nextCandidateProjectName:"",
+    nextAction:"",
     renderer:"",
     premiumFallbackUsed:false,
     premiumComposerActive:false,
@@ -305,6 +409,7 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
     sourceGenerationUnchanged:false,
     cleanupSuccess:false,
     diagnostics:[],
+    blockingCode:"",
     failureCode:""
   };
 
@@ -318,8 +423,25 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
       resolved.diagnostics || [];
 
     if (!resolved.success) {
+      report.blocked =
+        Boolean(resolved.blocked === true);
+      report.state =
+        resolved.state || "FAILED";
       report.dossierId =
         resolved.dossierId || "";
+      report.nextCandidateId =
+        resolved.nextCandidateId || "";
+      report.nextCandidateProjectName =
+        resolved.nextCandidateProjectName || "";
+      report.nextAction =
+        resolved.nextAction || "";
+      report.blockingCode =
+        resolved.blockingCode || "";
+
+      if (report.blocked) {
+        return report;
+      }
+
       throw new Error(
         resolved.failureCode ||
         "CANARY_DOSSIER_RESOLUTION_FAILED"
@@ -328,6 +450,8 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
 
     var id = resolved.dossierId;
     report.dossierId = id;
+    report.state = "RUNNING";
+    report.blocked = false;
 
     var generationBefore =
       BPB_lireJsonChunked_(
@@ -419,11 +543,16 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
       report.sourceGenerationUnchanged === true;
 
     if (!report.success) {
+      report.state = "FAILED";
       report.failureCode =
         "PREMIUM_FINANCEUR_REAL_CANARY_CONTRACT_FAILED";
+    } else {
+      report.state = "PASSED";
     }
 
   } catch (error) {
+    report.blocked = false;
+    report.state = "FAILED";
     report.failureCode =
       error && error.message
         ? String(error.message)
@@ -475,10 +604,15 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
         AG24_AUDIT_event_(
           report.success
             ? "PREMIUM_FINANCEUR_REAL_CANARY_PASSED"
-            : "PREMIUM_FINANCEUR_REAL_CANARY_FAILED",
+            : report.blocked
+              ? "PREMIUM_FINANCEUR_REAL_CANARY_BLOCKED"
+              : "PREMIUM_FINANCEUR_REAL_CANARY_FAILED",
           {
             version:report.version,
+            state:report.state,
+            blocked:report.blocked,
             dossierId:report.dossierId,
+            nextCandidateId:report.nextCandidateId,
             renderer:report.renderer,
             premiumFallbackUsed:
               report.premiumFallbackUsed,
@@ -488,6 +622,8 @@ function runAg24PremiumFinanceurCanaryV1(dossierId) {
               report.sourceGenerationUnchanged,
             cleanupSuccess:
               report.cleanupSuccess,
+            blockingCode:
+              report.blockingCode,
             failureCode:
               report.failureCode
           }
@@ -513,6 +649,7 @@ function AG24_PREMIUM_FINANCEUR_CANARY_SELECTION_SYSTEM_TEST_V1() {
     version:AG24_PREMIUM_FINANCEUR_CANARY_V1.VERSION,
     syntheticRejected:false,
     orderingDeterministic:false,
+    waitStateClassification:false,
     failureCode:""
   };
 
@@ -545,9 +682,28 @@ function AG24_PREMIUM_FINANCEUR_CANARY_SELECTION_SYSTEM_TEST_V1() {
       JSON.stringify(once) === JSON.stringify(twice) &&
       once[0].dossierId === "A";
 
+    var waitState =
+      AG24_PREMIUM_FINANCEUR_CANARY_waitState_([
+        {
+          dossierId:"BPB_REAL_1",
+          projectName:"Projet réel",
+          reason:"FINAL_VALIDATION_REQUIRED"
+        },
+        {
+          dossierId:"BPB_REAL_2",
+          projectName:"Projet audit",
+          reason:"AUDIT_NOT_READY"
+        }
+      ]);
+
+    report.waitStateClassification =
+      waitState.state === "WAITING_FOR_FINAL_VALIDATION" &&
+      waitState.nextCandidateId === "BPB_REAL_1";
+
     report.success =
       report.syntheticRejected === true &&
-      report.orderingDeterministic === true;
+      report.orderingDeterministic === true &&
+      report.waitStateClassification === true;
 
     if (!report.success) {
       report.failureCode =
