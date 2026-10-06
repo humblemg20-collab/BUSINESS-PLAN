@@ -198,6 +198,27 @@ function BPB3_reponseClientGeneration_(generation) {
       generation.dashboardSync &&
       typeof generation.dashboardSync === 'object'
         ? generation.dashboardSync
+        : undefined,
+    productionAcceptance:
+      generation.productionAcceptance &&
+      typeof generation.productionAcceptance === 'object'
+        ? {
+            success:
+              Boolean(
+                generation.productionAcceptance.success
+              ),
+            version:
+              String(
+                generation.productionAcceptance.version ||
+                ''
+              ),
+            failures:
+              Array.isArray(
+                generation.productionAcceptance.failures
+              )
+                ? generation.productionAcceptance.failures
+                : []
+          }
         : undefined
   };
 }
@@ -1377,21 +1398,99 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
     };
     BPB3_enregistrerSucces_(id, generation, 'FINANCEUR');
 
-    const bridge = String(dossier.meta.agBridge || '').trim();
-    if (bridge) {
-      try {
-        synchroniserBusinessPlanVersDashboard_(bridge, generation);
-        generation.dashboardSync = { success: true };
-      } catch (error) {
-        const message = error && error.message ? error.message : String(error);
-        console.error('Synchronisation Dashboard AfriGreen24 impossible :', message);
-        generation.dashboardSync = { success: false, error: message };
-      }
+    const bridge =
+      String(dossier.meta.agBridge || '').trim();
+
+    if (
+      typeof BP_DASHBOARD_SYNC_syncStoredFinanceur_ ===
+        'function'
+    ) {
+      generation.dashboardSync =
+        BP_DASHBOARD_SYNC_syncStoredFinanceur_(
+          id,
+          bridge,
+          {
+            throwOnFailure:false
+          }
+        );
     } else {
-      generation.dashboardSync = { success: false, skipped: true };
+      if (bridge) {
+        try {
+          synchroniserBusinessPlanVersDashboard_(
+            bridge,
+            generation
+          );
+          generation.dashboardSync = {
+            success:true,
+            at:new Date().toISOString()
+          };
+        } catch (error) {
+          const message =
+            error && error.message
+              ? error.message
+              : String(error);
+
+          console.error(
+            'Synchronisation Dashboard AfriGreen24 impossible :',
+            message
+          );
+
+          generation.dashboardSync = {
+            success:false,
+            error:message,
+            at:new Date().toISOString()
+          };
+        }
+      } else {
+        generation.dashboardSync = {
+          success:false,
+          skipped:true,
+          at:new Date().toISOString()
+        };
+      }
+
+      BPB3_enregistrerSucces_(
+        id,
+        generation,
+        'FINANCEUR'
+      );
     }
 
-    return Object.assign({ succes: true, reutilise: false }, generation);
+    if (
+      typeof AG24_PREMIUM_ACCEPTANCE_evaluate_ ===
+        'function'
+    ) {
+      const acceptance =
+        AG24_PREMIUM_ACCEPTANCE_evaluate_(
+          generation,
+          {
+            dashboardExpected:Boolean(bridge),
+            verifyDriveFiles:true
+          }
+        );
+
+      generation.productionAcceptance =
+        typeof AG24_PREMIUM_ACCEPTANCE_record_ ===
+          'function'
+            ? AG24_PREMIUM_ACCEPTANCE_record_(
+                acceptance
+              )
+            : acceptance;
+
+      BPB3_enregistrerSucces_(
+        id,
+        generation,
+        'FINANCEUR'
+      );
+    }
+
+    return Object.assign(
+      {
+        succes:true,
+        reutilise:false
+      },
+      generation
+    );
   } catch (error) {
     BPB3_enregistrerEchec_(id, error, 'FINANCEUR');
     throw error;
