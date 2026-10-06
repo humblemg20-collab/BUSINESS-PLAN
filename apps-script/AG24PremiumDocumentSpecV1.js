@@ -350,9 +350,11 @@ function AG24_PREMIUM_DOC_currentV2Capabilities_() {
     "problem",
     "solution",
     "market",
+    "traction",
     "business-model",
     "go-to-market",
     "operations",
+    "financial-story",
     "funding",
     "impact",
     "risks",
@@ -520,8 +522,12 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       investorMarket !== -1 &&
       investorFunding !== -1 &&
       investorMarket < investorFunding &&
-      report.bankMissingRequired.indexOf("financial-story") !== -1 &&
-      report.investorMissingRequired.indexOf("traction") !== -1;
+      report.bankMissingRequired.indexOf("team-governance") !== -1 &&
+      report.bankMissingRequired.indexOf("evidence-appendix") !== -1 &&
+      report.investorMissingRequired.indexOf("competition") !== -1 &&
+      report.investorMissingRequired.indexOf("team-governance") !== -1 &&
+      report.bankMissingRequired.indexOf("financial-story") === -1 &&
+      report.investorMissingRequired.indexOf("traction") === -1;
 
     if (!report.success) {
       report.failureCode = "PREMIUM_DOCUMENT_SPEC_CONTRACT_FAILED";
