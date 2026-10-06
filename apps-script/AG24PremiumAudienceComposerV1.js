@@ -8,7 +8,7 @@
  * this composer. This engine owns the ordered body modules only.
  */
 var AG24_PREMIUM_AUDIENCE_COMPOSER_V1 = Object.freeze({
-  VERSION:"1.1.0"
+  VERSION:"1.2.0"
 });
 
 function AG24_PREMIUM_AUDIENCE_COMPOSER_sectionMap_(model) {
@@ -51,8 +51,41 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_renderModule_(
 
   var section = sectionMap[moduleId];
 
+  var bankReferenceActive =
+    options &&
+    options.audience === "BANK" &&
+    typeof AG24_BANK_REFERENCE_COMPONENTS_V1 !== "undefined";
+
   switch (moduleId) {
     case "executive-summary":
+      if (!section) {
+        return {success:true,rendered:false,reason:"SECTION_UNAVAILABLE"};
+      }
+
+      if (
+        bankReferenceActive &&
+        typeof AG24_BANK_REF_renderExecutiveSummary_ === "function"
+      ) {
+        return AG24_BANK_REF_renderExecutiveSummary_(
+          body,
+          section,
+          model,
+          data,
+          options.projectIntelligence || null,
+          theme
+        );
+      }
+
+      AG24_BP_V2_addMasterSectionPage_(
+        body,
+        section,
+        model,
+        theme,
+        pageNumber
+      );
+
+      return {success:true,rendered:true};
+
     case "project":
     case "problem":
     case "solution":
@@ -60,7 +93,6 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_renderModule_(
     case "business-model":
     case "go-to-market":
     case "operations":
-    case "funding":
     case "impact":
       if (!section) {
         return {success:true,rendered:false,reason:"SECTION_UNAVAILABLE"};
@@ -88,6 +120,46 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_renderModule_(
 
       if (
         moduleId === "funding" &&
+        typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
+      ) {
+        AG24_PREMIUM_VISUALS_renderAllocation_(
+          body,
+          data,
+          options.projectIntelligence || null,
+          theme
+        );
+      }
+
+      return {success:true,rendered:true};
+
+    case "funding":
+      if (!section) {
+        return {success:true,rendered:false,reason:"SECTION_UNAVAILABLE"};
+      }
+
+      if (
+        bankReferenceActive &&
+        typeof AG24_BANK_REF_renderFundingRequest_ === "function"
+      ) {
+        return AG24_BANK_REF_renderFundingRequest_(
+          body,
+          section,
+          model,
+          data,
+          options.projectIntelligence || null,
+          theme
+        );
+      }
+
+      AG24_BP_V2_addMasterSectionPage_(
+        body,
+        section,
+        model,
+        theme,
+        pageNumber
+      );
+
+      if (
         typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
       ) {
         AG24_PREMIUM_VISUALS_renderAllocation_(
@@ -135,6 +207,17 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_renderModule_(
       );
 
     case "risks":
+      if (
+        bankReferenceActive &&
+        typeof AG24_BANK_REF_renderRiskRegister_ === "function"
+      ) {
+        return AG24_BANK_REF_renderRiskRegister_(
+          body,
+          model,
+          theme
+        );
+      }
+
       AG24_BP_V2_addRiskPage_(body,model,theme);
       return {success:true,rendered:true};
 
@@ -244,7 +327,14 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_render_(
         model,
         data,
         theme,
-        options,
+        Object.assign(
+          {},
+          options,
+          {
+            audience:
+              premiumDocumentPlan.audience
+          }
+        ),
         sectionMap,
         index + 3
       ) || {};
@@ -326,12 +416,18 @@ function AG24_PREMIUM_AUDIENCE_COMPOSER_SYSTEM_TEST_V1() {
       JSON.stringify(grantA) === JSON.stringify(grantB);
 
     report.bankOrderPass =
+      bankOrder.indexOf("market") <
+        bankOrder.indexOf("business-model") &&
+      bankOrder.indexOf("business-model") <
+        bankOrder.indexOf("go-to-market") &&
+      bankOrder.indexOf("team-governance") <
+        bankOrder.indexOf("traction") &&
       bankOrder.indexOf("traction") <
-        bankOrder.indexOf("market") &&
+        bankOrder.indexOf("financial-story") &&
       bankOrder.indexOf("financial-story") <
         bankOrder.indexOf("funding") &&
       bankOrder.indexOf("funding") <
-        bankOrder.indexOf("impact") &&
+        bankOrder.indexOf("risks") &&
       bankOrder.indexOf("problem") === -1 &&
       bankOrder.indexOf("solution") === -1 &&
       bankOrder.indexOf("competition") === -1 &&
