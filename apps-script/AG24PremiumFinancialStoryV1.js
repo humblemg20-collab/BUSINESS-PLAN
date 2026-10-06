@@ -3,7 +3,7 @@
  * Deterministic metric model for premium documents.
  */
 var AG24_PREMIUM_FIN_V1 = Object.freeze({
-  VERSION: "1.0.1",
+  VERSION: "1.1.0",
   MAX_METRICS: 6
 });
 
@@ -37,9 +37,39 @@ function AG24_PREMIUM_FIN_compact_(n) {
 function AG24_PREMIUM_FIN_money_(n, currency) {
   n = AG24_PREMIUM_FIN_num_(n);
   if (n === null) return "";
-  var c = String(currency || "EUR").toUpperCase();
-  var s = c === "EUR" ? "€" : c === "USD" ? "$" :
-    (c === "XAF" || c === "XOF") ? "FCFA " : c + " ";
+
+  var c = String(currency || "")
+    .replace(/\s+/g," ")
+    .trim()
+    .toUpperCase();
+
+  if (
+    typeof AG24_PREMIUM_HARDEN_currency_ ===
+      "function"
+  ) {
+    c = AG24_PREMIUM_HARDEN_currency_(c);
+  }
+
+  if (!c) {
+    return (
+      AG24_PREMIUM_FIN_compact_(n) +
+      " — devise à confirmer"
+    );
+  }
+
+  var s =
+    c === "EUR"
+      ? "€"
+      : c === "USD"
+        ? "$"
+        : (
+            c === "XAF" ||
+            c === "XOF" ||
+            c === "FCFA"
+          )
+          ? "FCFA "
+          : c + " ";
+
   return s + AG24_PREMIUM_FIN_compact_(n);
 }
 
@@ -47,7 +77,17 @@ function AG24_PREMIUM_FIN_buildStory_(data) {
   data = data || {};
   var currency = AG24_PREMIUM_FIN_first_(data, [
     "currency","financialCurrency","fundingCurrency"
-  ]) || "EUR";
+  ]) || "";
+
+  if (
+    typeof AG24_PREMIUM_HARDEN_currency_ ===
+      "function"
+  ) {
+    currency =
+      AG24_PREMIUM_HARDEN_currency_(
+        currency
+      );
+  }
 
   var mrr = AG24_PREMIUM_FIN_num_(
     AG24_PREMIUM_FIN_first_(data, [
@@ -132,6 +172,7 @@ function AG24_PREMIUM_FIN_buildStory_(data) {
     success:true,
     version:AG24_PREMIUM_FIN_V1.VERSION,
     currency:String(currency).toUpperCase(),
+    currencyConfirmed:Boolean(currency),
     metrics:metrics.slice(0,AG24_PREMIUM_FIN_V1.MAX_METRICS),
     calculations:{arrFromMrr:arrStatus === "CALCULATED"}
   };
@@ -150,6 +191,16 @@ function AG24_PREMIUM_FIN_STORY_SYSTEM_TEST_V1() {
   var b = AG24_PREMIUM_FIN_buildStory_(input);
   var arr = a.metrics.filter(function(x){return x.id === "arr";})[0];
 
+  var unknown =
+    AG24_PREMIUM_FIN_buildStory_({
+      fundingNeed:77000
+    });
+
+  var unknownFunding =
+    unknown.metrics.filter(function(x){
+      return x.id === "funding";
+    })[0];
+
   var report = {
     success:
       JSON.stringify(a) === JSON.stringify(b) &&
@@ -158,12 +209,21 @@ function AG24_PREMIUM_FIN_STORY_SYSTEM_TEST_V1() {
       arr.truthStatus === "CALCULATED" &&
       a.metrics.some(function(x){
         return x.id === "funding" && x.value === "€150k";
-      }),
+      }) &&
+      unknown.currencyConfirmed === false &&
+      unknownFunding &&
+      unknownFunding.value === "77k — devise à confirmer",
     version:AG24_PREMIUM_FIN_V1.VERSION,
     deterministic:JSON.stringify(a) === JSON.stringify(b),
     arrFromMrr:a.calculations.arrFromMrr,
     arrValue:arr ? arr.value : "",
     fundingPresent:a.metrics.some(function(x){return x.id === "funding";}),
+    unknownCurrencySafe:
+      Boolean(
+        unknownFunding &&
+        unknownFunding.value ===
+          "77k — devise à confirmer"
+      ),
     metricIds:a.metrics.map(function(x){return x.id;}),
     failureCode:""
   };
