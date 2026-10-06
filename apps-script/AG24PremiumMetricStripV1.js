@@ -3,7 +3,7 @@
  * Reusable deterministic renderer for 1-6 decision metrics.
  */
 var AG24_PREMIUM_METRIC_STRIP_V1 = Object.freeze({
-  VERSION:"1.0.0",
+  VERSION:"1.0.1",
   MAX_METRICS:6
 });
 
@@ -44,8 +44,13 @@ function AG24_PREMIUM_METRIC_STRIP_render_(body, metrics, theme) {
 
       cell.setBackgroundColor(theme.primary);
 
-      cell.getChild(0).asParagraph()
-        .setText(String(metric.label).toUpperCase())
+      /*
+       * Paragraph.setText() does not reliably return a Paragraph in Docs.
+       * Keep mutation and paragraph styling as separate operations.
+       */
+      var labelParagraph = cell.getChild(0).asParagraph();
+      labelParagraph.setText(String(metric.label).toUpperCase());
+      labelParagraph
         .setForegroundColor(theme.accent)
         .setBold(true)
         .setFontFamily(theme.headingFont)
@@ -86,15 +91,18 @@ function AG24_PREMIUM_METRIC_STRIP_SYSTEM_TEST_V1() {
     rendered:false,
     markersPresent:false,
     cleanupSuccess:false,
-    failureCode:""
+    failureCode:"",
+    failureStage:""
   };
 
   try {
+    report.failureStage = "CREATE_DOCUMENT";
     var doc = DocumentApp.create(
       "AG24 Premium Metric Strip Test " + String(new Date().getTime())
     );
     documentId = doc.getId();
 
+    report.failureStage = "RENDER_METRIC_STRIP";
     report.rendered = Boolean(
       AG24_PREMIUM_METRIC_STRIP_render_(
         doc.getBody(),
@@ -107,8 +115,10 @@ function AG24_PREMIUM_METRIC_STRIP_SYSTEM_TEST_V1() {
       )
     );
 
+    report.failureStage = "SAVE_DOCUMENT";
     doc.saveAndClose();
 
+    report.failureStage = "VERIFY_DOCUMENT";
     var reopened = DocumentApp.openById(documentId);
     var text = reopened.getBody().getText();
 
@@ -126,6 +136,8 @@ function AG24_PREMIUM_METRIC_STRIP_SYSTEM_TEST_V1() {
 
     if (!report.success) {
       report.failureCode = "PREMIUM_METRIC_STRIP_CONTRACT_FAILED";
+    } else {
+      report.failureStage = "";
     }
   } catch (error) {
     report.failureCode =
