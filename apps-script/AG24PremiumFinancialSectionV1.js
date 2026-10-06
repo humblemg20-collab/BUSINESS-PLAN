@@ -243,10 +243,19 @@ function AG24_PREMIUM_FIN_SECTION_render_(body, data, projectIntelligence, theme
     };
   }
 
+  var readinessRequired =
+    Boolean(
+      section.bankContext &&
+      section.readiness &&
+      section.readiness.ready !== true
+    );
+
   AG24_BP_V2_addSectionTitle_(
     body,
     "F",
-    "Financial Story",
+    readinessRequired
+      ? "Readiness financière"
+      : "Financial Story",
     theme
   );
 
@@ -255,6 +264,22 @@ function AG24_PREMIUM_FIN_SECTION_render_(body, data, projectIntelligence, theme
     allMetrics.slice(0,6),
     theme
   );
+
+  if (readinessRequired) {
+    var missingLabels =
+      section.readiness.missing.map(
+        AG24_PREMIUM_FIN_SECTION_readinessLabel_
+      );
+
+    AG24_BP_V2_addCallout_(
+      body,
+      "À compléter avant présentation bancaire",
+      "Le dossier ne dispose pas encore de tous les éléments nécessaires à une lecture bancaire complète : " +
+        missingLabels.join(", ") +
+        ". Le système conserve les données disponibles sans inventer les paramètres manquants.",
+      theme
+    );
+  }
 
   var assumptions = [];
 
@@ -292,7 +317,7 @@ function AG24_PREMIUM_FIN_SECTION_render_(body, data, projectIntelligence, theme
               AG24_PREMIUM_EVIDENCE_BRIDGE_get_(
                 canonical,
                 "documentContext.currency"
-              ) || "EUR"
+              ) || ""
             );
           }
         },
@@ -305,7 +330,7 @@ function AG24_PREMIUM_FIN_SECTION_render_(body, data, projectIntelligence, theme
               AG24_PREMIUM_EVIDENCE_BRIDGE_get_(
                 canonical,
                 "documentContext.currency"
-              ) || "EUR"
+              ) || ""
             );
           }
         },
