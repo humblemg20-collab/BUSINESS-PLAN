@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.6.0",
+  VERSION: "2.7.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -4318,191 +4318,235 @@ function AG24_BP_V2_renderDocument_(
   );
 
   var premiumRenderedSections = [];
+  var audienceComposerResult = null;
 
-  model.sections.forEach(
-    function(section, index) {
-      AG24_BP_V2_addMasterSectionPage_(
-        body,
-        section,
-        model,
-        theme,
-        index + 3
-      );
-
-      if (
-        section.id === "market"
-      ) {
-        if (
-          typeof AG24_PREMIUM_VISUALS_renderMarket_ === "function"
-        ) {
-          var marketVisualResult =
-            AG24_PREMIUM_VISUALS_renderMarket_(
-              body,
-              data,
-              options.projectIntelligence || null,
-              theme
-            );
-
-          if (
-            marketVisualResult &&
-            marketVisualResult.rendered
-          ) {
-            premiumRenderedSections.push(
-              "market-visual"
-            );
-          }
-        }
-
-        if (
-          typeof AG24_PREMIUM_COMPETITION_render_ === "function"
-        ) {
-          var competitionResult =
-            AG24_PREMIUM_COMPETITION_render_(
-              body,
-              data,
-              theme
-            );
-
-          if (
-            competitionResult &&
-            competitionResult.rendered
-          ) {
-            premiumRenderedSections.push(
-              "competition"
-            );
-          }
-        }
-
-        if (
-          typeof AG24_PREMIUM_TRACTION_render_ === "function"
-        ) {
-          var tractionResult =
-            AG24_PREMIUM_TRACTION_render_(
-              body,
-              data,
-              options.projectIntelligence || null,
-              theme
-            );
-
-          if (
-            tractionResult &&
-            tractionResult.rendered
-          ) {
-            premiumRenderedSections.push(
-              "traction"
-            );
-          }
-        }
-      }
-
-      if (
-        section.id === "funding" &&
-        typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
-      ) {
-        var allocationVisualResult =
-          AG24_PREMIUM_VISUALS_renderAllocation_(
-            body,
-            data,
-            options.projectIntelligence || null,
-            theme
-          );
-
-        if (
-          allocationVisualResult &&
-          allocationVisualResult.rendered
-        ) {
-          premiumRenderedSections.push(
-            "funding-allocation-visual"
-          );
-        }
-      }
-
-      if (
-        section.id === "operations"
-      ) {
-        if (
-          typeof AG24_PREMIUM_TEAM_GOV_render_ === "function"
-        ) {
-          var teamGovernanceResult =
-            AG24_PREMIUM_TEAM_GOV_render_(
-              body,
-              data,
-              theme
-            );
-
-          if (
-            teamGovernanceResult &&
-            teamGovernanceResult.rendered
-          ) {
-            premiumRenderedSections.push(
-              "team-governance"
-            );
-          }
-        }
-
-        if (
-          typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
-        ) {
-          var financialSectionResult =
-            AG24_PREMIUM_FIN_SECTION_render_(
-              body,
-              data,
-              options.projectIntelligence || null,
-              theme
-            );
-
-          if (
-            financialSectionResult &&
-            financialSectionResult.rendered
-          ) {
-            premiumRenderedSections.push(
-              "financial-story"
-            );
-          }
-        }
-      }
-    }
-  );
-
-  AG24_BP_V2_addRiskPage_(
-    body,
-    model,
-    theme
-  );
-
-  AG24_BP_V2_addRoadmapPage_(
-    body,
-    model,
-    theme
-  );
-
+  /*
+   * Audience Composer V1 owns the body order when the Premium Document Plan
+   * is production-ready. The same canonical truth is reused; only editorial
+   * composition changes by audience.
+   */
   if (
-    options.projectIntelligence &&
-    typeof AG24_PREMIUM_EVIDENCE_APPENDIX_render_ === "function"
+    premiumDocumentPlan &&
+    premiumDocumentPlan.productionReady === true &&
+    typeof AG24_PREMIUM_AUDIENCE_COMPOSER_render_ === "function"
   ) {
-    var evidenceAppendixResult =
-      AG24_PREMIUM_EVIDENCE_APPENDIX_render_(
+    audienceComposerResult =
+      AG24_PREMIUM_AUDIENCE_COMPOSER_render_(
         body,
-        options.projectIntelligence,
-        theme
+        model,
+        data,
+        theme,
+        premiumDocumentPlan,
+        {
+          projectIntelligence:
+            options.projectIntelligence || null
+        }
       );
 
     if (
-      evidenceAppendixResult &&
-      evidenceAppendixResult.rendered
+      audienceComposerResult &&
+      audienceComposerResult.success === true &&
+      audienceComposerResult.rendered === true
     ) {
-      premiumRenderedSections.push(
-        "evidence-appendix"
-      );
+      premiumRenderedSections =
+        audienceComposerResult.renderedModuleIds.slice();
     }
   }
 
-  AG24_BP_V2_addClosing_(
-    body,
-    model,
-    data,
-    theme
-  );
+  /*
+   * Safe fallback: preserve the validated V2 sequence if the audience
+   * composer is unavailable or rejects a non-production-ready plan.
+   */
+  if (
+    !audienceComposerResult ||
+    audienceComposerResult.success !== true ||
+    audienceComposerResult.rendered !== true
+  ) {
+    model.sections.forEach(
+      function(section, index) {
+        AG24_BP_V2_addMasterSectionPage_(
+          body,
+          section,
+          model,
+          theme,
+          index + 3
+        );
+
+        if (
+          section.id === "market"
+        ) {
+          if (
+            typeof AG24_PREMIUM_VISUALS_renderMarket_ === "function"
+          ) {
+            var marketVisualResult =
+              AG24_PREMIUM_VISUALS_renderMarket_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
+
+            if (
+              marketVisualResult &&
+              marketVisualResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "market-visual"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_COMPETITION_render_ === "function"
+          ) {
+            var competitionResult =
+              AG24_PREMIUM_COMPETITION_render_(
+                body,
+                data,
+                theme
+              );
+
+            if (
+              competitionResult &&
+              competitionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "competition"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_TRACTION_render_ === "function"
+          ) {
+            var tractionResult =
+              AG24_PREMIUM_TRACTION_render_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
+
+            if (
+              tractionResult &&
+              tractionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "traction"
+              );
+            }
+          }
+        }
+
+        if (
+          section.id === "funding" &&
+          typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
+        ) {
+          var allocationVisualResult =
+            AG24_PREMIUM_VISUALS_renderAllocation_(
+              body,
+              data,
+              options.projectIntelligence || null,
+              theme
+            );
+
+          if (
+            allocationVisualResult &&
+            allocationVisualResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "funding-allocation-visual"
+            );
+          }
+        }
+
+        if (
+          section.id === "operations"
+        ) {
+          if (
+            typeof AG24_PREMIUM_TEAM_GOV_render_ === "function"
+          ) {
+            var teamGovernanceResult =
+              AG24_PREMIUM_TEAM_GOV_render_(
+                body,
+                data,
+                theme
+              );
+
+            if (
+              teamGovernanceResult &&
+              teamGovernanceResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "team-governance"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
+          ) {
+            var financialSectionResult =
+              AG24_PREMIUM_FIN_SECTION_render_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
+
+            if (
+              financialSectionResult &&
+              financialSectionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "financial-story"
+              );
+            }
+          }
+        }
+      }
+    );
+
+    AG24_BP_V2_addRiskPage_(
+      body,
+      model,
+      theme
+    );
+
+    AG24_BP_V2_addRoadmapPage_(
+      body,
+      model,
+      theme
+    );
+
+    if (
+      options.projectIntelligence &&
+      typeof AG24_PREMIUM_EVIDENCE_APPENDIX_render_ === "function"
+    ) {
+      var evidenceAppendixResult =
+        AG24_PREMIUM_EVIDENCE_APPENDIX_render_(
+          body,
+          options.projectIntelligence,
+          theme
+        );
+
+      if (
+        evidenceAppendixResult &&
+        evidenceAppendixResult.rendered
+      ) {
+        premiumRenderedSections.push(
+          "evidence-appendix"
+        );
+      }
+    }
+
+    AG24_BP_V2_addClosing_(
+      body,
+      model,
+      data,
+      theme
+    );
+  }
 
   AG24_BP_V2_assertWhiteLabel_(
     document
@@ -4545,6 +4589,8 @@ function AG24_BP_V2_renderDocument_(
       premiumDocumentPlan,
     premiumRenderedSections:
       premiumRenderedSections,
+    audienceComposer:
+      audienceComposerResult,
     whiteLabel:
       true
   };
