@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.8.0",
+  VERSION: "2.9.0",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -363,6 +363,15 @@ function AG24_BP_V2_buildSemanticModel_(data) {
           data,
           "opportunity"
         ),
+      consequence:
+        AG24_BP_V2_fact_(
+          data,
+          "problemConsequence"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "consequence"
+        ),
       funding:
         fundingLabel
     },
@@ -527,10 +536,17 @@ function AG24_BP_V2_buildSemanticModel_(data) {
           ],
           [
             "Concurrence et alternatives",
-            AG24_BP_V2_fact_(
-              data,
-              "competitors"
-            )
+            typeof AG24_PREMIUM_HARDEN_optional_ === "function"
+              ? AG24_PREMIUM_HARDEN_optional_(
+                  AG24_BP_V2_fact_(
+                    data,
+                    "competitors"
+                  )
+                )
+              : AG24_BP_V2_fact_(
+                  data,
+                  "competitors"
+                )
           ]
         ]
       },
@@ -602,7 +618,7 @@ function AG24_BP_V2_buildSemanticModel_(data) {
       {
         number: "08",
         id: "operations",
-        title: "Équipe et organisation opérationnelle",
+        title: "Organisation opérationnelle",
         narrative:
           AG24_BP_V2_narrative_(
             "equipeOperations",
@@ -2247,9 +2263,12 @@ function AG24_BP_V2_addSnapshot_(
       Array.isArray(financialStory.metrics) &&
       financialStory.metrics.length
     ) {
+      var snapshotMetrics =
+        financialStory.metrics.slice(0,4);
+
       AG24_PREMIUM_METRIC_STRIP_render_(
         body,
-        financialStory.metrics,
+        snapshotMetrics,
         theme
       );
 
@@ -2264,7 +2283,7 @@ function AG24_BP_V2_addSnapshot_(
               version:
                 financialStory.version,
               metricIds:
-                financialStory.metrics.map(
+                snapshotMetrics.map(
                   function(metric) {
                     return metric.id;
                   }
@@ -2302,32 +2321,33 @@ function AG24_BP_V2_addSnapshot_(
     theme
   );
 
+  function snapshotText_(value) {
+    return (
+      typeof AG24_PREMIUM_HARDEN_snapshotText_ ===
+        "function"
+        ? AG24_PREMIUM_HARDEN_snapshotText_(value)
+        : AG24_BP_V2_text_(value)
+    );
+  }
+
   AG24_BP_V2_addCards_(
     body,
     [
       [
         "PROBLÈME",
-        model.snapshot.problem
+        snapshotText_(model.snapshot.problem)
       ],
       [
         "SOLUTION",
-        model.snapshot.solution
-      ],
-      [
-        "PROPOSITION DE VALEUR",
-        model.snapshot.valueProposition
-      ],
-      [
-        "MODÈLE ÉCONOMIQUE",
-        model.snapshot.revenueModel
+        snapshotText_(model.snapshot.solution)
       ],
       [
         "CLIENTÈLE CIBLE",
-        model.snapshot.targetCustomers
+        snapshotText_(model.snapshot.targetCustomers)
       ],
       [
         "IMPACT",
-        model.snapshot.impact
+        snapshotText_(model.snapshot.impact)
       ]
     ],
     theme
@@ -2686,6 +2706,16 @@ function AG24_BP_V2_addProcessFlow_(
             step &&
             AG24_BP_V2_text_(
               step[0]
+            ) &&
+            AG24_BP_V2_text_(
+              step[1]
+            ) &&
+            !(
+              typeof AG24_PREMIUM_HARDEN_isSentinel_ ===
+                "function" &&
+              AG24_PREMIUM_HARDEN_isSentinel_(
+                step[1]
+              )
             )
           );
         }
@@ -3214,7 +3244,7 @@ function AG24_BP_V2_addProblemPage_(
       ],
       [
         "Conséquence",
-        urgency
+        model.snapshot.consequence
       ],
       [
         "Opportunité",
@@ -3385,28 +3415,48 @@ function AG24_BP_V2_addStrategyPage_(
     theme
   );
 
+  var strategySteps = [
+    [
+      "Acquisition",
+      model.commercial.acquisition
+    ],
+    [
+      "Conversion",
+      model.commercial.conversion
+    ],
+    [
+      "Vente",
+      model.commercial.sales
+    ],
+    [
+      "Fidélisation",
+      model.commercial.retention
+    ]
+  ];
+
+  var populatedStrategySteps =
+    strategySteps.filter(function(step) {
+      return Boolean(
+        AG24_BP_V2_text_(step[1])
+      );
+    });
+
   AG24_BP_V2_addProcessFlow_(
     body,
-    [
-      [
-        "Acquisition",
-        model.commercial.acquisition
-      ],
-      [
-        "Conversion",
-        model.commercial.conversion
-      ],
-      [
-        "Vente",
-        model.commercial.sales
-      ],
-      [
-        "Fidélisation",
-        model.commercial.retention
-      ]
-    ],
+    strategySteps,
     theme
   );
+
+  if (populatedStrategySteps.length < 2) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Stratégie commerciale à structurer",
+      populatedStrategySteps.length
+        ? "Le canal ou processus disponible est présenté ci-dessus. Les étapes d’acquisition, de conversion et de fidélisation restantes doivent être précisées avant exécution."
+        : "Les canaux d’acquisition, de conversion, de vente et de fidélisation doivent être précisés avant exécution.",
+      theme
+    );
+  }
 
   AG24_BP_V2_addParagraphs_(
     body,
@@ -3461,19 +3511,8 @@ function AG24_BP_V2_addOperationsPage_(
     body,
     [
       [
-        "Équipe",
-        AG24_BP_V2_findCard_(
-          section,
-          "Équipe"
-        )
-      ],
-      [
         "Stade actuel",
         model.project.stage
-      ],
-      [
-        "Porteur",
-        model.project.promoter
       ],
       [
         "Zone d’opération",
@@ -4212,6 +4251,16 @@ function AG24_BP_V2_renderDocument_(
   data = data || {};
   options = options || {};
 
+  if (
+    typeof AG24_PREMIUM_HARDEN_prepareData_ ===
+      "function"
+  ) {
+    data =
+      AG24_PREMIUM_HARDEN_prepareData_(
+        data
+      );
+  }
+
   var theme =
     AG24_BP_V2_resolveTheme_(
       options.themeId ||
@@ -4552,6 +4601,18 @@ function AG24_BP_V2_renderDocument_(
     );
   }
 
+  var sectionRenumbering = null;
+
+  if (
+    typeof AG24_PREMIUM_HARDEN_renumberSections_ ===
+      "function"
+  ) {
+    sectionRenumbering =
+      AG24_PREMIUM_HARDEN_renumberSections_(
+        body
+      );
+  }
+
   AG24_BP_V2_assertWhiteLabel_(
     document
   );
@@ -4595,6 +4656,8 @@ function AG24_BP_V2_renderDocument_(
       premiumRenderedSections,
     audienceComposer:
       audienceComposerResult,
+    sectionRenumbering:
+      sectionRenumbering,
     whiteLabel:
       true
   };

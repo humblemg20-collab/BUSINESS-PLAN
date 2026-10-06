@@ -6,7 +6,7 @@
  * positioning/value proposition.
  */
 var AG24_PREMIUM_COMPETITION_V1 = Object.freeze({
-  VERSION:"1.0.0",
+  VERSION:"1.1.0",
   MAX_ALTERNATIVES:8
 });
 
@@ -14,6 +14,21 @@ function AG24_PREMIUM_COMPETITION_text_(value) {
   return String(value === null || value === undefined ? "" : value)
     .replace(/\s+/g," ")
     .trim();
+}
+
+function AG24_PREMIUM_COMPETITION_isSentinel_(value) {
+  if (
+    typeof AG24_PREMIUM_HARDEN_isSentinel_ ===
+      "function"
+  ) {
+    return AG24_PREMIUM_HARDEN_isSentinel_(value);
+  }
+
+  var token =
+    AG24_PREMIUM_COMPETITION_text_(value)
+      .toLowerCase();
+
+  return /^(personne|aucun|aucune|néant|neant|n\/a|na|none|null|-|—)$/.test(token);
 }
 
 function AG24_PREMIUM_COMPETITION_split_(value) {
@@ -27,13 +42,17 @@ function AG24_PREMIUM_COMPETITION_split_(value) {
   var parts = text
     .split(";")
     .map(function(item){return AG24_PREMIUM_COMPETITION_text_(item);})
-    .filter(Boolean);
+    .filter(function(item){
+      return item && !AG24_PREMIUM_COMPETITION_isSentinel_(item);
+    });
 
   if (parts.length === 1 && parts[0].indexOf(",") !== -1) {
     parts = parts[0]
       .split(",")
       .map(function(item){return AG24_PREMIUM_COMPETITION_text_(item);})
-      .filter(Boolean);
+      .filter(function(item){
+        return item && !AG24_PREMIUM_COMPETITION_isSentinel_(item);
+      });
   }
 
   var seen = {};
@@ -181,7 +200,7 @@ function AG24_PREMIUM_COMPETITION_SECTION_SYSTEM_TEST_V1() {
     var result = AG24_PREMIUM_COMPETITION_render_(
       doc.getBody(),
       {
-        competitors:"Diesel generators;Grid electricity;Local solar installers",
+        competitors:"Personne;Aucun concurrent;Diesel generators;Grid electricity;Local solar installers",
         valueProposition:"Solar-as-a-Service sans CAPEX initial."
       },
       AG24_BP_V2_resolveTheme_("executive_premium")
@@ -197,7 +216,9 @@ function AG24_PREMIUM_COMPETITION_SECTION_SYSTEM_TEST_V1() {
     report.alternativesPresent =
       text.indexOf("Diesel generators") !== -1 &&
       text.indexOf("Grid electricity") !== -1 &&
-      text.indexOf("Local solar installers") !== -1;
+      text.indexOf("Local solar installers") !== -1 &&
+      text.indexOf("Personne") === -1 &&
+      text.indexOf("Aucun concurrent") === -1;
 
     report.positioningPresent =
       text.indexOf("Solar-as-a-Service sans CAPEX initial.") !== -1;
