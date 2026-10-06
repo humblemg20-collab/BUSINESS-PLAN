@@ -5,7 +5,7 @@
  * regression suite -> latest real-data shadow canary -> compact persisted proof.
  */
 var AG24_PREMIUM_FINANCEUR_RELEASE_GATE_V1 = Object.freeze({
-  VERSION:"1.1.0",
+  VERSION:"1.2.0",
   LAST_RESULT_PROPERTY:"AFRIGREEN24_PREMIUM_FINANCEUR_RELEASE_GATE_LAST"
 });
 
@@ -22,6 +22,10 @@ function AG24_PREMIUM_FINANCEUR_RELEASE_GATE_persist_(report) {
     regressionTotalTests:report.regressionTotalTests,
     canarySuccess:report.canarySuccess,
     canaryDossierId:report.canaryDossierId,
+    canaryShadowOnly:report.canaryShadowOnly,
+    canaryFinalValidationReady:report.canaryFinalValidationReady,
+    technicalReleaseReady:report.technicalReleaseReady,
+    productionDeliveryGatePreserved:report.productionDeliveryGatePreserved,
     nextCandidateId:report.nextCandidateId,
     nextCandidateProjectName:report.nextCandidateProjectName,
     nextAction:report.nextAction,
@@ -53,6 +57,10 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
     regressionTotalTests:0,
     canarySuccess:false,
     canaryDossierId:"",
+    canaryShadowOnly:false,
+    canaryFinalValidationReady:false,
+    technicalReleaseReady:false,
+    productionDeliveryGatePreserved:true,
     nextCandidateId:"",
     nextCandidateProjectName:"",
     nextAction:"",
@@ -107,6 +115,14 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
       canary && canary.dossierId
         ? String(canary.dossierId)
         : "";
+    report.canaryShadowOnly =
+      Boolean(canary && canary.shadowOnly === true);
+    report.canaryFinalValidationReady =
+      Boolean(
+        canary &&
+        canary.finalValidationReady === true
+      );
+    report.productionDeliveryGatePreserved = true;
     report.nextCandidateId =
       canary && canary.nextCandidateId
         ? String(canary.nextCandidateId)
@@ -148,11 +164,14 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
       throw new Error(report.failureCode);
     }
 
-    report.success =
+    report.technicalReleaseReady =
       report.regressionSuccess === true &&
       report.canarySuccess === true &&
       report.renderer === "PREMIUM_V2" &&
       report.cleanupSuccess === true;
+
+    report.success =
+      report.technicalReleaseReady === true;
 
     if (!report.success) {
       report.state = "FAILED";
@@ -195,6 +214,10 @@ function runAg24PremiumFinanceurReleaseReadinessGateV1() {
             regressionTotalTests:report.regressionTotalTests,
             canarySuccess:report.canarySuccess,
             canaryDossierId:report.canaryDossierId,
+            canaryShadowOnly:report.canaryShadowOnly,
+            canaryFinalValidationReady:report.canaryFinalValidationReady,
+            technicalReleaseReady:report.technicalReleaseReady,
+            productionDeliveryGatePreserved:report.productionDeliveryGatePreserved,
             nextCandidateId:report.nextCandidateId,
             nextCandidateProjectName:report.nextCandidateProjectName,
             nextAction:report.nextAction,
