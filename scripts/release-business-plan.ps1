@@ -1,5 +1,5 @@
 param(
-  [string]$DeploymentId = "AKfycbYlpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
+  [string]$DeploymentId = "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
   [string]$ExpectedScriptId = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz",
   [string]$CanonicalBranch = "work/apps-script-v92",
   [string]$ExpectedRegressionVersion = "1.9.0",
