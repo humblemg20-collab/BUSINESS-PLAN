@@ -224,7 +224,10 @@ function Wait-ProductionHealth {
 
 $state = [ordered]@{
   releaseId = $ReleaseId
+  canonicalBranch = $CanonicalBranch
   canonicalSha = ""
+  regressionVersion = $ExpectedRegressionVersion
+  readinessGateVersion = $ExpectedReadinessGateVersion
   deploymentId = $DeploymentId
   previousVersion = $null
   candidateVersion = $null
@@ -390,7 +393,7 @@ try {
   Write-Host ""
   Write-Host "[6/8] Update existing production deployment"
 
-  $description = "PowerShell release | $head | $ReleaseId"
+  $description = "PowerShell release | $CanonicalBranch | $head | $ReleaseId"
 
   $deploy = Invoke-Clasp -Arguments @(
     "create-deployment",
@@ -491,7 +494,10 @@ try {
   Write-Host "============================================================"
   Write-Host "BUSINESS PLAN POWERSHELL RELEASE = PASS"
   Write-Host "RELEASE_ID=$ReleaseId"
+  Write-Host "CANONICAL_BRANCH=$CanonicalBranch"
   Write-Host "CANONICAL_SHA=$head"
+  Write-Host "REGRESSION_VERSION=$ExpectedRegressionVersion"
+  Write-Host "READINESS_GATE_VERSION=$ExpectedReadinessGateVersion"
   Write-Host "PREVIOUS_VERSION=$previousVersion"
   Write-Host "PRODUCTION_VERSION=$candidateVersion"
   Write-Host "PRODUCTION_HEALTH=PASS"
