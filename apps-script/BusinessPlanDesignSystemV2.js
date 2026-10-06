@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.9.0",
+  VERSION: "2.9.1",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -2215,6 +2215,111 @@ function AG24_BP_V2_addFactsGrid_(
 }
 
 
+function AG24_BP_V2_selectSnapshotMetrics_(
+  metrics,
+  data,
+  theme
+) {
+  metrics =
+    Array.isArray(metrics)
+      ? metrics
+      : [];
+
+  data = data || {};
+  theme = theme || {};
+
+  var audience =
+    String(
+      data.documentAudience ||
+      data.audience ||
+      ""
+    )
+      .toUpperCase();
+
+  var banking =
+    audience === "BANK" ||
+    String(theme.grammar || "") ===
+      "banking";
+
+  var investor =
+    audience === "INVESTOR" ||
+    audience === "IMPACT_INVESTOR";
+
+  var priorities =
+    banking
+      ? [
+          "funding",
+          "dscr",
+          "cfads",
+          "annual-debt-service",
+          "revenue",
+          "gross-margin",
+          "customers",
+          "mrr",
+          "arr"
+        ]
+      : investor
+        ? [
+            "funding",
+            "revenue",
+            "mrr",
+            "arr",
+            "customers",
+            "gross-margin",
+            "cfads"
+          ]
+        : [
+            "funding",
+            "customers",
+            "mrr",
+            "arr",
+            "revenue",
+            "gross-margin",
+            "cfads",
+            "dscr",
+            "annual-debt-service"
+          ];
+
+  var byId = {};
+
+  metrics.forEach(function(metric) {
+    if (
+      metric &&
+      metric.id &&
+      !byId[metric.id]
+    ) {
+      byId[metric.id] = metric;
+    }
+  });
+
+  var selected = [];
+
+  priorities.forEach(function(id) {
+    if (
+      selected.length < 4 &&
+      byId[id]
+    ) {
+      selected.push(byId[id]);
+      delete byId[id];
+    }
+  });
+
+  metrics.forEach(function(metric) {
+    if (
+      selected.length < 4 &&
+      metric &&
+      metric.id &&
+      byId[metric.id]
+    ) {
+      selected.push(metric);
+      delete byId[metric.id];
+    }
+  });
+
+  return selected;
+}
+
+
 function AG24_BP_V2_addSnapshot_(
   body,
   model,
@@ -2264,7 +2369,11 @@ function AG24_BP_V2_addSnapshot_(
       financialStory.metrics.length
     ) {
       var snapshotMetrics =
-        financialStory.metrics.slice(0,4);
+        AG24_BP_V2_selectSnapshotMetrics_(
+          financialStory.metrics,
+          data,
+          theme
+        );
 
       AG24_PREMIUM_METRIC_STRIP_render_(
         body,
@@ -2297,27 +2406,40 @@ function AG24_BP_V2_addSnapshot_(
     }
   }
 
+  var snapshotFundingMetricPresent =
+    Boolean(
+      typeof snapshotMetrics !== "undefined" &&
+      snapshotMetrics.some(function(metric) {
+        return metric && metric.id === "funding";
+      })
+    );
+
+  var snapshotFacts = [
+    [
+      "Stade",
+      model.project.stage
+    ],
+    [
+      "Secteur",
+      model.project.sector
+    ],
+    [
+      "Zone",
+      model.snapshot.marketArea ||
+      model.project.country
+    ]
+  ];
+
+  if (!snapshotFundingMetricPresent) {
+    snapshotFacts.push([
+      "Financement",
+      model.snapshot.funding
+    ]);
+  }
+
   AG24_BP_V2_addFactsGrid_(
     body,
-    [
-      [
-        "Stade",
-        model.project.stage
-      ],
-      [
-        "Secteur",
-        model.project.sector
-      ],
-      [
-        "Zone",
-        model.snapshot.marketArea ||
-        model.project.country
-      ],
-      [
-        "Financement",
-        model.snapshot.funding
-      ]
-    ],
+    snapshotFacts,
     theme
   );
 
