@@ -70,23 +70,44 @@ function Invoke-Clasp {
 
 function Get-DeploymentVersion {
   param(
-    [Parameter(Mandatory=$true)][string]$DeploymentId
+    [Parameter(Mandatory=$true)][string]$DeploymentId,
+    [string]$EvidencePath = ""
   )
 
   $result = Invoke-Clasp -Arguments @("list-deployments")
+
+  if ($EvidencePath) {
+    $result.Text | Set-Content -Path $EvidencePath -Encoding UTF8
+  }
 
   if ($result.ExitCode -ne 0) {
     return $null
   }
 
-  $pattern = [regex]::Escape($DeploymentId) + "\s+@(\d+)"
-  $match = [regex]::Match($result.Text, $pattern)
+  $lines = @($result.Text -split "\r?\n")
 
-  if (-not $match.Success) {
-    return $null
+  foreach ($line in $lines) {
+    if ($line.IndexOf($DeploymentId, [System.StringComparison]::Ordinal) -lt 0) {
+      continue
+    }
+
+    $versionMatch = [regex]::Match($line, "@(\d+)")
+
+    if ($versionMatch.Success) {
+      return [int]$versionMatch.Groups[1].Value
+    }
   }
 
-  return [int]$match.Groups[1].Value
+  foreach ($line in $lines) {
+    if ($line.IndexOf($DeploymentId, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+      Write-Host "DEPLOYMENT_ID_CASE_MISMATCH=TRUE"
+      Write-Host "EXPECTED_DEPLOYMENT_ID=$DeploymentId"
+      Write-Host "OBSERVED_DEPLOYMENT_LINE=$line"
+      break
+    }
+  }
+
+  return $null
 }
 
 function Wait-DeploymentVersion {
@@ -390,9 +411,16 @@ try {
   Write-Host ""
   Write-Host "[4/8] Capture known-good deployment"
 
-  $previousVersion = Get-DeploymentVersion -DeploymentId $DeploymentId
+  $deploymentsBeforePath = Join-Path $EvidenceDir "deployments-before.log"
+
+  $previousVersion = Get-DeploymentVersion -DeploymentId $DeploymentId -EvidencePath $deploymentsBeforePath
+
+  Write-Host "DEPLOYMENTS_BEFORE_LOG=$deploymentsBeforePath"
+  Write-Host "TARGET_DEPLOYMENT_ID=$DeploymentId"
 
   if ($null -eq $previousVersion) {
+    Write-Host "DEPLOYMENT_LOOKUP=FAIL"
+    Write-Host "Inspect $deploymentsBeforePath for the deployment inventory returned by clasp."
     throw "CURRENT_DEPLOYMENT_VERSION_NOT_FOUND"
   }
 
