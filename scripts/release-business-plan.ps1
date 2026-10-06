@@ -242,7 +242,7 @@ $state = [ordered]@{
 
 try {
   Write-Host "============================================================"
-  Write-Host "BUSINESS PLAN POWERSHELL RELEASE ENGINE V1"
+  Write-Host "BUSINESS PLAN POWERSHELL RELEASE ENGINE V2"
   Write-Host "RELEASE_ID=$ReleaseId"
   Write-Host "============================================================"
 
