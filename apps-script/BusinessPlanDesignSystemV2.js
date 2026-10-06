@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.3.1",
+  VERSION: "2.3.2",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -2202,7 +2202,8 @@ function AG24_BP_V2_addFactsGrid_(
 function AG24_BP_V2_addSnapshot_(
   body,
   model,
-  theme
+  theme,
+  data
 ) {
   AG24_BP_V2_addSectionTitle_(
     body,
@@ -2225,6 +2226,57 @@ function AG24_BP_V2_addSnapshot_(
     )
     .setFontSize(9)
     .setSpacingAfter(12);
+
+  /*
+   * Premium financial signal layer.
+   * Render only metrics backed by declared/calculated input. Missing values
+   * simply do not render; no plausible values are invented.
+   */
+  if (
+    data &&
+    typeof AG24_PREMIUM_FIN_buildStory_ === "function" &&
+    typeof AG24_PREMIUM_METRIC_STRIP_render_ === "function"
+  ) {
+    var financialStory =
+      AG24_PREMIUM_FIN_buildStory_(
+        data
+      );
+
+    if (
+      financialStory &&
+      Array.isArray(financialStory.metrics) &&
+      financialStory.metrics.length
+    ) {
+      AG24_PREMIUM_METRIC_STRIP_render_(
+        body,
+        financialStory.metrics,
+        theme
+      );
+
+      if (
+        typeof AG24_AUDIT_event_ ===
+        "function"
+      ) {
+        try {
+          AG24_AUDIT_event_(
+            "PREMIUM_EXECUTIVE_SNAPSHOT_METRICS_RENDERED",
+            {
+              version:
+                financialStory.version,
+              metricIds:
+                financialStory.metrics.map(
+                  function(metric) {
+                    return metric.id;
+                  }
+                )
+            }
+          );
+        } catch (
+          premiumSnapshotAuditError
+        ) {}
+      }
+    }
+  }
 
   AG24_BP_V2_addFactsGrid_(
     body,
@@ -4187,7 +4239,8 @@ function AG24_BP_V2_renderDocument_(
   AG24_BP_V2_addSnapshot_(
     body,
     model,
-    theme
+    theme,
+    data
   );
 
   model.sections.forEach(
