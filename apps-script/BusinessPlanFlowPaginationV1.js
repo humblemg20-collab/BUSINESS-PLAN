@@ -9,7 +9,7 @@
  * Deterministic. No AI. Idempotent.
  */
 var AG24_BP_FLOW_V1 = Object.freeze({
-  VERSION: "1.0.1",
+  VERSION: "1.0.2",
   PRESERVE_HARD_BREAKS: 2,
   SEMANTIC_PAGE_LABEL_RE: /^\s*\d+\s*\/\s*15\s*$/
 });
@@ -109,6 +109,24 @@ function AG24_BP_FLOW_normalizeDocument_(documentId, options) {
 
   var removedBreaks = 0;
   var removedLabels = 0;
+  var sentinel = null;
+
+  /*
+   * Google Docs protects the terminal body paragraph. When the last semantic
+   * "15 / 15" label is the terminal paragraph, removeFromParent() can fail.
+   * Append a temporary terminal sentinel first so every semantic label becomes
+   * safely removable. The sentinel is then reduced to a zero-height-ish blank.
+   */
+  if (state.labels.length) {
+    sentinel = body.appendParagraph("");
+    try {
+      sentinel
+        .setFontSize(1)
+        .setSpacingBefore(0)
+        .setSpacingAfter(0)
+        .setLineSpacing(1);
+    } catch (sentinelStyleError) {}
+  }
 
   /*
    * Remove from the end so document child indices remain stable.
@@ -124,6 +142,22 @@ function AG24_BP_FLOW_normalizeDocument_(documentId, options) {
     }
   }
 
+  /*
+   * Keep the sentinel as the mandatory terminal paragraph required by Docs.
+   * It contains no text and has minimal spacing, so it does not create a
+   * visible semantic page or label.
+   */
+  if (sentinel) {
+    try {
+      sentinel
+        .setText("")
+        .setFontSize(1)
+        .setSpacingBefore(0)
+        .setSpacingAfter(0)
+        .setLineSpacing(1);
+    } catch (sentinelFinalizeError) {}
+  }
+
   document.saveAndClose();
 
   var report = {
@@ -132,7 +166,9 @@ function AG24_BP_FLOW_normalizeDocument_(documentId, options) {
     preserveHardBreaks: preserve,
     hardBreaksBefore: state.breaks.length,
     hardBreaksRemoved: removedBreaks,
+    semanticLabelsDetected: state.labels.length,
     semanticLabelsRemoved: removedLabels,
+    terminalSentinelApplied: Boolean(sentinel),
     paginationMode: "FLOW"
   };
 
@@ -182,6 +218,13 @@ function AG24_BP_FLOW_PAGINATION_SYSTEM_TEST_V1() {
 
     report.explicitPageBreaksAfter = after.breaks.length;
     report.fixedLabelsAfter = after.labels.length;
+    report.remainingLabelTexts = after.labels.map(function(label) {
+      try {
+        return String(label.getText() || "");
+      } catch (error) {
+        return "";
+      }
+    });
     report.success =
       normalized.success === true &&
       report.explicitPageBreaksAfter === 2 &&
