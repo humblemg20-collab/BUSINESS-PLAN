@@ -5,6 +5,10 @@
  * ============================================================
  */
 
+const BP_DASHBOARD_SYNC_V1 = Object.freeze({
+  VERSION: '1.1.0'
+});
+
 const BP_DASHBOARD_SYNC_URL_PROPERTY =
   'AFRIGREEN24_DASHBOARD_SYNC_URL';
 
@@ -29,6 +33,205 @@ function BP_obtenirDashboardSyncUrl_() {
   return url;
 }
 
+function BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_(
+  dossierId,
+  generationClient
+) {
+  const id = BPB_normaliserDossierId_(dossierId);
+
+  if (
+    generationClient &&
+    generationClient.dossierId &&
+    String(generationClient.dossierId) !== id
+  ) {
+    throw new Error(
+      'Le document ne correspond pas au dossier autorisé.'
+    );
+  }
+
+  const generation =
+    BPB_lireJsonChunked_(
+      BPB_cle_(id, 'GENERATION_FINANCEUR')
+    );
+
+  if (
+    !generation ||
+    generation.statut !== 'FINANCEUR_GENERE'
+  ) {
+    throw new Error(
+      'Aucune génération Financeur canonique n’est disponible.'
+    );
+  }
+
+  if (
+    !generation.pdfId ||
+    !generation.pdfUrl
+  ) {
+    throw new Error(
+      'Le Business Plan Financeur canonique est incomplet.'
+    );
+  }
+
+  return generation;
+}
+
+function BP_DASHBOARD_SYNC_persistState_(
+  dossierId,
+  generation,
+  dashboardSync
+) {
+  const id = BPB_normaliserDossierId_(dossierId);
+  const updated = Object.assign(
+    {},
+    generation || {},
+    {
+      dashboardSync:
+        dashboardSync &&
+        typeof dashboardSync === 'object'
+          ? dashboardSync
+          : {
+              success:false,
+              skipped:true
+            }
+    }
+  );
+
+  BPB_avecVerrou_(function () {
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id, 'GENERATION_FINANCEUR'),
+      updated
+    );
+  });
+
+  return updated;
+}
+
+function BP_DASHBOARD_SYNC_syncStoredFinanceur_(
+  dossierId,
+  bridge,
+  options
+) {
+  const id = BPB_normaliserDossierId_(dossierId);
+  const opts =
+    options && typeof options === 'object'
+      ? options
+      : {};
+
+  const generation =
+    BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_(
+      id,
+      opts.generationClient || null
+    );
+
+  if (
+    generation.dashboardSync &&
+    generation.dashboardSync.success === true
+  ) {
+    return generation.dashboardSync;
+  }
+
+  const normalizedBridge =
+    String(bridge || '').trim();
+
+  if (!normalizedBridge) {
+    const skipped = {
+      success:false,
+      skipped:true,
+      reason:'Aucun bridge AfriGreen24.',
+      at:new Date().toISOString()
+    };
+
+    BP_DASHBOARD_SYNC_persistState_(
+      id,
+      generation,
+      skipped
+    );
+
+    return skipped;
+  }
+
+  try {
+    const response =
+      synchroniserBusinessPlanVersDashboard_(
+        normalizedBridge,
+        generation
+      );
+
+    const synced = {
+      success:true,
+      skipped:false,
+      at:new Date().toISOString(),
+      downstream:
+        response &&
+        typeof response === 'object'
+          ? response
+          : {}
+    };
+
+    BP_DASHBOARD_SYNC_persistState_(
+      id,
+      generation,
+      synced
+    );
+
+    if (
+      typeof AG24_AUDIT_event_ === 'function'
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          'BANCABLE_DASHBOARD_SYNC_PASSED',
+          {
+            version:BP_DASHBOARD_SYNC_V1.VERSION,
+            dossierId:id,
+            pdfId:String(generation.pdfId || '')
+          }
+        );
+      } catch (auditError) {}
+    }
+
+    return synced;
+
+  } catch (error) {
+    const failed = {
+      success:false,
+      skipped:false,
+      at:new Date().toISOString(),
+      error:
+        error && error.message
+          ? String(error.message)
+          : String(error)
+    };
+
+    BP_DASHBOARD_SYNC_persistState_(
+      id,
+      generation,
+      failed
+    );
+
+    if (
+      typeof AG24_AUDIT_event_ === 'function'
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          'BANCABLE_DASHBOARD_SYNC_FAILED',
+          {
+            version:BP_DASHBOARD_SYNC_V1.VERSION,
+            dossierId:id,
+            pdfId:String(generation.pdfId || ''),
+            error:failed.error.slice(0,240)
+          }
+        );
+      } catch (auditError) {}
+    }
+
+    if (opts.throwOnFailure === true) {
+      throw error;
+    }
+
+    return failed;
+  }
+}
+
 function synchroniserBusinessPlanVersDashboardDepuisInterface(
   dossierId,
   jetonAcces,
@@ -41,17 +244,13 @@ function synchroniserBusinessPlanVersDashboardDepuisInterface(
     'dashboard-sync'
   );
 
-  if (
-    generation &&
-    generation.dossierId &&
-    String(generation.dossierId) !== id
-  ) {
-    throw new Error('Le document ne correspond pas au dossier autorisé.');
-  }
-
-  return synchroniserBusinessPlanVersDashboard_(
+  return BP_DASHBOARD_SYNC_syncStoredFinanceur_(
+    id,
     bridge,
-    generation
+    {
+      generationClient:generation || null,
+      throwOnFailure:true
+    }
   );
 }
 
@@ -121,6 +320,10 @@ function synchroniserBusinessPlanVersDashboard_(
 
     bridge:
       bridge,
+
+    idempotencyKey:
+      'BUSINESS_PLAN|' +
+      String(generation.pdfId),
 
     document:{
 
@@ -263,4 +466,131 @@ function synchroniserBusinessPlanVersDashboard_(
 
   return result;
 
+}
+
+function BP_DASHBOARD_SYNC_CANONICAL_SYSTEM_TEST_V1() {
+  const id =
+    'BPB_SYNC_TEST_' +
+    String(new Date().getTime());
+
+  const key =
+    BPB_cle_(
+      id,
+      'GENERATION_FINANCEUR'
+    );
+
+  const report = {
+    success:false,
+    version:BP_DASHBOARD_SYNC_V1.VERSION,
+    canonicalSelected:false,
+    clientOverrideRejected:false,
+    persistedState:false,
+    cleanupSuccess:false,
+    failureCode:''
+  };
+
+  try {
+    const canonical = {
+      statut:'FINANCEUR_GENERE',
+      typeDocument:'BUSINESS_PLAN_FINANCEUR',
+      dossierId:id,
+      nomProjet:'Fixture',
+      pdfId:'CANONICAL_PDF',
+      pdfUrl:'https://drive.google.com/file/d/CANONICAL_PDF/view',
+      documentId:'CANONICAL_DOC'
+    };
+
+    BPB_ecrireJsonChunked_(
+      key,
+      canonical
+    );
+
+    const resolved =
+      BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_(
+        id,
+        {
+          dossierId:id,
+          pdfId:'MALICIOUS_PDF',
+          pdfUrl:'https://example.com/fake.pdf'
+        }
+      );
+
+    report.canonicalSelected =
+      resolved.pdfId === 'CANONICAL_PDF' &&
+      resolved.pdfUrl.indexOf(
+        'CANONICAL_PDF'
+      ) !== -1;
+
+    let rejected = false;
+
+    try {
+      BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_(
+        id,
+        {
+          dossierId:'OTHER_DOSSIER',
+          pdfId:'MALICIOUS_PDF'
+        }
+      );
+    } catch (error) {
+      rejected = true;
+    }
+
+    report.clientOverrideRejected =
+      rejected === true;
+
+    BP_DASHBOARD_SYNC_persistState_(
+      id,
+      canonical,
+      {
+        success:false,
+        skipped:true,
+        reason:'fixture'
+      }
+    );
+
+    const persisted =
+      BPB_lireJsonChunked_(key);
+
+    report.persistedState =
+      Boolean(
+        persisted &&
+        persisted.dashboardSync &&
+        persisted.dashboardSync.skipped === true
+      );
+
+    report.success =
+      report.canonicalSelected === true &&
+      report.clientOverrideRejected === true &&
+      report.persistedState === true;
+
+    if (!report.success) {
+      report.failureCode =
+        'DASHBOARD_SYNC_CANONICAL_CONTRACT_FAILED';
+    }
+
+  } catch (error) {
+    report.failureCode =
+      error && error.message
+        ? String(error.message)
+        : String(error);
+
+  } finally {
+    try {
+      BPB_supprimerJsonChunked_(key);
+      report.cleanupSuccess =
+        BPB_lireJsonChunked_(key) === null;
+    } catch (cleanupError) {
+      report.cleanupSuccess = false;
+    }
+
+    report.success =
+      report.success &&
+      report.cleanupSuccess;
+
+    Logger.log(
+      JSON.stringify(report,null,2)
+    );
+  }
+
+  return report;
 }
