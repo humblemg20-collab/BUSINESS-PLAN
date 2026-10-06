@@ -752,7 +752,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.9.0\"",
+        "ExpectedRegressionVersion = \"1.10.0\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -778,7 +778,7 @@ else:
 # Premium Financeur release-readiness contract
 premium_contracts = {
     "AG24PremiumDocumentRegressionSuiteV1.js": [
-        'VERSION:"1.9.0"',
+        'VERSION:"1.10.0"',
         "FINANCEUR_PRODUCTION_ROUTE",
         "FINANCEUR_CANARY_SELECTION",
     ],
@@ -798,6 +798,19 @@ premium_contracts = {
         'VERSION:"1.0.0"',
         "PREMIUM_BANCABLE_FINANCEUR_RENDERED",
         "LEGACY_FALLBACK",
+    ],
+    "AG24PremiumProductionAcceptanceV1.js": [
+        'VERSION:"1.0.0"',
+        "runAg24PremiumProductionAcceptanceLatestV1",
+        "PREMIUM_PRODUCTION_ACCEPTANCE_PASSED",
+        "WAITING_FOR_REAL_PRODUCTION_GENERATION",
+    ],
+    "BusinessPlanDashboardSync.js": [
+        "VERSION: '1.1.0'",
+        "BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_",
+        "BP_DASHBOARD_SYNC_syncStoredFinanceur_",
+        "BANCABLE_DASHBOARD_SYNC_PASSED",
+        "idempotencyKey:",
     ],
 }
 
