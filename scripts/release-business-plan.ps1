@@ -331,6 +331,24 @@ try {
   Write-Host "READINESS_GATE_SOURCE_VERSION=$ExpectedReadinessGateVersion"
   Write-Host "PREMIUM_SOURCE_CONTRACT=PASS"
 
+  $validatorPath = Join-Path $RepoRoot "scripts\validate_apps_script.py"
+  $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+
+  if ($null -ne $pythonCommand) {
+    $validation = Invoke-Native -File $pythonCommand.Source -Arguments @($validatorPath)
+  }
+  else {
+    $pyCommand = Get-Command py -ErrorAction SilentlyContinue
+    if ($null -eq $pyCommand) {
+      throw "PYTHON_NOT_FOUND_FOR_LOCAL_VALIDATION"
+    }
+    $validation = Invoke-Native -File $pyCommand.Source -Arguments @("-3", $validatorPath)
+  }
+
+  Assert-Native -Result $validation -Step "local Apps Script validation"
+  Write-Host $validation.Text
+  Write-Host "LOCAL_APPS_SCRIPT_VALIDATION=PASS"
+
   Set-Location $AppsScript
 
   Write-Host ""
