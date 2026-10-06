@@ -5,7 +5,7 @@
  * the audience composer and that rendered section order changes by audience.
  */
 var AG24_PREMIUM_AUDIENCE_INTEGRATION_V1 = Object.freeze({
-  VERSION:"1.0.2"
+  VERSION:"1.1.0"
 });
 
 function AG24_PREMIUM_AUDIENCE_INTEGRATION_fixture_(audience) {
@@ -117,8 +117,12 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
       );
 
     if (audience === "BANK") {
-      var bankTraction = text.indexOf("Traction & preuves");
       var bankMarket = text.indexOf("Marché et clientèle");
+      var bankBusinessModel = text.indexOf("Modèle économique");
+      var bankGoToMarket = text.indexOf("Stratégie commerciale");
+      var bankOperations = text.indexOf("Organisation opérationnelle");
+      var bankTeam = text.indexOf("Équipe & gouvernance");
+      var bankTraction = text.indexOf("Traction & preuves");
       var bankFinancialStory = text.indexOf("Financial Story");
       var bankReadiness = text.indexOf("Readiness financière");
       var bankFinancial =
@@ -131,11 +135,20 @@ function AG24_PREMIUM_AUDIENCE_INTEGRATION_render_(audience) {
       var bankCompetition = text.indexOf("Concurrence & positionnement");
 
       result.orderPass =
-        bankTraction !== -1 &&
         bankMarket !== -1 &&
+        bankBusinessModel !== -1 &&
+        bankGoToMarket !== -1 &&
+        bankOperations !== -1 &&
+        bankTeam !== -1 &&
+        bankTraction !== -1 &&
         bankFinancial !== -1 &&
         bankFunding !== -1 &&
-        bankTraction < bankMarket &&
+        bankMarket < bankBusinessModel &&
+        bankBusinessModel < bankGoToMarket &&
+        bankGoToMarket < bankOperations &&
+        bankOperations < bankTeam &&
+        bankTeam < bankTraction &&
+        bankTraction < bankFinancial &&
         bankFinancial < bankFunding &&
         bankProblem === -1 &&
         bankSolution === -1 &&
