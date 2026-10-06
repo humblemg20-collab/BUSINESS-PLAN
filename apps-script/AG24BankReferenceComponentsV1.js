@@ -681,7 +681,7 @@ function AG24_BANK_REFERENCE_COMPONENTS_SYSTEM_TEST_V1() {
       text.indexOf("DSCR 1.28x") !== -1 &&
       text.indexOf("Demande de financement") !== -1 &&
       text.indexOf("Service annuel de la dette") !== -1 &&
-      text.indexOf("Mesures de maîtrise".toUpperCase()) !== -1;
+      text.indexOf("Mesure de maîtrise".toUpperCase()) !== -1;
 
     reopened.saveAndClose();
 
