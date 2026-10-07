@@ -18,8 +18,8 @@
  */
 
 const BP_IMPORT_AI_CONFIG = Object.freeze({
-  VERSION: "5.1.0",
-  SCHEMA_VERSION: "afrigreen24_bp_import_v5",
+  VERSION: "5.2.0",
+  SCHEMA_VERSION: "afrigreen24_bp_import_v6",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
   MIN_TEXT_CHARS: 80,
@@ -77,6 +77,132 @@ const BP_IMPORT_FIELDS = Object.freeze([
   "risks"
 ]);
 
+
+const BP_IMPORT_FINANCE_FIELDS = Object.freeze([
+  "devise",
+  "montantInvestissements",
+  "montantStockInitial",
+  "besoinFondsRoulementDeclare",
+  "tresorerieSecurite",
+  "apportPromoteur",
+  "autresFinancements",
+  "montantDemande",
+  "utilisationFondsJson",
+  "dureeRemboursementMois",
+  "differeMois",
+  "tauxInteretAnnuel",
+  "dateBesoinFonds",
+  "lignesVentesJson",
+  "baseHypothesesVentesJson",
+  "justificationHypothesesVentes",
+  "croissanceAnnuellePct",
+  "justificationCroissance",
+  "saisonnalite",
+  "detailsSaisonnalite",
+  "salairesMensuels",
+  "loyersMensuels",
+  "marketingMensuel",
+  "energieTelecomMensuel",
+  "transportLogistiqueMensuel",
+  "administrationMensuel",
+  "impotsTaxesMensuels",
+  "autresChargesFixesMensuelles",
+  "detailsAutresCharges",
+  "delaiPaiementClientsJours",
+  "delaiPaiementFournisseursJours",
+  "stockMoyenJours",
+  "nombreClientsActuels",
+  "chiffreAffairesHistorique",
+  "chargesHistoriques12Mois",
+  "tresorerieDisponibleActuelle",
+  "creancesClientsActuelles",
+  "dettesFinancieresExistantes",
+  "mensualitesDettesExistantes",
+  "preuvesDemandeJson",
+  "detailsTraction",
+  "responsableOperations",
+  "responsableFinances",
+  "effectifActuel",
+  "recrutementsPrevusJson",
+  "capaciteMaximaleMensuelle",
+  "uniteCapacite",
+  "statutAutorisations",
+  "detailsAutorisations",
+  "sourceRemboursement",
+  "mensualiteMaxSupportable",
+  "dateDebutRemboursementSouhaitee",
+  "garantiesDisponiblesJson",
+  "detailsGaranties",
+  "risquesDetailJson",
+  "scenarioBaisseVentesPct",
+  "scenarioHausseCoutsPct"
+]);
+
+const BP_IMPORT_EXTRACTION_FIELDS = Object.freeze(
+  BP_IMPORT_FIELDS.concat(
+    BP_IMPORT_FINANCE_FIELDS
+  )
+);
+
+const BP_IMPORT_FIELD_GUIDE = Object.freeze({
+  devise:"Code devise explicite du dossier : XOF, XAF, EUR, USD, GBP, GNF, CDF, MAD, DZD ou TND.",
+  montantInvestissements:"Montant total des investissements prévus.",
+  montantStockInitial:"Montant du stock initial.",
+  besoinFondsRoulementDeclare:"Besoin en fonds de roulement déclaré.",
+  tresorerieSecurite:"Trésorerie de sécurité souhaitée.",
+  apportPromoteur:"Apport du promoteur et/ou des associés.",
+  autresFinancements:"Autres financements déjà prévus ou acquis.",
+  montantDemande:"Montant demandé à la banque ou au financeur.",
+  utilisationFondsJson:'Tableau JSON [{"poste":"","montant":0,"justification":""}] uniquement si le document détaille les emplois des fonds.',
+  dureeRemboursementMois:"Durée de remboursement en mois.",
+  differeMois:"Période de différé en mois.",
+  tauxInteretAnnuel:"Taux d’intérêt annuel en pourcentage, uniquement s’il est écrit dans le document.",
+  dateBesoinFonds:"Date de besoin des fonds au format YYYY-MM-DD si déterminable explicitement.",
+  lignesVentesJson:'Tableau JSON [{"nom":"","prixUnitaire":0,"volumeMensuel":0,"coutVariableUnitaire":0}] uniquement si prix, volume et coût variable sont explicitement présents.',
+  baseHypothesesVentesJson:'Tableau JSON de preuves explicites parmi : Ventes déjà réalisées, Commandes ou contrats, Précommandes ou lettres d’intention, Enquête auprès de clients, Tarifs observés chez des concurrents, Capacité réelle de production ou de prestation, Devis de fournisseurs, Estimation personnelle uniquement.',
+  justificationHypothesesVentes:"Justification explicitement donnée pour les prix et volumes de ventes.",
+  croissanceAnnuellePct:"Croissance annuelle prévue en pourcentage.",
+  justificationCroissance:"Justification explicite de la croissance prévue.",
+  saisonnalite:"Oui ou Non seulement si le document indique explicitement la saisonnalité.",
+  detailsSaisonnalite:"Description des périodes fortes et faibles.",
+  salairesMensuels:"Salaires et charges sociales mensuels.",
+  loyersMensuels:"Loyers mensuels.",
+  marketingMensuel:"Budget marketing/commercial mensuel.",
+  energieTelecomMensuel:"Énergie, internet et télécommunications mensuels.",
+  transportLogistiqueMensuel:"Transport et logistique mensuels.",
+  administrationMensuel:"Administration, assurance et services professionnels mensuels.",
+  impotsTaxesMensuels:"Impôts, taxes et cotisations mensuels estimés.",
+  autresChargesFixesMensuelles:"Autres charges fixes mensuelles.",
+  detailsAutresCharges:"Description des autres charges fixes.",
+  delaiPaiementClientsJours:"Délai moyen de paiement clients en jours.",
+  delaiPaiementFournisseursJours:"Délai moyen de paiement fournisseurs en jours.",
+  stockMoyenJours:"Nombre moyen de jours de stock.",
+  nombreClientsActuels:"Nombre de clients actuels.",
+  chiffreAffairesHistorique:"Chiffre d’affaires réalisé sur les 12 derniers mois.",
+  chargesHistoriques12Mois:"Charges totales des 12 derniers mois.",
+  tresorerieDisponibleActuelle:"Trésorerie actuellement disponible.",
+  creancesClientsActuelles:"Créances clients actuellement à encaisser.",
+  dettesFinancieresExistantes:"Capital restant dû sur les dettes financières existantes.",
+  mensualitesDettesExistantes:"Mensualités totales déjà supportées chaque mois.",
+  preuvesDemandeJson:'Tableau JSON des preuves de demande explicitement présentes : Premières ventes, Précommandes, Lettres d’intention, Contrats, Partenariats commerciaux, Résultats de tests, Enquête clients.',
+  detailsTraction:"Résultats commerciaux ou preuves de traction explicitement décrits.",
+  responsableOperations:"Personne explicitement responsable des opérations.",
+  responsableFinances:"Personne explicitement responsable des finances.",
+  effectifActuel:"Effectif actuel.",
+  recrutementsPrevusJson:'Tableau JSON [{"poste":"","nombre":0,"datePrevue":""}] des recrutements explicitement prévus.',
+  capaciteMaximaleMensuelle:"Capacité maximale mensuelle de production ou service.",
+  uniteCapacite:"Unité utilisée pour la capacité.",
+  statutAutorisations:"Une valeur exacte parmi : Non applicable, Déjà obtenues, En cours d’obtention, À obtenir avant le démarrage.",
+  detailsAutorisations:"Autorisations, licences ou certifications décrites.",
+  sourceRemboursement:"Source de trésorerie explicitement prévue pour rembourser le financement.",
+  mensualiteMaxSupportable:"Mensualité maximale déclarée comme supportable.",
+  dateDebutRemboursementSouhaitee:"Date souhaitée de début de remboursement au format YYYY-MM-DD si explicite.",
+  garantiesDisponiblesJson:'Tableau JSON des garanties explicitement mentionnées : Aucune garantie disponible, Équipement ou matériel, Bien immobilier, Dépôt ou épargne, Caution personnelle ou institutionnelle, Garantie d’un fonds, Autre.',
+  detailsGaranties:"Description explicite des garanties ou sûretés.",
+  risquesDetailJson:'Tableau JSON [{"risque":"","probabilite":"Faible|Moyenne|Élevée","impact":"Faible|Moyen|Élevé","mesure":""}] seulement lorsque ces quatre éléments sont explicitement documentés pour chaque risque.',
+  scenarioBaisseVentesPct:"Pourcentage explicite de baisse des ventes utilisé dans un scénario prudent.",
+  scenarioHausseCoutsPct:"Pourcentage explicite de hausse des coûts utilisé dans un scénario prudent."
+});
 
 const BP_IMPORT_STATUS = Object.freeze({
   FOUND: "FOUND",
@@ -186,6 +312,25 @@ function recevoirFichierBusinessPlan(payload) {
         new Date().toISOString()
     };
 
+    if (
+      typeof AG24_IMPORT_CONTEXT_create_ !==
+      "function"
+    ) {
+      throw new Error(
+        "IMPORT_CONTEXT_ENGINE_UNAVAILABLE"
+      );
+    }
+
+    var importContextId =
+      AG24_IMPORT_CONTEXT_create_(
+        analysisResult,
+        importMeta,
+        {
+          fileName:fichier.fileName,
+          mimeType:fichier.mimeType
+        }
+      );
+
     AG24_AUDIT_event_(
       "BUSINESS_PLAN_IMPORT_COMPLETED",
       {
@@ -245,6 +390,9 @@ function recevoirFichierBusinessPlan(payload) {
       importMeta:
         importMeta,
 
+      importContextId:
+        importContextId,
+
       analysisResult:
         analysisResult
     };
@@ -297,7 +445,8 @@ function analyserBusinessPlanAvecOpenAI_(
   var result =
     AG24_OPENAI_extractBusinessPlan_(
       texteSource,
-      BP_IMPORT_FIELDS.slice()
+      BP_IMPORT_EXTRACTION_FIELDS.slice(),
+      BP_IMPORT_FIELD_GUIDE
     );
 
   if (
@@ -346,7 +495,7 @@ function normaliserResultatOpenAIBusinessPlan_(
 
   var fields = {};
 
-  BP_IMPORT_FIELDS.forEach(
+  BP_IMPORT_EXTRACTION_FIELDS.forEach(
     function(field) {
 
       var item =
@@ -1486,7 +1635,10 @@ function testerExtractionBusinessPlanOpenAI_() {
     "Solution : vente de chaussures via un site web et WhatsApp.",
     "Clients : jeunes actifs et étudiants.",
     "Canaux : site web, Instagram et WhatsApp.",
-    "Financement recherché : 10 000 000 FCFA.",
+    "Financement recherché : 10 000 000 XAF.",
+    "Durée de remboursement souhaitée : 48 mois.",
+    "Taux d’intérêt annuel : 9%.",
+    "Apport du promoteur : 2 000 000 XAF.",
     "Utilisation des fonds : stock, site web et marketing."
   ].join("\n");
 
