@@ -4870,6 +4870,39 @@ function bpValeurSelectValide_(field, value) {
         var pageCompletion = document.getElementById("businessPlanCompletionPage");
         if (pageCompletion) pageCompletion.classList.add("hidden");
 
+        var fundingTypeFinal =
+          document.getElementById("fundingType");
+
+        var fundingTypeValue =
+          fundingTypeFinal
+            ? String(fundingTypeFinal.value || "")
+            : "";
+
+        var fundingTypeNormalized =
+          fundingTypeValue.toLowerCase();
+
+        try {
+          fundingTypeNormalized =
+            fundingTypeNormalized
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "");
+        } catch (normalizeError) {}
+
+        var isBankFlow =
+          fundingTypeNormalized.indexOf("pret") !== -1 ||
+          fundingTypeNormalized.indexOf("banque") !== -1 ||
+          fundingTypeNormalized.indexOf("bancaire") !== -1 ||
+          fundingTypeNormalized.indexOf("credit") !== -1 ||
+          fundingTypeNormalized.indexOf("emprunt") !== -1;
+
+        if (
+          isBankFlow &&
+          typeof window.lancerParcoursFinalFinanceur === "function"
+        ) {
+          window.lancerParcoursFinalFinanceur();
+          return;
+        }
+
         if (
           typeof ouvrirChoixDesignBusinessPlan ===
           "function"
