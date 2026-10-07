@@ -3505,6 +3505,8 @@ initialiserBridgeAfriGreen24_();
               resultat && resultat.lienBancable
                 ? String(resultat.lienBancable)
                 : "";
+
+            preparerLienContactBancable();
           })
           .catch(function(erreur) {
             console.warn(
@@ -3546,6 +3548,17 @@ initialiserBridgeAfriGreen24_();
       };
 
 
+      function ouvrirLienBusinessPlanTop_(lien) {
+        var anchor = document.createElement("a");
+        anchor.href = lien;
+        anchor.target = "_top";
+        anchor.rel = "noopener noreferrer";
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
       function preparerLienContactBancable() {
         var bouton = document.getElementById("bancableContactLink");
 
@@ -3557,6 +3570,14 @@ initialiserBridgeAfriGreen24_();
         bouton.setAttribute("aria-busy", "false");
 
         bouton.onclick = function() {
+          var lienPret =
+            String(window.businessPlanAdvancedLink || "").trim();
+
+          if (lienPret) {
+            ouvrirLienBusinessPlanTop_(lienPret);
+            return;
+          }
+
           bouton.disabled = true;
           bouton.setAttribute("aria-busy", "true");
 
@@ -3565,7 +3586,7 @@ initialiserBridgeAfriGreen24_();
               var lien =
                 resultat && resultat.lienBancable
                   ? String(resultat.lienBancable)
-                  : String(window.businessPlanAdvancedLink || "");
+                  : "";
 
               if (!lien) {
                 throw new Error(
@@ -3574,7 +3595,13 @@ initialiserBridgeAfriGreen24_();
               }
 
               window.businessPlanAdvancedLink = lien;
-              window.location.assign(lien);
+
+              bouton.disabled = false;
+              bouton.setAttribute("aria-busy", "false");
+              bouton.querySelector("span").textContent =
+                "Continuer l’analyse complète";
+
+              preparerLienContactBancable();
             })
             .catch(function(erreur) {
               bouton.disabled = false;
