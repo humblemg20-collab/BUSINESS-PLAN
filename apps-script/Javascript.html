@@ -1726,7 +1726,10 @@
       .preparerTransitionBusinessPlanBancable(
         "",
         standard,
-        bridge
+        bridge,
+        String(
+          window.businessPlanImportContextId || ""
+        ).trim()
       );
   }
 
