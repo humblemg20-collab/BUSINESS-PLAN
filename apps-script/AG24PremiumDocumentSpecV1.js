@@ -9,7 +9,7 @@
  * Deterministic. No AI call. No persistence side effect.
  */
 var AG24_PREMIUM_DOCUMENT_SPEC_V1 = Object.freeze({
-  VERSION: "1.1.0",
+  VERSION: "1.1.1",
   PRODUCT: "BUSINESS_PLAN",
   SUPPORTED_AUDIENCES: Object.freeze([
     "GENERIC",
@@ -314,21 +314,71 @@ function AG24_PREMIUM_DOC_text_(value) {
 function AG24_PREMIUM_DOC_normalizeAudience_(value) {
   var raw = AG24_PREMIUM_DOC_text_(value).toUpperCase();
 
+  var token = raw;
+  try {
+    token = raw
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  } catch (normalizeError) {}
+
+  token = token
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  var compact = token.replace(/\s+/g, "_");
+
   var aliases = {
-    BANK_LOAN: "BANK",
-    DEBT: "BANK",
-    LOAN: "BANK",
-    BANKING: "BANK",
-    EQUITY: "INVESTOR",
-    VC: "INVESTOR",
-    VENTURE: "INVESTOR",
-    PUBLIC_PROGRAM: "GRANT",
-    PUBLIC: "GRANT",
-    SUBSIDY: "GRANT",
-    IMPACT: "IMPACT_INVESTOR"
+    BANK:"BANK",
+    BANK_LOAN:"BANK",
+    DEBT:"BANK",
+    LOAN:"BANK",
+    BANKING:"BANK",
+    PRET_BANCAIRE:"BANK",
+    CREDIT_BANCAIRE:"BANK",
+    EMPRUNT_BANCAIRE:"BANK",
+    PRET:"BANK",
+    CREDIT:"BANK",
+    EMPRUNT:"BANK",
+    EQUITY:"INVESTOR",
+    VC:"INVESTOR",
+    VENTURE:"INVESTOR",
+    INVESTOR:"INVESTOR",
+    INVESTISSEUR:"INVESTOR",
+    CAPITAL:"INVESTOR",
+    PUBLIC_PROGRAM:"GRANT",
+    PROGRAMME_PUBLIC:"GRANT",
+    PUBLIC:"GRANT",
+    SUBSIDY:"GRANT",
+    SUBVENTION:"GRANT",
+    GRANT:"GRANT",
+    IMPACT:"IMPACT_INVESTOR",
+    IMPACT_INVESTOR:"IMPACT_INVESTOR"
   };
 
-  var candidate = aliases[raw] || raw || "GENERIC";
+  var candidate = aliases[compact] || "";
+
+  if (!candidate) {
+    if (
+      /(^| )(BANQUE|BANCAIRE|PRET|CREDIT|EMPRUNT|DETTE)( |$)/.test(token)
+    ) {
+      candidate = "BANK";
+    } else if (
+      /(^| )(EQUITY|VC|VENTURE|INVESTISSEUR|CAPITAL)( |$)/.test(token)
+    ) {
+      candidate = "INVESTOR";
+    } else if (
+      /(^| )(GRANT|SUBVENTION|SUBSIDY|PROGRAMME PUBLIC)( |$)/.test(token)
+    ) {
+      candidate = "GRANT";
+    } else if (
+      /(^| )(IMPACT INVESTOR|INVESTISSEUR IMPACT)( |$)/.test(token)
+    ) {
+      candidate = "IMPACT_INVESTOR";
+    } else {
+      candidate = raw || "GENERIC";
+    }
+  }
 
   if (
     AG24_PREMIUM_DOCUMENT_SPEC_V1.SUPPORTED_AUDIENCES.indexOf(candidate) === -1
@@ -564,6 +614,7 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
     fixedSemanticPageLabels: null,
     preserveDedicatedHardBreaks: null,
     representationRulesPass: false,
+    frenchBankAliasPass: false,
     benchmarkAvailable: false,
     benchmarkBlueprintId: "",
     failureCode: ""
@@ -597,6 +648,11 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
         ? bankA.referenceBenchmark.blueprintId
         : "";
 
+    report.frenchBankAliasPass =
+      AG24_PREMIUM_DOC_normalizeAudience_("Prêt bancaire") === "BANK" &&
+      AG24_PREMIUM_DOC_normalizeAudience_("Crédit bancaire") === "BANK" &&
+      AG24_PREMIUM_DOC_normalizeAudience_("Emprunt") === "BANK";
+
     report.representationRulesPass =
       AG24_PREMIUM_DOC_recommendRepresentation_("TIME_SERIES") === "line_chart" &&
       AG24_PREMIUM_DOC_recommendRepresentation_("RISK_REGISTER") === "risk_matrix" &&
@@ -629,6 +685,7 @@ function AG24_PREMIUM_DOC_SYSTEM_TEST_V1() {
       report.fixedSemanticPageLabels === false &&
       report.preserveDedicatedHardBreaks === 2 &&
       report.representationRulesPass === true &&
+      report.frenchBankAliasPass === true &&
       report.benchmarkAvailable === true &&
       report.benchmarkBlueprintId === "BANK_REFERENCE_V1" &&
       bankFunding !== -1 &&
