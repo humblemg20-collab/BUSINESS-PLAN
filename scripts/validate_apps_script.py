@@ -856,7 +856,7 @@ premium_contracts = {
         "AG24_BANK_REFERENCE_COMPONENTS_SYSTEM_TEST_V1",
     ],
     "AG24PremiumDocumentSpecV1.js": [
-        'VERSION: "1.1.0"',
+        'VERSION: "1.1.1"',
         "referenceBenchmark:",
         "AG24_PREMIUM_DOC_referenceAlignment_",
     ],
