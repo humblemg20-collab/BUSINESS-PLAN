@@ -305,6 +305,9 @@ if activation_path.exists():
         "URL_WEB_APP_CANONIQUE",
         "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
         "BANCABLE_WEB_APP_URL_REPAIRED",
+        "BPB_ACT_rebaseLienBancable_",
+        "BANCABLE_EXISTING_LINK_CANONICALIZED",
+        "AG24_BANCABLE_CANONICAL_LINK_SYSTEM_TEST_V1",
     ]:
         if marker not in activation_text:
             fail(f"Canonical import handoff marker missing: {marker}")

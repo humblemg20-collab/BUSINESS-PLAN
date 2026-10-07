@@ -964,10 +964,49 @@ function BPB_ACT_activerDossier_(
           )
           .trim();
 
+        let lienDoitEtreMisAJour =
+          false;
+
+        /*
+         * Un ancien dossier peut contenir un lien émis par un ancien
+         * déploiement Apps Script. On conserve son jeton d'accès mais on
+         * rebascule systématiquement sa base vers le déploiement canonique.
+         */
+        const lienCanonique =
+          BPB_ACT_rebaseLienBancable_(
+            lienExistant,
+            BPB_ACT_obtenirUrlWebAppPublique_()
+          );
+
+        if(
+          lienCanonique &&
+          lienCanonique !==
+            lienExistant
+        ){
+          lienExistant =
+            lienCanonique;
+
+          lienDoitEtreMisAJour =
+            true;
+
+          if(
+            typeof AG24_AUDIT_event_ ===
+            'function'
+          ){
+            try{
+              AG24_AUDIT_event_(
+                'BANCABLE_EXISTING_LINK_CANONICALIZED',
+                {
+                  dossierId:id
+                }
+              );
+            }catch(auditError){}
+          }
+        }
+
 
         /*
          * Ancien dossier actif :
-         *
          * si un bridge vient maintenant d'être enregistré
          * mais que l'ancien lien ne contient pas encore
          * agBridge, on l'ajoute au lien existant.
@@ -1005,6 +1044,15 @@ function BPB_ACT_activerDossier_(
               bridge
             );
 
+          lienDoitEtreMisAJour =
+            true;
+
+        }
+
+
+        if(
+          lienDoitEtreMisAJour
+        ){
 
           BPB_ecrireJsonChunked_(
 
@@ -1237,6 +1285,125 @@ function BPB_ACT_activerDossier_(
       dejaActif
 
   };
+
+}
+
+
+/**
+ * Rebase un ancien lien Bancable vers le déploiement canonique
+ * sans modifier le dossierId, le jeton d'accès ni les autres paramètres.
+ * Fonction pure et déterministe : aucune lecture/écriture de stockage.
+ */
+function BPB_ACT_rebaseLienBancable_(
+  lienExistant,
+  urlCanonique
+){
+
+  const lien =
+    String(
+      lienExistant ||
+      ''
+    )
+    .trim();
+
+  const canonical =
+    String(
+      urlCanonique ||
+      ''
+    )
+    .trim();
+
+  if(
+    !lien ||
+    !canonical
+  ){
+    return lien;
+  }
+
+  const indexQuery =
+    lien.indexOf('?');
+
+  if(
+    indexQuery === -1
+  ){
+    return lien;
+  }
+
+  const query =
+    lien.slice(
+      indexQuery + 1
+    );
+
+  if(
+    !/(^|&)page=bancable(&|$)/
+      .test(query) ||
+    !/(^|&)dossierId=[^&]+/
+      .test(query) ||
+    !/(^|&)access=[^&]+/
+      .test(query)
+  ){
+    return lien;
+  }
+
+  return canonical + '?' + query;
+
+}
+
+
+function AG24_BANCABLE_CANONICAL_LINK_SYSTEM_TEST_V1(){
+
+  const canonical =
+    BPB_ACTIVATION_CONFIG
+      .URL_WEB_APP_CANONIQUE;
+
+  const legacy =
+    'https://script.google.com/macros/s/LEGACY_DEPLOYMENT/exec' +
+    '?page=bancable' +
+    '&dossierId=BP_TEST' +
+    '&access=TOKEN_TEST' +
+    '&agBridge=BRIDGE_TEST';
+
+  const repaired =
+    BPB_ACT_rebaseLienBancable_(
+      legacy,
+      canonical
+    );
+
+  const success =
+    repaired.indexOf(
+      canonical + '?page=bancable'
+    ) === 0 &&
+    repaired.indexOf(
+      'dossierId=BP_TEST'
+    ) !== -1 &&
+    repaired.indexOf(
+      'access=TOKEN_TEST'
+    ) !== -1 &&
+    repaired.indexOf(
+      'agBridge=BRIDGE_TEST'
+    ) !== -1;
+
+  const report = {
+    success:success,
+    canonicalBasePreserved:
+      repaired.indexOf(canonical) === 0,
+    dossierPreserved:
+      repaired.indexOf('dossierId=BP_TEST') !== -1,
+    accessPreserved:
+      repaired.indexOf('access=TOKEN_TEST') !== -1,
+    bridgePreserved:
+      repaired.indexOf('agBridge=BRIDGE_TEST') !== -1
+  };
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 
 }
 
