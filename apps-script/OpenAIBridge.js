@@ -22,7 +22,7 @@ const AG24_OPENAI_CONFIG = Object.freeze({
   MAX_OUTPUT_TOKENS_IMPORT: 6500,
   CACHE_TTL_SECONDS: 21600,
   NARRATIVE_SCHEMA_VERSION: 'ag24_bp_narrative_v3',
-  IMPORT_SCHEMA_VERSION: 'ag24_bp_import_openai_v1'
+  IMPORT_SCHEMA_VERSION: 'ag24_bp_import_openai_v2'
 });
 
 const AG24_OPENAI_NARRATIVE_KEYS = Object.freeze([
@@ -654,7 +654,7 @@ function AG24_OPENAI_importSchema_(requiredFields) {
   };
 }
 
-function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields) {
+function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields, fieldGuide) {
   const text = String(sourceText || '').trim();
   const fields = Array.isArray(requiredFields)
     ? requiredFields.slice()
@@ -675,7 +675,9 @@ function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields) {
       '|' +
       text +
       '|' +
-      JSON.stringify(fields)
+      JSON.stringify(fields) +
+      '|' +
+      JSON.stringify(fieldGuide || {})
     ).slice(0, 48);
 
   const cache = CacheService.getScriptCache();
@@ -698,6 +700,8 @@ function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields) {
     instructions: [
       'Extrais uniquement les informations explicitement présentes dans le document Business Plan fourni.',
       'Pour chaque champ, retourne value, evidence et confidence.',
+      'Utilise fieldGuide pour comprendre précisément la signification de chaque champ.',
+      'Pour les champs dont le nom se termine par Json, value doit être une chaîne JSON compacte valide correspondant exactement à la structure décrite dans fieldGuide.',
       'evidence doit être un court extrait textuel réellement présent dans la source et justifiant value.',
       'Si le champ est absent ou trop ambigu, value et evidence doivent être des chaînes vides et confidence doit être 0.',
       'N’invente rien et ne complète pas avec des connaissances externes.',
@@ -705,6 +709,7 @@ function AG24_OPENAI_extractBusinessPlan_(sourceText, requiredFields) {
     ].join(' '),
     input: JSON.stringify({
       requiredFields: fields,
+      fieldGuide: fieldGuide || {},
       sourceText: text
     }),
     reasoningEffort: 'low',
