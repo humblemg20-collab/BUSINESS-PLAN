@@ -7,7 +7,7 @@
  * used to prefill only facts actually found in the uploaded source.
  */
 var AG24_IMPORTED_DOCUMENT_CONTEXT_V1 = Object.freeze({
-  VERSION:"1.0.0",
+  VERSION:"1.1.0",
   PREFIX:"AFRIGREEN24_BP_IMPORT_CONTEXT",
   CHUNK_SIZE:7000,
   MAX_AGE_MS:24 * 60 * 60 * 1000
@@ -224,6 +224,34 @@ function AG24_IMPORT_CONTEXT_verifiedField_(context,fieldId) {
   return item;
 }
 
+/*
+ * Une extraction TO_CONFIRM dont la preuve existe réellement dans le document
+ * doit être réutilisée comme suggestion préremplie, jamais perdue.
+ * Elle restera visible dans le questionnaire afin que l'utilisateur la confirme.
+ */
+function AG24_IMPORT_CONTEXT_candidateField_(context,fieldId) {
+  var item =
+    context &&
+    context.fields &&
+    context.fields[fieldId] &&
+    typeof context.fields[fieldId] === "object"
+      ? context.fields[fieldId]
+      : null;
+
+  if (!item) return null;
+
+  var status = String(item.status || "");
+  if (
+    ["FOUND","TO_CONFIRM"].indexOf(status) === -1 ||
+    item.evidenceVerified !== true ||
+    !AG24_IMPORT_CONTEXT_present_(item.value)
+  ) {
+    return null;
+  }
+
+  return item;
+}
+
 function AG24_IMPORT_CONTEXT_number_(value) {
   var text = AG24_IMPORT_CONTEXT_text_(value)
     .replace(/\u00a0/g," ")
@@ -412,26 +440,46 @@ var AG24_IMPORT_CONTEXT_JSON_MAP = Object.freeze({
 function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
   var out = {};
   var provenance = {};
+  var standardData =
+    standard && typeof standard === "object"
+      ? standard
+      : {};
 
-  function set(field,value,sourceField) {
+  function set(field,value,sourceField,item,override) {
     if (!AG24_IMPORT_CONTEXT_present_(value)) return;
+
+    var sourceStatus =
+      item
+        ? String(item.status || "")
+        : "";
+
     out[field] = value;
-    provenance[field] = {
-      truthStatus:"DOCUMENTED",
-      sourceType:"UPLOADED_DOCUMENT",
-      sourceField:sourceField || field,
-      contextId:context && context.contextId || "",
-      fingerprint:
-        context && context.file
-          ? context.file.fingerprint || ""
-          : ""
-    };
+    provenance[field] = Object.assign(
+      {
+        truthStatus:
+          sourceStatus === "TO_CONFIRM"
+            ? "DOCUMENTED_TO_CONFIRM"
+            : "DOCUMENTED",
+        sourceType:"UPLOADED_DOCUMENT",
+        sourceField:sourceField || field,
+        contextId:context && context.contextId || "",
+        fingerprint:
+          context && context.file
+            ? context.file.fingerprint || ""
+            : "",
+        confidence:
+          item && Number.isFinite(Number(item.confidence))
+            ? Number(item.confidence)
+            : null
+      },
+      override || {}
+    );
   }
 
   AG24_IMPORT_CONTEXT_SCALAR_NUMBER_FIELDS.forEach(
     function(field) {
       var item =
-        AG24_IMPORT_CONTEXT_verifiedField_(
+        AG24_IMPORT_CONTEXT_candidateField_(
           context,
           field
         );
@@ -444,7 +492,7 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
         );
 
       if (number !== null) {
-        set(field,number,field);
+        set(field,number,field,item);
       }
     }
   );
@@ -452,7 +500,7 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
   AG24_IMPORT_CONTEXT_SCALAR_TEXT_FIELDS.forEach(
     function(field) {
       var item =
-        AG24_IMPORT_CONTEXT_verifiedField_(
+        AG24_IMPORT_CONTEXT_candidateField_(
           context,
           field
         );
@@ -465,14 +513,14 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
           item.value
         );
 
-      set(field,value,field);
+      set(field,value,field,item);
     }
   );
 
   AG24_IMPORT_CONTEXT_DATE_FIELDS.forEach(
     function(field) {
       var item =
-        AG24_IMPORT_CONTEXT_verifiedField_(
+        AG24_IMPORT_CONTEXT_candidateField_(
           context,
           field
         );
@@ -482,7 +530,8 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
       set(
         field,
         AG24_IMPORT_CONTEXT_date_(item.value),
-        field
+        field,
+        item
       );
     }
   );
@@ -491,7 +540,7 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
     AG24_IMPORT_CONTEXT_JSON_MAP
   ).forEach(function(sourceField) {
     var item =
-      AG24_IMPORT_CONTEXT_verifiedField_(
+      AG24_IMPORT_CONTEXT_candidateField_(
         context,
         sourceField
       );
@@ -507,33 +556,67 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
       set(
         AG24_IMPORT_CONTEXT_JSON_MAP[sourceField],
         array,
-        sourceField
+        sourceField,
+        item
       );
     }
   });
 
-  var standardFunding =
-    AG24_IMPORT_CONTEXT_verifiedField_(
-      context,
-      "fundingNeed"
+  /*
+   * Les champs Standard ont déjà été relus/confirmés par l'utilisateur
+   * pendant l'import. Ils deviennent donc une source canonique DECLARED.
+   * On les réutilise avant de redemander le montant ou la devise.
+   */
+  var standardFundingText =
+    AG24_IMPORT_CONTEXT_text_(
+      standardData.besoinFinancement ||
+      standardData.fundingNeed ||
+      ""
     );
 
   if (
-    !AG24_IMPORT_CONTEXT_present_(
-      out.montantDemande
-    ) &&
-    standardFunding
+    !AG24_IMPORT_CONTEXT_present_(out.montantDemande) &&
+    standardFundingText
   ) {
     var parsedFunding =
       AG24_IMPORT_CONTEXT_number_(
-        standardFunding.value
+        standardFundingText
       );
 
     if (parsedFunding !== null) {
       set(
         "montantDemande",
         parsedFunding,
-        "fundingNeed"
+        "fundingNeed",
+        null,
+        {
+          truthStatus:"DECLARED",
+          sourceType:"STANDARD_CONFIRMED"
+        }
+      );
+    }
+  }
+
+  if (
+    !AG24_IMPORT_CONTEXT_present_(out.devise) &&
+    standardFundingText
+  ) {
+    var parsedCurrency =
+      AG24_IMPORT_CONTEXT_select_(
+        "devise",
+        standardFundingText
+      );
+
+    if (parsedCurrency) {
+      set(
+        "devise",
+        parsedCurrency,
+        "fundingNeed",
+        null,
+        {
+          truthStatus:"DECLARED",
+          sourceType:"STANDARD_CONFIRMED"
+        }
       );
     }
   }
@@ -544,7 +627,7 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
     )
   ) {
     var stage =
-      AG24_IMPORT_CONTEXT_verifiedField_(
+      AG24_IMPORT_CONTEXT_candidateField_(
         context,
         "stage"
       );
@@ -554,10 +637,9 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
         stage
           ? stage.value
           : (
-              standard &&
-              standard.stade
-                ? standard.stade
-                : ""
+              standardData.stade ||
+              standardData.stage ||
+              ""
             )
       );
 
@@ -566,10 +648,21 @@ function AG24_IMPORT_CONTEXT_toPremiumPrefill_(context,standard) {
         set(
           "stadeProjet",
           stageValue,
-          "stage"
+          "stage",
+          stage
         );
       } else {
         out.stadeProjet = stageValue;
+        provenance.stadeProjet = {
+          truthStatus:"DECLARED",
+          sourceType:"STANDARD_CONFIRMED",
+          sourceField:"stage",
+          contextId:context && context.contextId || "",
+          fingerprint:
+            context && context.file
+              ? context.file.fingerprint || ""
+              : ""
+        };
       }
     }
   }
@@ -645,9 +738,10 @@ function AG24_IMPORTED_DOCUMENT_CONTEXT_SYSTEM_TEST_V1() {
     result.values.devise === "EUR" &&
     result.values.dureeRemboursementMois === 60 &&
     result.values.tauxInteretAnnuel === 8 &&
-    !AG24_IMPORT_CONTEXT_present_(
-      result.values.apportPromoteur
-    ) &&
+    result.values.apportPromoteur === 15000 &&
+    result.provenance.apportPromoteur &&
+    result.provenance.apportPromoteur.truthStatus ===
+      "DOCUMENTED_TO_CONFIRM" &&
     Array.isArray(result.values.risques) &&
     result.values.risques.length === 1;
 
@@ -661,10 +755,11 @@ function AG24_IMPORTED_DOCUMENT_CONTEXT_SYSTEM_TEST_V1() {
     debtTermsMapped:
       result.values.dureeRemboursementMois === 60 &&
       result.values.tauxInteretAnnuel === 8,
-    unconfirmedRejected:
-      !AG24_IMPORT_CONTEXT_present_(
-        result.values.apportPromoteur
-      ),
+    unconfirmedPrefilled:
+      result.values.apportPromoteur === 15000 &&
+      result.provenance.apportPromoteur &&
+      result.provenance.apportPromoteur.truthStatus ===
+        "DOCUMENTED_TO_CONFIRM",
     structuredRiskMapped:
       Array.isArray(result.values.risques) &&
       result.values.risques.length === 1

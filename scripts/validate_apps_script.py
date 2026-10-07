@@ -308,10 +308,12 @@ controller_path = APP / "BusinessPlanBancableController.js"
 if controller_path.exists():
     controller_text = controller_path.read_text(encoding="utf-8", errors="replace")
     for marker in [
-        "VERSION: '1.3.0'",
+        "VERSION: '1.3.1'",
         "IMPORT_CONTEXT",
         "IMPORT_PROVENANCE",
         "AG24_IMPORT_CONTEXT_mergePremium_",
+        "DOCUMENTED_TO_CONFIRM",
+        "USER_CONFIRMED",
     ]:
         if marker not in controller_text:
             fail(f"Bancable canonical import contract missing: {marker}")
@@ -320,8 +322,10 @@ bancable_path = APP / "BusinessPlanBancable.js"
 if bancable_path.exists():
     bancable_text = bancable_path.read_text(encoding="utf-8", errors="replace")
     for marker in [
-        "const VERSION = '1.3.0'",
+        "const VERSION = '1.3.1'",
         "Gap-only UX",
+        "DOCUMENTED_TO_CONFIRM",
+        "prefilledToConfirmCount",
         "AG24_BANCABLE_GAP_ONLY_SYSTEM_TEST_V1",
     ]:
         if marker not in bancable_text:
@@ -912,10 +916,13 @@ premium_contracts = {
         "bankTeam",
     ],
     "AG24ImportedDocumentContextV1.js": [
-        'VERSION:"1.0.0"',
+        'VERSION:"1.1.0"',
         "AG24_IMPORT_CONTEXT_create_",
         "AG24_IMPORT_CONTEXT_toPremiumPrefill_",
+        "AG24_IMPORT_CONTEXT_candidateField_",
         "DOCUMENTED",
+        "DOCUMENTED_TO_CONFIRM",
+        "STANDARD_CONFIRMED",
         "UPLOADED_DOCUMENT",
         "AG24_IMPORTED_DOCUMENT_CONTEXT_SYSTEM_TEST_V1",
     ],

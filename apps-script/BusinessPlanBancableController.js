@@ -11,7 +11,7 @@
  */
 
 const BPB_CONFIG = Object.freeze({
-  VERSION: '1.3.0',
+  VERSION: '1.3.1',
   PREFIXE_STOCKAGE: 'AFRIGREEN24_BPB',
   TAILLE_CHUNK: 7500,
   TITRE_INTERFACE: 'Business Plan AfriGreen24 — Analyse approfondie'
@@ -229,7 +229,6 @@ function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
   const standard = BPB_chargerReponsesStandard_(id);
   const brouillon = BPB_lireJsonChunked_(BPB_cle_(id, 'PREMIUM')) || {};
   const meta = BPB_lireJsonChunked_(BPB_cle_(id, 'META')) || {};
-  const questionnaire = obtenirQuestionnaireBusinessPlanBancable(standard, brouillon);
   const importContext =
     BPB_lireJsonChunked_(
       BPB_cle_(id,'IMPORT_CONTEXT')
@@ -238,6 +237,12 @@ function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
     BPB_lireJsonChunked_(
       BPB_cle_(id,'IMPORT_PROVENANCE')
     ) || {};
+  const questionnaire =
+    obtenirQuestionnaireBusinessPlanBancable(
+      standard,
+      brouillon,
+      importProvenance
+    );
 
   return {
     succes: true,
@@ -337,7 +342,63 @@ function validerSectionBusinessPlanBancable(dossierId, jetonAcces, sectionId, re
     progressionSaine.sectionsValidees.push(idSection);
   }
 
-  enregistrerBrouillonBusinessPlanBancable(id, jetonAcces, reponsesPremium, progressionSaine);
+  enregistrerBrouillonBusinessPlanBancable(
+    id,
+    jetonAcces,
+    reponsesPremium,
+    progressionSaine
+  );
+
+  /*
+   * Une suggestion issue du document n'est considérée confirmée qu'après
+   * validation explicite de la section par l'utilisateur.
+   */
+  BPB_avecVerrou_(function () {
+    const provenance =
+      BPB_lireJsonChunked_(
+        BPB_cle_(id,'IMPORT_PROVENANCE')
+      ) || {};
+
+    let changed = false;
+
+    (section.questions || []).forEach(function (question) {
+      const info = provenance[question.id];
+      const value = reponsesPremium[question.id];
+      const present =
+        value !== null &&
+        value !== undefined &&
+        (
+          typeof value !== 'string' ||
+          value.trim() !== ''
+        ) &&
+        (
+          !Array.isArray(value) ||
+          value.length > 0
+        );
+
+      if (
+        present &&
+        info &&
+        String(info.truthStatus || '') ===
+          'DOCUMENTED_TO_CONFIRM'
+      ) {
+        provenance[question.id] =
+          Object.assign({},info,{
+            truthStatus:'USER_CONFIRMED',
+            confirmedAt:new Date().toISOString()
+          });
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      BPB_ecrireJsonChunked_(
+        BPB_cle_(id,'IMPORT_PROVENANCE'),
+        provenance
+      );
+    }
+  });
+
   return { succes: true, progression: progressionSaine };
 }
 
