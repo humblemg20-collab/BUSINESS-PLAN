@@ -56,7 +56,8 @@ const BPB_ACTIVATION_CONFIG =
 function preparerTransitionBusinessPlanBancable(
   dossierStandardId,
   reponsesStandard,
-  agBridge
+  agBridge,
+  importContextId
 ){
 
   AG24_SEC_assertPayloadSize_(
@@ -99,6 +100,27 @@ function preparerTransitionBusinessPlanBancable(
     id,
     source
   );
+
+  var importAttachment = {
+    succes:true,
+    contexteImport:false,
+    champsPrefilles:0,
+    champs:[]
+  };
+
+  if (
+    String(
+      importContextId || ''
+    ).trim()
+  ) {
+    importAttachment =
+      BPB_enregistrerContexteImportPourBancable(
+        id,
+        String(
+          importContextId || ''
+        ).trim()
+      );
+  }
 
   const email =
     BPB_ACT_normaliserEmail_(
@@ -177,7 +199,13 @@ function preparerTransitionBusinessPlanBancable(
       dossierId:
         id,
       existingAccess:
-        activation.dejaActif === true
+        activation.dejaActif === true,
+      importedDocumentContext:
+        importAttachment.contexteImport === true,
+      importedPrefillCount:
+        Number(
+          importAttachment.champsPrefilles || 0
+        )
     }
   );
 
@@ -197,8 +225,14 @@ function preparerTransitionBusinessPlanBancable(
       activation.lienBancable,
     paiementRequis:
       false,
+    contexteImport:
+      importAttachment.contexteImport === true,
+    champsImportes:
+      importAttachment.champs || [],
     message:
-      'L’analyse approfondie et la préparation au financement sont incluses dans votre Business Plan AfriGreen24.'
+      importAttachment.contexteImport === true
+        ? 'Le document importé a été repris comme source canonique. Seules les informations réellement manquantes seront demandées.'
+        : 'L’analyse approfondie et la préparation au financement sont incluses dans votre Business Plan AfriGreen24.'
   };
 
 }
