@@ -11,7 +11,7 @@
  */
 
 const BPB_CONFIG = Object.freeze({
-  VERSION: '1.2.0',
+  VERSION: '1.3.0',
   PREFIXE_STOCKAGE: 'AFRIGREEN24_BPB',
   TAILLE_CHUNK: 7500,
   TITRE_INTERFACE: 'Business Plan AfriGreen24 — Analyse approfondie'
@@ -52,6 +52,157 @@ function enregistrerReponsesStandardPourBancable(dossierId, reponsesStandard) {
 }
 
 /**
+ * Attache au dossier le contexte canonique d'un document uploadé.
+ *
+ * Le navigateur ne fournit jamais les faits eux-mêmes : seulement un identifiant
+ * opaque. Les données d'extraction vérifiées sont relues côté serveur, fusionnées
+ * sans écraser les réponses Premium déjà enregistrées, puis persistées avec leur
+ * provenance documentaire.
+ */
+function BPB_enregistrerContexteImportPourBancable(
+  dossierId,
+  importContextId
+) {
+  const id = BPB_normaliserDossierId_(dossierId);
+  const contextId = String(importContextId || '').trim();
+
+  if (!contextId) {
+    return {
+      succes:true,
+      dossierId:id,
+      contexteImport:false,
+      champsPrefilles:0
+    };
+  }
+
+  if (
+    typeof AG24_IMPORT_CONTEXT_read_ !== 'function' ||
+    typeof AG24_IMPORT_CONTEXT_toPremiumPrefill_ !== 'function' ||
+    typeof AG24_IMPORT_CONTEXT_mergePremium_ !== 'function'
+  ) {
+    throw new Error('IMPORT_CONTEXT_ENGINE_UNAVAILABLE');
+  }
+
+  const context =
+    AG24_IMPORT_CONTEXT_read_(
+      contextId
+    );
+
+  if (!context) {
+    throw new Error(
+      'IMPORT_CONTEXT_INVALID_OR_EXPIRED'
+    );
+  }
+
+  const standard =
+    BPB_chargerReponsesStandard_(id);
+
+  const prefill =
+    AG24_IMPORT_CONTEXT_toPremiumPrefill_(
+      context,
+      standard
+    );
+
+  const values =
+    prefill && prefill.values
+      ? prefill.values
+      : {};
+
+  const provenance =
+    prefill && prefill.provenance
+      ? prefill.provenance
+      : {};
+
+  BPB_avecVerrou_(function () {
+    const premiumExistant =
+      BPB_lireJsonChunked_(
+        BPB_cle_(id,'PREMIUM')
+      ) || {};
+
+    const premiumFusionne =
+      AG24_IMPORT_CONTEXT_mergePremium_(
+        premiumExistant,
+        prefill
+      );
+
+    const meta =
+      BPB_lireJsonChunked_(
+        BPB_cle_(id,'META')
+      ) || {};
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id,'PREMIUM'),
+      premiumFusionne
+    );
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id,'IMPORT_CONTEXT'),
+      context
+    );
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id,'IMPORT_PROVENANCE'),
+      provenance
+    );
+
+    BPB_ecrireJsonChunked_(
+      BPB_cle_(id,'META'),
+      Object.assign({},meta,{
+        importContextAttached:true,
+        importFingerprint:
+          context.file &&
+          context.file.fingerprint
+            ? String(context.file.fingerprint)
+            : '',
+        importFileName:
+          context.file &&
+          context.file.name
+            ? String(context.file.name)
+            : '',
+        importPrefillCount:
+          Object.keys(values).length,
+        modifieLe:new Date().toISOString(),
+        version:BPB_CONFIG.VERSION
+      })
+    );
+  });
+
+  try {
+    AG24_IMPORT_CONTEXT_delete_(
+      contextId
+    );
+  } catch (cleanupError) {}
+
+  if (typeof AG24_AUDIT_event_ === 'function') {
+    try {
+      AG24_AUDIT_event_(
+        'BUSINESS_PLAN_IMPORT_CONTEXT_ATTACHED',
+        {
+          dossierId:id,
+          fingerprint:
+            context.file &&
+            context.file.fingerprint
+              ? String(context.file.fingerprint)
+              : '',
+          prefilledFields:
+            Object.keys(values)
+        }
+      );
+    } catch (auditError) {}
+  }
+
+  return {
+    succes:true,
+    dossierId:id,
+    contexteImport:true,
+    champsPrefilles:
+      Object.keys(values).length,
+    champs:
+      Object.keys(values)
+  };
+}
+
+/**
  * Ouvre l'interface autonome Bancable.
  * Peut être appelée depuis un routeur doGet existant :
  *   return ouvrirInterfaceBusinessPlanBancable(e.parameter.dossierId);
@@ -79,6 +230,14 @@ function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
   const brouillon = BPB_lireJsonChunked_(BPB_cle_(id, 'PREMIUM')) || {};
   const meta = BPB_lireJsonChunked_(BPB_cle_(id, 'META')) || {};
   const questionnaire = obtenirQuestionnaireBusinessPlanBancable(standard, brouillon);
+  const importContext =
+    BPB_lireJsonChunked_(
+      BPB_cle_(id,'IMPORT_CONTEXT')
+    ) || null;
+  const importProvenance =
+    BPB_lireJsonChunked_(
+      BPB_cle_(id,'IMPORT_PROVENANCE')
+    ) || {};
 
   return {
     succes: true,
@@ -87,6 +246,23 @@ function initialiserParcoursBusinessPlanBancable(dossierId, jetonAcces) {
     brouillon: brouillon,
     meta: meta,
     questionnaire: questionnaire,
+    importContextSummary:
+      importContext
+        ? {
+            fileName:
+              importContext.file &&
+              importContext.file.name
+                ? importContext.file.name
+                : '',
+            fingerprint:
+              importContext.file &&
+              importContext.file.fingerprint
+                ? importContext.file.fingerprint
+                : '',
+            documentedFields:
+              Object.keys(importProvenance)
+          }
+        : null,
     progression: meta.progression || {
       sectionIndex: 0,
       sectionsValidees: []
@@ -311,13 +487,23 @@ function BPB_obtenirDossierUnifie_(dossierId) {
   const premium = BPB_lireJsonChunked_(BPB_cle_(id, 'PREMIUM')) || {};
   const audit = BPB_lireJsonChunked_(BPB_cle_(id, 'AUDIT')) || null;
   const meta = BPB_lireJsonChunked_(BPB_cle_(id, 'META')) || {};
+  const importContext =
+    BPB_lireJsonChunked_(
+      BPB_cle_(id,'IMPORT_CONTEXT')
+    ) || null;
+  const importProvenance =
+    BPB_lireJsonChunked_(
+      BPB_cle_(id,'IMPORT_PROVENANCE')
+    ) || {};
 
   return {
     dossierId: id,
     meta: meta,
     standard: standard,
     bancable: premium,
-    audit: audit
+    audit: audit,
+    importContext: importContext,
+    importProvenance: importProvenance
   };
 }
 
