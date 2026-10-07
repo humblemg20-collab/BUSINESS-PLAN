@@ -15,11 +15,10 @@ jobs:
       - name: Checkout snapshot branch
         uses: actions/checkout@v5
 
-      - name: Validate canonical Apps Script source
+      - name: Validate export safety
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/validate_apps_script.py
           if grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' apps-script; then
             echo "MERGE_CONFLICT_MARKERS_FOUND"
             exit 1
@@ -27,6 +26,10 @@ jobs:
           EXPECTED_SCRIPT_ID="1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
           ACTUAL_SCRIPT_ID="$(python3 -c 'import json; print(json.load(open("apps-script/.clasp.json"))["scriptId"])')"
           test "$ACTUAL_SCRIPT_ID" = "$EXPECTED_SCRIPT_ID"
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find apps-script -maxdepth 1 -type f -name '*.js' -print0)
+          echo "EXPORT_SAFETY=PASS"
 
       - name: Build Apps Script ZIP
         shell: bash
@@ -35,7 +38,7 @@ jobs:
           cd apps-script
           zip -qr ../BUSINESS-PLAN-Apps-Script-GitHub-main.zip .
           cd ..
-          unzip -l BUSINESS-PLAN-Apps-Script-GitHub-main.zip | head -n 20
+          test -s BUSINESS-PLAN-Apps-Script-GitHub-main.zip
 
       - name: Upload snapshot artifact
         uses: actions/upload-artifact@v4
