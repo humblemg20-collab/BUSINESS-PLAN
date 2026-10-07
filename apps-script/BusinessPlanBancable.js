@@ -14,7 +14,7 @@
 const BusinessPlanBancable = (() => {
   'use strict';
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   const DEVISE_PAR_DEFAUT = 'XOF';
   const TOLERANCE_EQUILIBRE = 1;
 
@@ -289,9 +289,18 @@ const BusinessPlanBancable = (() => {
     const questionsManquantes = [];
 
     QUESTIONNAIRE.forEach(section => {
-      // Toutes les questions Premium restent visibles afin que l’utilisateur
-      // puisse relire et corriger ses réponses après une sauvegarde ou un audit.
-      const questions = section.questions.slice();
+      /*
+       * Gap-only UX:
+       * une donnée déjà disponible dans le dossier canonique (document importé
+       * vérifié ou réponse Premium sauvegardée) ne doit jamais être redemandée.
+       * Le questionnaire ne porte donc que sur les champs réellement absents.
+       */
+      const questions =
+        section.questions.filter(function(question) {
+          return !estRenseigne(
+            premium[question.id]
+          );
+        });
 
       if (questions.length > 0) {
         questionsManquantes.push({
@@ -1239,9 +1248,54 @@ const BusinessPlanBancable = (() => {
     return resultat;
   }
 
+  function testQuestionnaireGapOnly_() {
+    const premium = {
+      devise:'EUR',
+      montantInvestissements:100000,
+      besoinFondsRoulementDeclare:20000,
+      apportPromoteur:15000,
+      montantDemande:105000,
+      dureeRemboursementMois:60,
+      tauxInteretAnnuel:8
+    };
+
+    const questionnaire =
+      getQuestionnaire(
+        {
+          nomProjet:'Test',
+          nomPromoteur:'Test'
+        },
+        premium
+      );
+
+    const ids = [];
+    (questionnaire.sections || []).forEach(function(section) {
+      (section.questions || []).forEach(function(question) {
+        ids.push(question.id);
+      });
+    });
+
+    const success =
+      ids.indexOf('devise') === -1 &&
+      ids.indexOf('montantDemande') === -1 &&
+      ids.indexOf('dureeRemboursementMois') === -1 &&
+      ids.indexOf('tauxInteretAnnuel') === -1 &&
+      ids.indexOf('lignesVentes') !== -1;
+
+    return {
+      success:success,
+      version:VERSION,
+      reusedFieldsNotAsked:
+        success,
+      remainingQuestions:
+        ids.length
+    };
+  }
+
   return Object.freeze({
     VERSION,
     getQuestionnaire,
+    testQuestionnaireGapOnly_,
     validerReponsesPremium,
     construireDossier,
     calculerIndicateurs,
@@ -1260,6 +1314,22 @@ function obtenirQuestionnaireBusinessPlanBancable(reponsesStandard, reponsesPrem
 
 function analyserBusinessPlanBancable(reponsesStandard, reponsesPremium) {
   return BusinessPlanBancable.analyser(reponsesStandard, reponsesPremium);
+}
+
+function AG24_BANCABLE_GAP_ONLY_SYSTEM_TEST_V1() {
+  var report =
+    BusinessPlanBancable
+      .testQuestionnaireGapOnly_();
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 }
 
 function testerBusinessPlanBancable_() {
