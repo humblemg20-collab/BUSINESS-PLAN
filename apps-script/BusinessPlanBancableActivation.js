@@ -35,7 +35,10 @@ const BPB_ACTIVATION_CONFIG =
       'AfriGreen24',
 
     CLE_URL_WEB_APP:
-      'AFRIGREEN24_BPB_WEB_APP_EXEC_URL'
+      'AFRIGREEN24_BPB_WEB_APP_EXEC_URL',
+
+    URL_WEB_APP_CANONIQUE:
+      'https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec'
 
   });
 
@@ -1250,63 +1253,67 @@ function BPB_ACT_obtenirUrlWebAppPublique_(){
     PropertiesService
       .getScriptProperties();
 
+  const canonical =
+    String(
+      BPB_ACTIVATION_CONFIG
+        .URL_WEB_APP_CANONIQUE ||
+      ''
+    )
+    .trim();
+
+  if(
+    !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/
+      .test(
+        canonical
+      )
+  ){
+    throw new Error(
+      'URL canonique Business Plan invalide.'
+    );
+  }
 
   const configuree =
     String(
-
       properties.getProperty(
         BPB_ACTIVATION_CONFIG
           .CLE_URL_WEB_APP
-      )
-
-      ||
-
-      ''
-
+      ) || ''
     )
     .trim();
 
-
+  /*
+   * Une seule source canonique pour toutes les routes Bancable.
+   * Toute ancienne Script Property est réparée avant émission du lien.
+   */
   if(
-    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/
-      .test(
-        configuree
-      )
+    configuree !==
+    canonical
   ){
+    properties.setProperty(
+      BPB_ACTIVATION_CONFIG
+        .CLE_URL_WEB_APP,
+      canonical
+    );
 
-    return configuree;
-
+    if(
+      typeof AG24_AUDIT_event_ ===
+      'function'
+    ){
+      try{
+        AG24_AUDIT_event_(
+          'BANCABLE_WEB_APP_URL_REPAIRED',
+          {
+            previousUrl:
+              configuree || null,
+            canonicalUrl:
+              canonical
+          }
+        );
+      }catch(auditError){}
+    }
   }
 
-
-  const urlService =
-    String(
-      ScriptApp
-        .getService()
-        .getUrl()
-
-      ||
-
-      ''
-    )
-    .trim();
-
-
-  if(
-    /\/exec$/
-      .test(
-        urlService
-      )
-  ){
-
-    return urlService;
-
-  }
-
-
-  throw new Error(
-    'URL publique /exec absente. Configurez AFRIGREEN24_BPB_WEB_APP_EXEC_URL ou vérifiez le déploiement Apps Script actif.'
-  );
+  return canonical;
 
 }
 
