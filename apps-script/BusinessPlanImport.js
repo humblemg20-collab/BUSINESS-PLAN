@@ -18,7 +18,7 @@
  */
 
 const BP_IMPORT_AI_CONFIG = Object.freeze({
-  VERSION: "5.2.0",
+  VERSION: "5.2.1",
   SCHEMA_VERSION: "afrigreen24_bp_import_v6",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
@@ -650,6 +650,123 @@ function BP_IMPORT_boundText_(
 }
 
 
+function BP_IMPORT_financeScalarDeterministicallyValid_(
+  field,
+  value,
+  evidence
+) {
+  var id = String(field || "");
+  var raw = nettoyerValeurImportBP_(value);
+  var proof = nettoyerValeurImportBP_(evidence);
+
+  if (
+    !raw ||
+    !proof ||
+    BP_IMPORT_FINANCE_FIELDS.indexOf(id) === -1 ||
+    /Json$/.test(id)
+  ) {
+    return false;
+  }
+
+  if (
+    id === "dateBesoinFonds" ||
+    id === "dateDebutRemboursementSouhaitee"
+  ) {
+    return false;
+  }
+
+  if (id === "devise") {
+    var currency = raw.toUpperCase();
+    return (
+      [
+        "XOF","XAF","EUR","USD","GBP",
+        "GNF","CDF","MAD","DZD","TND"
+      ].indexOf(currency) !== -1 &&
+      proof.toUpperCase().indexOf(currency) !== -1
+    );
+  }
+
+  if (id === "saisonnalite") {
+    return (
+      /^(oui|non)$/i.test(raw) &&
+      proof.toLowerCase().indexOf(
+        raw.toLowerCase()
+      ) !== -1
+    );
+  }
+
+  if (id === "statutAutorisations") {
+    return (
+      [
+        "Non applicable",
+        "Déjà obtenues",
+        "En cours d’obtention",
+        "À obtenir avant le démarrage"
+      ].indexOf(raw) !== -1 &&
+      proof.toLowerCase().indexOf(
+        raw.toLowerCase()
+      ) !== -1
+    );
+  }
+
+  var qualitativeFields = [
+    "justificationHypothesesVentes",
+    "justificationCroissance",
+    "detailsSaisonnalite",
+    "detailsAutresCharges",
+    "detailsTraction",
+    "responsableOperations",
+    "responsableFinances",
+    "uniteCapacite",
+    "detailsAutorisations",
+    "sourceRemboursement",
+    "detailsGaranties"
+  ];
+
+  if (qualitativeFields.indexOf(id) !== -1) {
+    return false;
+  }
+
+  function numbers(text) {
+    var normalized =
+      String(text || "")
+        .replace(/\u00a0/g," ")
+        .replace(/\s+/g,"")
+        .replace(/,/g,".");
+
+    var matches =
+      normalized.match(
+        /-?\d+(?:\.\d+)?/g
+      ) || [];
+
+    return matches
+      .map(function(item) {
+        return Number(item);
+      })
+      .filter(function(item) {
+        return Number.isFinite(item);
+      });
+  }
+
+  var valueNumbers = numbers(raw);
+  var proofNumbers = numbers(proof);
+
+  if (valueNumbers.length !== 1) {
+    return false;
+  }
+
+  var expected = valueNumbers[0];
+
+  return proofNumbers.some(
+    function(item) {
+      return Math.abs(
+        item - expected
+      ) < 0.000001;
+    }
+  );
+}
+
+
 function construireChampBusinessPlanVerifie_(
   field,
   item,
@@ -742,11 +859,21 @@ function construireChampBusinessPlanVerifie_(
    * A bounded extraction can never be silently accepted as FOUND: the user
    * must confirm the retained structured value.
    */
+  var deterministicFinanceFact =
+    BP_IMPORT_financeScalarDeterministicallyValid_(
+      field,
+      value,
+      evidence
+    );
+
   var status =
     !boundedValue.bounded &&
     evidenceVerified &&
-    confidence >=
-      BP_IMPORT_AI_CONFIG.FOUND_CONFIDENCE
+    (
+      confidence >=
+        BP_IMPORT_AI_CONFIG.FOUND_CONFIDENCE ||
+      deterministicFinanceFact
+    )
       ? BP_IMPORT_STATUS.FOUND
       : BP_IMPORT_STATUS.TO_CONFIRM;
 
@@ -1842,6 +1969,80 @@ function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1() {
         .MAX_EXTRACTED_EMAIL_CHARS &&
     report.emailTruncated ===
       true;
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
+}
+
+
+function AG24_BP_IMPORT_FINANCE_EVIDENCE_SYSTEM_TEST_V1() {
+  var source =
+    "Montant demandé à la banque : 45 000 000 XAF. " +
+    "Durée de remboursement souhaitée : 60 mois.";
+
+  var exactAmount =
+    construireChampBusinessPlanVerifie_(
+      "montantDemande",
+      {
+        value:"45000000",
+        evidence:
+          "Montant demandé à la banque : 45 000 000 XAF.",
+        confidence:0.35
+      },
+      source
+    );
+
+  var mismatchedAmount =
+    construireChampBusinessPlanVerifie_(
+      "montantDemande",
+      {
+        value:"46000000",
+        evidence:
+          "Montant demandé à la banque : 45 000 000 XAF.",
+        confidence:0.35
+      },
+      source
+    );
+
+  var duration =
+    construireChampBusinessPlanVerifie_(
+      "dureeRemboursementMois",
+      {
+        value:"60",
+        evidence:
+          "Durée de remboursement souhaitée : 60 mois.",
+        confidence:0.40
+      },
+      source
+    );
+
+  var report = {
+    success:
+      exactAmount.status ===
+        BP_IMPORT_STATUS.FOUND &&
+      duration.status ===
+        BP_IMPORT_STATUS.FOUND &&
+      mismatchedAmount.status ===
+        BP_IMPORT_STATUS.TO_CONFIRM,
+    version:
+      BP_IMPORT_AI_CONFIG.VERSION,
+    exactVerifiedFinanceAccepted:
+      exactAmount.status ===
+        BP_IMPORT_STATUS.FOUND,
+    exactDurationAccepted:
+      duration.status ===
+        BP_IMPORT_STATUS.FOUND,
+    mismatchedValueRejected:
+      mismatchedAmount.status ===
+        BP_IMPORT_STATUS.TO_CONFIRM
+  };
 
   Logger.log(
     JSON.stringify(
