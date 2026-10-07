@@ -34,6 +34,7 @@ required = [
     APP / "BusinessPlanProjectBrandingV1.js",
     APP / "BusinessPlanAdaptivePdfFitV1.js",
     APP / "BusinessPlanRenderInputSafetyV1.js",
+    APP / "AG24ImportedDocumentContextV1.js",
 ]
 
 for path in required:
@@ -211,7 +212,7 @@ if (APP / "BusinessPlanImport.js").exists():
         fail("Business Plan import extraction is not routed through OpenAI")
 
     for marker in [
-        'VERSION: "5.1.0"',
+        'VERSION: "5.2.0"',
         "MAX_EXTRACTED_LONG_FIELD_CHARS: 8000",
         "MAX_EXTRACTED_SHORT_FIELD_CHARS: 600",
         "MAX_EXTRACTED_EMAIL_CHARS: 320",
@@ -220,6 +221,10 @@ if (APP / "BusinessPlanImport.js").exists():
         "valueTruncated:",
         "BUSINESS_PLAN_IMPORT_FIELD_BOUNDED",
         "function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1()",
+        "BP_IMPORT_FINANCE_FIELDS",
+        "BP_IMPORT_EXTRACTION_FIELDS",
+        "BP_IMPORT_FIELD_GUIDE",
+        "AG24_IMPORT_CONTEXT_create_",
     ]:
         if marker not in text:
             fail(f"Business Plan import field-limit marker missing: {marker}")
@@ -290,6 +295,37 @@ if activation_path.exists():
 
     if "paiementRequis:" not in activation_text or "false" not in activation_text:
         fail("Unified Business Plan transition must explicitly disable payment requirement")
+
+    for marker in [
+        "importContextId",
+        "BPB_enregistrerContexteImportPourBancable",
+        "importedPrefillCount",
+    ]:
+        if marker not in activation_text:
+            fail(f"Canonical import handoff marker missing: {marker}")
+
+controller_path = APP / "BusinessPlanBancableController.js"
+if controller_path.exists():
+    controller_text = controller_path.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "VERSION: '1.3.0'",
+        "IMPORT_CONTEXT",
+        "IMPORT_PROVENANCE",
+        "AG24_IMPORT_CONTEXT_mergePremium_",
+    ]:
+        if marker not in controller_text:
+            fail(f"Bancable canonical import contract missing: {marker}")
+
+bancable_path = APP / "BusinessPlanBancable.js"
+if bancable_path.exists():
+    bancable_text = bancable_path.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "const VERSION = '1.3.0'",
+        "Gap-only UX",
+        "AG24_BANCABLE_GAP_ONLY_SYSTEM_TEST_V1",
+    ]:
+        if marker not in bancable_text:
+            fail(f"Bancable gap-only contract missing: {marker}")
 
 
 # OpenAI production release gate contract
@@ -752,7 +788,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.12.1\"",
+        "ExpectedRegressionVersion = \"1.13.0\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -778,7 +814,9 @@ else:
 # Premium Financeur release-readiness contract
 premium_contracts = {
     "AG24PremiumDocumentRegressionSuiteV1.js": [
-        'VERSION:"1.12.1"',
+        'VERSION:"1.13.0"',
+        "IMPORTED_DOCUMENT_CONTEXT",
+        "BANCABLE_GAP_ONLY",
         "FINANCEUR_PRODUCTION_ROUTE",
         "FINANCEUR_CANARY_SELECTION",
     ],
@@ -872,6 +910,14 @@ premium_contracts = {
         "bankBusinessModel",
         "bankGoToMarket",
         "bankTeam",
+    ],
+    "AG24ImportedDocumentContextV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_IMPORT_CONTEXT_create_",
+        "AG24_IMPORT_CONTEXT_toPremiumPrefill_",
+        "DOCUMENTED",
+        "UPLOADED_DOCUMENT",
+        "AG24_IMPORTED_DOCUMENT_CONTEXT_SYSTEM_TEST_V1",
     ],
 }
 
@@ -1293,7 +1339,7 @@ if import_backend.exists():
         "verifierSignatureFichierBusinessPlan_",
         "evaluerQualiteImportBusinessPlan_",
         "BUSINESS_PLAN_IMPORT_COMPLETED",
-        "afrigreen24_bp_import_v5",
+        "afrigreen24_bp_import_v6",
     ]:
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
