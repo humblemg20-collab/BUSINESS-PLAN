@@ -3463,7 +3463,10 @@ initialiserBridgeAfriGreen24_();
             .preparerTransitionBusinessPlanBancable(
   idExistant,
   construireDonneesStandardTransition(),
-  AFRIGREEN_DOCUMENT_BRIDGE
+  AFRIGREEN_DOCUMENT_BRIDGE,
+  String(
+    window.businessPlanImportContextId || ""
+  ).trim()
 );
         });
 
@@ -3743,6 +3746,7 @@ initialiserBridgeAfriGreen24_();
           }
 
           window.businessPlanImportResult = null;
+          window.businessPlanImportContextId = "";
 
 
           var button =
@@ -4087,6 +4091,11 @@ initialiserBridgeAfriGreen24_();
 
                       window.businessPlanImportResult =
                         reponse.analysisResult || null;
+
+                      window.businessPlanImportContextId =
+                        String(
+                          reponse.importContextId || ""
+                        ).trim();
 
                       var analyse =
                         reponse.analysisResult &&
