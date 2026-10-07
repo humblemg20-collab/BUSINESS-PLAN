@@ -1738,6 +1738,20 @@
       return;
     }
 
+    /*
+     * Invariant de parcours :
+     * une demande bancaire ne génère jamais un Business Plan intermédiaire.
+     * Peu importe le point d'entrée (questionnaire, import, design),
+     * on bascule vers l'analyse approfondie puis une génération finale unique.
+     */
+    if (
+      typeof estParcoursFinanceurDirect_ === "function" &&
+      estParcoursFinanceurDirect_()
+    ) {
+      lancerParcoursFinalFinanceur_();
+      return;
+    }
+
     generationEnCours = true;
     masquerErreur();
     reinitialiserAnimation();
