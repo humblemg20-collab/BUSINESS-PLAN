@@ -159,6 +159,11 @@
       return;
     }
 
+    if (estParcoursFinanceurDirect_()) {
+      lancerParcoursFinalFinanceur_();
+      return;
+    }
+
     ouvrirChoixDesignBusinessPlan(
       "questionnaire"
     );
@@ -1490,6 +1495,243 @@
     initialiserDesignBusinessPlanV2_();
   }
 
+
+  function estParcoursFinanceurDirect_() {
+    const field =
+      obtenirElement("fundingType");
+
+    const raw =
+      String(
+        field && field.value
+          ? field.value
+          : ""
+      );
+
+    let normalized =
+      raw.toLowerCase();
+
+    try {
+      normalized =
+        normalized
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+    } catch (error) {}
+
+    return (
+      normalized.indexOf("pret") !== -1 ||
+      normalized.indexOf("banque") !== -1 ||
+      normalized.indexOf("bancaire") !== -1 ||
+      normalized.indexOf("credit") !== -1 ||
+      normalized.indexOf("emprunt") !== -1
+    );
+  }
+
+  function construireStandardFinanceurDirect_(donnees) {
+    if (
+      typeof window.construireDonneesStandardTransition ===
+      "function"
+    ) {
+      return window.construireDonneesStandardTransition();
+    }
+
+    donnees = donnees || {};
+
+    return {
+      nomProjet: donnees.projectName || "",
+      nomPromoteur: donnees.promoterName || "",
+      email: donnees.email || "",
+      pays: donnees.country || "",
+      stade: donnees.stage || "",
+      descriptionProjet: donnees.solution || "",
+      problemeResolu: donnees.problem || "",
+      clientsCibles: donnees.targetCustomers || "",
+      zoneMarche: donnees.marketArea || "",
+      concurrents: donnees.competitors || "",
+      avantageConcurrentiel: donnees.valueProposition || "",
+      sourcesRevenus: donnees.revenueModel || "",
+      prix: donnees.pricing || "",
+      secteur: donnees.sector || "",
+      coutsPrincipaux: donnees.mainCosts || "",
+      equipe: donnees.team || "",
+      typeFinancement: donnees.fundingType || "",
+      besoinFinancement: donnees.fundingNeed || "",
+      utilisationFonds: donnees.useOfFunds || "",
+      impact: donnees.impact || "",
+      risques: donnees.risks || ""
+    };
+  }
+
+  function configurerHandoffFinanceur_(resultat) {
+    const link =
+      resultat && resultat.lienBancable
+        ? String(resultat.lienBancable)
+        : "";
+
+    if (!link) {
+      throw new Error(
+        "Le lien sécurisé vers l’analyse finale est indisponible."
+      );
+    }
+
+    window.businessPlanDossierId =
+      resultat.dossierId || "";
+
+    window.businessPlanAdvancedLink =
+      link;
+
+    const animation =
+      obtenirElement("generationAnimation");
+
+    const succes =
+      obtenirElement("generationSuccess");
+
+    if (animation) {
+      animation.classList.add("hidden");
+    }
+
+    if (!succes) {
+      throw new Error(
+        "L’écran de poursuite du Business Plan est indisponible."
+      );
+    }
+
+    const title =
+      succes.querySelector("h2");
+
+    const successMessage =
+      succes.querySelector(".success-message");
+
+    const welcomeMessage =
+      succes.querySelector(".welcome-message");
+
+    const button =
+      succes.querySelector(".main-button");
+
+    if (title) {
+      title.textContent =
+        "Analyse initiale terminée";
+    }
+
+    if (successMessage) {
+      successMessage.textContent =
+        "Votre dossier est enregistré. Nous allons maintenant compléter uniquement les informations nécessaires au document final.";
+    }
+
+    if (welcomeMessage) {
+      welcomeMessage.textContent =
+        "Aucun Business Plan intermédiaire n’a été généré.";
+    }
+
+    if (button) {
+      button.removeAttribute("onclick");
+      button.innerHTML =
+        "<span>Continuer l’analyse et générer le document final</span>";
+
+      button.onclick =
+        function() {
+          const anchor =
+            document.createElement("a");
+
+          anchor.href = link;
+          anchor.target = "_top";
+          anchor.rel = "noopener noreferrer";
+          anchor.style.display = "none";
+
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        };
+    }
+
+    succes.classList.remove("hidden");
+    generationEnCours = false;
+  }
+
+  function lancerParcoursFinalFinanceur_() {
+    if (generationEnCours) {
+      return;
+    }
+
+    generationEnCours = true;
+    masquerErreur();
+    reinitialiserAnimation();
+    afficherPage("generationPage");
+
+    const donnees =
+      collecterDonneesFormulaire();
+
+    const standard =
+      construireStandardFinanceurDirect_(
+        donnees
+      );
+
+    const bridge =
+      String(
+        window.AFRIGREEN_DOCUMENT_BRIDGE ||
+        ""
+      ).trim();
+
+    const title =
+      obtenirElement("generationTitle");
+
+    const text =
+      obtenirElement("generationText");
+
+    if (title) {
+      title.textContent =
+        "Analyse de votre dossier...";
+    }
+
+    if (text) {
+      text.textContent =
+        "Nous préparons votre dossier unique et détectons les informations encore nécessaires avant la génération finale.";
+    }
+
+    if (
+      typeof google === "undefined" ||
+      !google.script ||
+      !google.script.run
+    ) {
+      afficherEchecGeneration(
+        "Le service Google Apps Script est indisponible."
+      );
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        function(resultat) {
+          try {
+            configurerHandoffFinanceur_(
+              resultat
+            );
+          } catch (error) {
+            afficherEchecGeneration(
+              error && error.message
+                ? error.message
+                : String(error)
+            );
+          }
+        }
+      )
+      .withFailureHandler(
+        function(error) {
+          afficherEchecGeneration(
+            error && error.message
+              ? error.message
+              : "Impossible de préparer le dossier final."
+          );
+        }
+      )
+      .preparerTransitionBusinessPlanBancable(
+        "",
+        standard,
+        bridge
+      );
+  }
+
+  window.lancerParcoursFinalFinanceur =
+    lancerParcoursFinalFinanceur_;
 
   function lancerGeneration() {
     if (generationEnCours) {
