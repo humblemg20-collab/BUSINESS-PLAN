@@ -1,0 +1,46 @@
+name: Export Apps Script Snapshot
+
+on:
+  push:
+    branches:
+      - "hardening/export-apps-script-snapshot-20261007"
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout snapshot branch
+        uses: actions/checkout@v5
+
+      - name: Validate canonical Apps Script source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_apps_script.py
+          if grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' apps-script; then
+            echo "MERGE_CONFLICT_MARKERS_FOUND"
+            exit 1
+          fi
+          EXPECTED_SCRIPT_ID="1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz"
+          ACTUAL_SCRIPT_ID="$(python3 -c 'import json; print(json.load(open("apps-script/.clasp.json"))["scriptId"])')"
+          test "$ACTUAL_SCRIPT_ID" = "$EXPECTED_SCRIPT_ID"
+
+      - name: Build Apps Script ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps-script
+          zip -qr ../BUSINESS-PLAN-Apps-Script-GitHub-main.zip .
+          cd ..
+          unzip -l BUSINESS-PLAN-Apps-Script-GitHub-main.zip | head -n 20
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BUSINESS-PLAN-Apps-Script-GitHub-main
+          path: BUSINESS-PLAN-Apps-Script-GitHub-main.zip
+          if-no-files-found: error
+          retention-days: 1
