@@ -302,9 +302,18 @@ if activation_path.exists():
         "importContextId",
         "BPB_enregistrerContexteImportPourBancable",
         "importedPrefillCount",
+        "URL_WEB_APP_CANONIQUE",
+        "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
+        "BANCABLE_WEB_APP_URL_REPAIRED",
     ]:
         if marker not in activation_text:
             fail(f"Canonical import handoff marker missing: {marker}")
+
+    stale_bancable_deployment = (
+        "AKfycbxQsd8HczZwdT4Ymb3WdJtZNna5dfneFVSLtR-M14AjF1NIyryS2Hv0AW4pXNGlEb-K"
+    )
+    if stale_bancable_deployment in activation_text:
+        fail("Bancable activation must never route users to the legacy @42 deployment")
 
 controller_path = APP / "BusinessPlanBancableController.js"
 if controller_path.exists():
