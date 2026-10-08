@@ -38,6 +38,23 @@
     background: #16a34a;
   }
 
+  .ag24-email-recovery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 18px;
+  }
+
+  .ag24-email-recovery button {
+    border: 1px solid rgba(22, 101, 52, 0.24);
+    border-radius: 10px;
+    padding: 9px 12px;
+    background: #fff;
+    color: #14532d;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
   @media (max-width: 640px) {
     .ag24-save-status {
       width: 100%;
@@ -59,6 +76,79 @@
   var originalPrevious = null;
   var originalShowStep = null;
   var originalOpenResult = null;
+  var recovery = { draftId: '', email: '', code: '' };
+
+  function serverRun() {
+    return window.google && google.script && google.script.run
+      ? google.script.run
+      : null;
+  }
+
+  function recoveryState() {
+    return { form: collectData() };
+  }
+
+  function saveRecoveryDraft() {
+    var runner = serverRun();
+    if (!runner || !recovery.draftId || !recovery.code) return;
+    runner
+      .withFailureHandler(function (error) {
+        console.warn('Sauvegarde distante Business Plan impossible :', error);
+      })
+      .sauvegarderBrouillonBusinessPlan({
+        draftId: recovery.draftId,
+        email: recovery.email,
+        code: recovery.code,
+        state: recoveryState(),
+        currentStep: getActiveStep(),
+        progress: Math.round((getActiveStep() / getMaximumStep()) * 100)
+      });
+  }
+
+  function createRecoveryCode() {
+    var runner = serverRun();
+    if (!runner) return updateSaveStatus('Reprise email indisponible');
+    var email = window.prompt('Adresse email pour recevoir le code de reprise :', recovery.email || '');
+    if (!email) return;
+    runner
+      .withSuccessHandler(function (result) {
+        recovery.draftId = result.draftId || '';
+        recovery.email = email;
+        recovery.code = result.code || '';
+        updateSaveStatus(result.emailSent ? 'Code envoyé par email' : 'Code créé, email à vérifier');
+        window.alert('Votre code de reprise est : ' + recovery.code + '\nIl est valable 30 jours.');
+      })
+      .withFailureHandler(function (error) {
+        window.alert(error && error.message ? error.message : 'Impossible de créer le code de reprise.');
+      })
+      .creerCodeRepriseBusinessPlan({
+        email: email,
+        state: recoveryState(),
+        currentStep: getActiveStep(),
+        progress: Math.round((getActiveStep() / getMaximumStep()) * 100)
+      });
+  }
+
+  function resumeRecoveryCode() {
+    var runner = serverRun();
+    if (!runner) return updateSaveStatus('Reprise email indisponible');
+    var email = window.prompt('Votre adresse email :', '');
+    var code = window.prompt('Votre code de reprise :', '');
+    if (!email || !code) return;
+    runner
+      .withSuccessHandler(function (result) {
+        recovery.draftId = result.draftId || '';
+        recovery.email = result.email || email;
+        recovery.code = code;
+        applyData((result.state || {}).form || {});
+        displaySavedStep(result.currentStep || 1);
+        updateSaveStatus('Dossier restauré');
+      })
+      .withFailureHandler(function (error) {
+        window.alert(error && error.message ? error.message : 'Email ou code incorrect.');
+      })
+      .reprendreBrouillonBusinessPlan({ email: email, code: code });
+  }
 
   function getFields() {
     return Array.prototype.slice.call(
@@ -126,7 +216,10 @@
   function scheduleSave() {
     updateSaveStatus('Sauvegarde…');
     window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(saveDraft, 250);
+    saveTimer = window.setTimeout(function () {
+      saveDraft();
+      saveRecoveryDraft();
+    }, 250);
   }
 
   function readDraft() {
@@ -243,6 +336,18 @@
       status.className = 'ag24-save-status';
       status.textContent = 'Sauvegarde automatique active';
       topbar.appendChild(status);
+    }
+
+    if (card && !document.getElementById('ag24EmailRecovery')) {
+      var actions = document.createElement('div');
+      actions.id = 'ag24EmailRecovery';
+      actions.className = 'ag24-email-recovery';
+      actions.innerHTML =
+        '<button type="button" id="ag24CreateRecovery">Sauvegarder avec un code email</button>' +
+        '<button type="button" id="ag24ResumeRecovery">Reprendre avec mon code</button>';
+      card.insertBefore(actions, card.firstChild);
+      document.getElementById('ag24CreateRecovery').addEventListener('click', createRecoveryCode);
+      document.getElementById('ag24ResumeRecovery').addEventListener('click', resumeRecoveryCode);
     }
   }
 
