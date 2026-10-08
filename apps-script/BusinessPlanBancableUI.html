@@ -1668,6 +1668,8 @@
 
       generationEnCours:false,
 
+      generationTimer:null,
+
       saveQueued:false,
 
       dirty:false,
@@ -4559,8 +4561,8 @@
       }
 
 
-      panel.innerHTML =
-        '';
+      if (state.generationTimer) clearInterval(state.generationTimer);
+      panel.innerHTML = '';
 
 
       const title =
@@ -4583,10 +4585,38 @@
         'Cette opération peut prendre quelques instants. Ne fermez pas cette page.';
 
 
-      panel.append(
-        title,
-        text
-      );
+      const progress = document.createElement('div');
+      progress.style.cssText = 'height:10px;background:#e5eee9;border-radius:8px;overflow:hidden;margin:16px 0;';
+      const bar = document.createElement('div');
+      bar.id = 'generation-progress-bar';
+      bar.style.cssText = 'height:100%;width:8%;background:#176b45;border-radius:8px;transition:width .5s ease;';
+      progress.appendChild(bar);
+      const steps = ['Préparation des données', 'Calcul du modèle financier', 'Création du Google Docs', 'Export du PDF', 'Vérification finale'];
+      const list = document.createElement('ol');
+      list.id = 'generation-progress-steps';
+      list.style.cssText = 'margin:12px 0;padding-left:24px;line-height:1.9;';
+      steps.forEach(function(step, index) {
+        const item = document.createElement('li');
+        item.dataset.step = String(index);
+        item.textContent = step + (index === 0 ? ' — en cours…' : ' — en attente');
+        list.appendChild(item);
+      });
+      const elapsed = document.createElement('small');
+      elapsed.id = 'generation-elapsed';
+      elapsed.textContent = 'Temps écoulé : 0 s';
+      panel.append(title, text, progress, list, elapsed);
+      const started = Date.now();
+      state.generationTimer = setInterval(function() {
+        const seconds = Math.floor((Date.now() - started) / 1000);
+        const phase = Math.min(4, Math.floor(seconds / 8));
+        const percent = Math.min(92, 8 + phase * 20 + Math.min(19, seconds % 8 * 2));
+        const progressBar = document.getElementById('generation-progress-bar');
+        if (progressBar) progressBar.style.width = percent + '%';
+        document.querySelectorAll('#generation-progress-steps li').forEach(function(item, index) {
+          item.textContent = steps[index] + (index < phase ? ' — terminé' : index === phase ? ' — en cours…' : ' — en attente');
+        });
+        if (elapsed) elapsed.textContent = 'Temps écoulé : ' + seconds + ' s';
+      }, 1000);
 
     }
 
@@ -4618,6 +4648,10 @@
 
             state.generationEnCours =
               false;
+            if (state.generationTimer) {
+              clearInterval(state.generationTimer);
+              state.generationTimer = null;
+            }
 
 
             if(
@@ -4646,6 +4680,10 @@
 
             state.generationEnCours =
               false;
+            if (state.generationTimer) {
+              clearInterval(state.generationTimer);
+              state.generationTimer = null;
+            }
 
 
             afficherErreurGeneration(
