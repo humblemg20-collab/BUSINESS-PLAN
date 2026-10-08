@@ -812,7 +812,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.13.1\"",
+        "ExpectedRegressionVersion = \"1.13.2\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -838,7 +838,7 @@ else:
 # Premium Financeur release-readiness contract
 premium_contracts = {
     "AG24PremiumDocumentRegressionSuiteV1.js": [
-        'VERSION:"1.13.0"',
+        'VERSION:"1.13.2"',
         "IMPORTED_DOCUMENT_CONTEXT",
         "BANCABLE_GAP_ONLY",
         "BANCABLE_ACCESS_LIFECYCLE",
@@ -1367,7 +1367,7 @@ if import_backend.exists():
         "verifierSignatureFichierBusinessPlan_",
         "evaluerQualiteImportBusinessPlan_",
         "BUSINESS_PLAN_IMPORT_COMPLETED",
-        "afrigreen24_bp_import_v7",
+        "afrigreen24_bp_import_v8",
     ]:
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
