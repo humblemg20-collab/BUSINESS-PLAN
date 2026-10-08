@@ -3454,7 +3454,7 @@
       );
 
 
-      google
+      const generationRunner = google
         .script
         .run
 
@@ -4247,6 +4247,19 @@
         back
       );
 
+      if (!audit.pretPourGeneration) {
+        const downloadAnyway = document.createElement('button');
+        downloadAnyway.type = 'button';
+        downloadAnyway.className = 'btn btn-secondary';
+        downloadAnyway.textContent = 'Générer malgré les alertes';
+        downloadAnyway.addEventListener('click', function() {
+          if (window.confirm('Le document contiendra les alertes non résolues. Voulez-vous quand même le générer ?')) {
+            lancerGeneration(true);
+          }
+        });
+        actions.appendChild(downloadAnyway);
+      }
+
 
       if(
         audit.pretPourGeneration &&
@@ -4566,7 +4579,7 @@
     }
 
 
-    function lancerGeneration(){
+    function lancerGeneration(forceAlerts){
 
       if(
         state.generationEnCours
@@ -4633,10 +4646,10 @@
           }
         )
 
-        .genererRapportPreparationBancaireDepuisInterface(
-          DOSSIER_ID,
-          JETON_ACCES
-        );
+      const generationMethod = forceAlerts
+        ? 'genererRapportPreparationBancaireAvecAlertesDepuisInterface'
+        : 'genererRapportPreparationBancaireDepuisInterface';
+      generationRunner[generationMethod](DOSSIER_ID, JETON_ACCES);
 
     }
 

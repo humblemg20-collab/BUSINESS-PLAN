@@ -62,6 +62,13 @@ function genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces)
   );
 }
 
+function genererRapportPreparationBancaireAvecAlertesDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-preparation-report-forced');
+  return BPB3_reponseClientGeneration_(
+    genererRapportPreparationBancaire_(id, { forcer: true })
+  );
+}
+
 function genererBusinessPlanFinanceurDepuisInterface(dossierId, jetonAcces) {
   const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-financier-plan');
   return BPB3_reponseClientGeneration_(
@@ -85,7 +92,7 @@ function genererRapportPreparationBancaire_(dossierId, options) {
     const source = BPB_obtenirDossierUnifie_(id);
     const analyse = analyserBusinessPlanBancable(source.standard, source.bancable);
 
-    if (!analyse.audit || !analyse.audit.pretPourGeneration) {
+    if (!analyse.audit || (!analyse.audit.pretPourGeneration && !opts.forcer)) {
       throw new Error('Le dossier contient encore une anomalie critique et ne peut pas être généré.');
     }
 
