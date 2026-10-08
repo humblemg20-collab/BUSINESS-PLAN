@@ -4233,8 +4233,20 @@
             'Corrections en cours';
 
 
-          state.sectionIndex =
-            0;
+          const firstAlert = alerts[0] || {};
+          const targetSection = {
+            BFR_INCOHERENT: 'financement',
+            SCENARIO_PRUDENT_FRAGILE: 'remboursement',
+            PROFIL_PROMOTEUR_INCOMPLET: 'execution',
+            APPORT_ABSENT: 'financement',
+            APPORT_FAIBLE: 'financement',
+            CAPACITE_DEPASSEE: 'execution',
+            REMBOURSEMENT_NON_DOCUMENTE: 'repayment'
+          }[String(firstAlert.code || firstAlert.id || '')] || '';
+          const targetIndex = targetSection
+            ? state.sections.findIndex(function(section) { return section.id === targetSection; })
+            : -1;
+          state.sectionIndex = targetIndex >= 0 ? targetIndex : 0;
 
 
           renderAll();
