@@ -19,8 +19,8 @@
  */
 
 const BP_IMPORT_AI_CONFIG = Object.freeze({
-  VERSION: "5.3.0",
-  SCHEMA_VERSION: "afrigreen24_bp_import_v7",
+  VERSION: "5.4.0",
+  SCHEMA_VERSION: "afrigreen24_bp_import_v8",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
   MIN_TEXT_CHARS: 80,
@@ -214,6 +214,324 @@ const BP_IMPORT_STATUS = Object.freeze({
 
 const BP_IMPORT_DETERMINISTIC_METHOD =
   "AFRIGREEN24_BUSINESS_PLAN_STRUCTURED_REPORT";
+
+
+const BP_IMPORT_LABELLED_SOURCE_METHOD =
+  "AFRIGREEN24_LABELLED_SOURCE_EXTRACTION";
+
+/**
+ * Extraction déterministe générique des faits explicitement étiquetés.
+ *
+ * Ce moteur intervient AVANT OpenAI. Il traite les règles connues
+ * (libellé -> valeur) et laisse l'IA uniquement résoudre les champs
+ * narratifs / tableaux encore absents.
+ */
+function extraireChampsEtiquetesBusinessPlan_(sourceText) {
+  var source =
+    String(sourceText || "")
+      .replace(/\r/g,"");
+
+  var lines =
+    source.split(/\n/)
+      .map(function(line) {
+        return String(line || "").trim();
+      });
+
+  var result = {
+    detected:false,
+    fieldCount:0,
+    fields:{},
+    extractedFields:[]
+  };
+
+  function normalize(value) {
+    var text =
+      String(value || "")
+        .toLowerCase();
+
+    try {
+      text =
+        text.normalize("NFD")
+          .replace(/[\u0300-\u036f]/g,"");
+    } catch (error) {}
+
+    return text
+      .replace(/[“”«»"'\`´]/g,"")
+      .replace(/[^a-z0-9%]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+
+  function clean(value) {
+    return nettoyerValeurImportBP_(
+      String(value || "")
+    )
+      .replace(/\s+/g," ")
+      .trim();
+  }
+
+  function isLikelyValue(value) {
+    var text = clean(value);
+    if (!text) return false;
+
+    var normalized = normalize(text);
+
+    return !(
+      /^\d{1,2}$/.test(normalized) ||
+      /^poste$/.test(normalized) ||
+      /^montant$/.test(normalized) ||
+      /^justification$/.test(normalized) ||
+      /^probabilite$/.test(normalized) ||
+      /^impact$/.test(normalized) ||
+      /^mesure de reduction$/.test(normalized)
+    );
+  }
+
+  function findLabeled(labels) {
+    var wanted =
+      (labels || []).map(normalize);
+
+    for (var i=0;i<lines.length;i++) {
+      var raw = lines[i];
+      if (!raw) continue;
+
+      var colon = raw.indexOf(":");
+      if (colon > -1) {
+        var left = normalize(
+          raw.substring(0,colon)
+        );
+
+        if (wanted.indexOf(left) !== -1) {
+          var inlineValue =
+            clean(raw.substring(colon + 1));
+
+          if (isLikelyValue(inlineValue)) {
+            return {
+              value:inlineValue,
+              evidence:raw
+            };
+          }
+        }
+      }
+
+      var tabParts = raw.split(/\t+/);
+      if (tabParts.length >= 2) {
+        var tabLabel = normalize(tabParts[0]);
+
+        if (wanted.indexOf(tabLabel) !== -1) {
+          var tabValue =
+            clean(tabParts.slice(1).join(" "));
+
+          if (isLikelyValue(tabValue)) {
+            return {
+              value:tabValue,
+              evidence:raw
+            };
+          }
+        }
+      }
+
+      for (var w=0;w<wanted.length;w++) {
+        var target = wanted[w];
+        var combined = "";
+
+        for (
+          var span=0;
+          span<4 && i+span<lines.length;
+          span++
+        ) {
+          var piece = lines[i+span];
+          if (!piece) continue;
+
+          combined = normalize(
+            (combined ? combined + " " : "") +
+            piece
+          );
+
+          if (combined === target) {
+            for (
+              var j=i+span+1;
+              j<lines.length &&
+              j<=i+span+4;
+              j++
+            ) {
+              if (
+                !lines[j] ||
+                !isLikelyValue(lines[j])
+              ) {
+                continue;
+              }
+
+              return {
+                value:clean(lines[j]),
+                evidence:
+                  lines
+                    .slice(i,j+1)
+                    .filter(Boolean)
+                    .join("\n")
+              };
+            }
+          }
+
+          if (
+            target.indexOf(combined) !== 0
+          ) {
+            break;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function add(field,labels,transform) {
+    if (result.fields[field]) return;
+
+    var candidate =
+      findLabeled(labels);
+
+    if (
+      !candidate ||
+      !candidate.value
+    ) {
+      return;
+    }
+
+    var value =
+      typeof transform === "function"
+        ? transform(candidate.value)
+        : candidate.value;
+
+    if (
+      value === null ||
+      value === undefined ||
+      String(value).trim() === ""
+    ) {
+      return;
+    }
+
+    result.fields[field] = {
+      value:String(value),
+      evidence:
+        String(candidate.evidence || candidate.value)
+          .slice(
+            0,
+            BP_IMPORT_AI_CONFIG.MAX_EVIDENCE_CHARS
+          ),
+      confidence:1,
+      extractionMethod:
+        BP_IMPORT_LABELLED_SOURCE_METHOD,
+      deterministic:true,
+      provenance:{
+        extractionMethod:
+          BP_IMPORT_LABELLED_SOURCE_METHOD,
+        deterministic:true,
+        sourceLabelDetected:true
+      }
+    };
+
+    result.fieldCount += 1;
+    result.extractedFields.push(field);
+  }
+
+  var specs = [
+    ["projectName",["Nom du projet"]],
+    ["promoterName",["Porteur du projet","Promoteur"]],
+    ["email",["Email","E-mail"]],
+    ["country",["Pays"]],
+    ["sector",["Secteur","Secteur d'activité"]],
+    ["stage",["Stade actuel","Stade du projet"]],
+    ["targetCustomers",["Clientèle cible","Clients cibles"]],
+    ["marketArea",["Zone de marché","Zone marche"]],
+    ["competitors",["Concurrents / alternatives","Concurrents","Concurrence"]],
+    ["valueProposition",["Avantage concurrentiel","Proposition de valeur"]],
+    ["revenueModel",["Sources de revenus","Modèle de revenus","Modele de revenus"]],
+    ["pricing",["Tarification","Politique tarifaire"]],
+    ["team",["Équipe actuelle","Equipe actuelle","Équipe déclarée"]],
+    ["impact",["Impact recherché","Impact déclaré"]],
+    ["fundingType",["Type de financement recherché","Type de financement"]],
+    ["fundingNeed",["Montant demandé","Montant recherché","Montant demandé à la banque"]],
+
+    ["devise",["Devise"]],
+    ["montantInvestissements",["Montant total des investissements"]],
+    ["montantStockInitial",["Montant du stock initial"]],
+    ["besoinFondsRoulementDeclare",["Besoin en fonds de roulement estimé","Besoin en fonds de roulement"]],
+    ["tresorerieSecurite",["Trésorerie de sécurité souhaitée","Tresorerie de securite souhaitee"]],
+    ["apportPromoteur",["Apport du promoteur et des associés","Apport total du promoteur et des associés","Apport promoteur"]],
+    ["autresFinancements",["Autres financements déjà prévus","Autres financements"]],
+    ["montantDemande",["Montant demandé à la banque","Montant demandé"]],
+    ["dureeRemboursementMois",["Durée de remboursement souhaitée","Durée de remboursement souhaitée en mois","Durée de remboursement"]],
+    ["differeMois",["Différé souhaité","Période de différé souhaitée","Période de différé souhaitée en mois"]],
+    ["tauxInteretAnnuel",["Taux d'intérêt annuel estimatif","Taux d’intérêt annuel estimatif","Taux d’intérêt annuel estimatif, si connu"]],
+
+    ["croissanceAnnuellePct",["Croissance annuelle prévue","Croissance annuelle prévue en pourcentage"]],
+    ["saisonnalite",["Saisonnalité","Les ventes sont-elles saisonnières ?"]],
+    ["detailsSaisonnalite",["Périodes fortes et faibles","Décrivez les périodes fortes et faibles"]],
+
+    ["salairesMensuels",["Salaires et charges sociales","Salaires et charges sociales mensuels"]],
+    ["loyersMensuels",["Loyers","Loyers mensuels"]],
+    ["marketingMensuel",["Marketing et commercial","Budget marketing et commercial mensuel"]],
+    ["energieTelecomMensuel",["Énergie, internet et télécommunications","Énergie, internet et télécommunications mensuels"]],
+    ["transportLogistiqueMensuel",["Transport et logistique","Transport et logistique mensuels"]],
+    ["administrationMensuel",["Administration, assurance et services professionnels"]],
+    ["impotsTaxesMensuels",["Impôts, taxes et cotisations","Impôts, taxes et cotisations mensuels estimés"]],
+    ["autresChargesFixesMensuelles",["Autres charges fixes","Autres charges fixes mensuelles"]],
+    ["detailsAutresCharges",["Détail des autres charges","Précisez les autres charges"]],
+
+    ["delaiPaiementClientsJours",["Délai moyen de paiement clients","Délai moyen de paiement des clients en jours"]],
+    ["delaiPaiementFournisseursJours",["Délai moyen de paiement fournisseurs","Délai moyen de paiement des fournisseurs en jours"]],
+    ["stockMoyenJours",["Stock moyen","Nombre moyen de jours de stock"]],
+
+    ["nombreClientsActuels",["Nombre de clients actuels","Nombre approximatif de clients actuels"]],
+    ["chiffreAffairesHistorique",["Chiffre d'affaires réalisé sur les 12 derniers mois","Chiffre d’affaires réalisé au cours des 12 derniers mois"]],
+    ["chargesHistoriques12Mois",["Charges totales des 12 derniers mois","Charges totales supportées au cours des 12 derniers mois"]],
+    ["tresorerieDisponibleActuelle",["Trésorerie actuellement disponible"]],
+    ["creancesClientsActuelles",["Créances clients à encaisser","Montant total des factures clients restant à encaisser"]],
+    ["dettesFinancieresExistantes",["Dettes financières existantes","Capital total restant dû sur les prêts et crédits existants"]],
+    ["mensualitesDettesExistantes",["Mensualités de dettes existantes","Total des mensualités déjà payées chaque mois sur les dettes existantes"]],
+
+    ["responsableOperations",["Responsable des opérations","Qui supervisera les opérations ?"]],
+    ["responsableFinances",["Responsable des finances","Qui supervisera les finances ?"]],
+    ["effectifActuel",["Effectif actuel"]],
+    ["capaciteMaximaleMensuelle",["Capacité maximale mensuelle"]],
+    ["uniteCapacite",["Unité de capacité","Unité utilisée pour mesurer la capacité"]],
+    ["statutAutorisations",["Statut des autorisations","Situation des autorisations"]],
+    ["detailsAutorisations",["Détails des autorisations"]],
+
+    ["mensualiteMaxSupportable",["Mensualité maximale supportable","Mensualité maximale que l’entreprise estime pouvoir payer sans bloquer son activité"]],
+    ["dateDebutRemboursementSouhaitee",["Début souhaité des remboursements","Date à partir de laquelle les remboursements pourraient commencer"]],
+    ["detailsGaranties",["Détail des garanties","Précisez les garanties disponibles"]]
+  ];
+
+  specs.forEach(function(spec) {
+    add(spec[0],spec[1]);
+  });
+
+  /*
+   * Montant demandé et devise sont souvent déjà réunis dans la même valeur.
+   * On propage le fait Standard vers le champ bancaire canonique.
+   */
+  if (
+    !result.fields.montantDemande &&
+    result.fields.fundingNeed
+  ) {
+    result.fields.montantDemande =
+      Object.assign(
+        {},
+        result.fields.fundingNeed
+      );
+    result.fieldCount += 1;
+    result.extractedFields.push(
+      "montantDemande"
+    );
+  }
+
+  result.detected =
+    result.fieldCount > 0;
+
+  return result;
+}
 
 
 /**
@@ -644,19 +962,63 @@ function analyserBusinessPlanAvecOpenAI_(
   texteSource
 ) {
 
+  var labelled =
+    extraireChampsEtiquetesBusinessPlan_(
+      texteSource
+    );
+
   var deterministic =
     extraireRapportBusinessPlanDeterministe_(
       texteSource
     );
 
+  /*
+   * Les faits structurés explicitement étiquetés sont toujours prioritaires.
+   * Le replay AfriGreen24 et le parseur générique peuvent se compléter.
+   */
+  var deterministicFields =
+    Object.assign(
+      {},
+      labelled && labelled.fields
+        ? labelled.fields
+        : {},
+      deterministic && deterministic.fields
+        ? deterministic.fields
+        : {}
+    );
+
   if (deterministic.detected) {
     return normaliserResultatOpenAIBusinessPlan_(
       {
-        fields: deterministic.fields,
+        fields: deterministicFields,
         model: "deterministic-business-plan-report",
         deterministic: true,
         extractionMethod:
           BP_IMPORT_DETERMINISTIC_METHOD
+      },
+      texteSource
+    );
+  }
+
+  var missingFields =
+    BP_IMPORT_EXTRACTION_FIELDS.filter(
+      function(field) {
+        return !deterministicFields[field];
+      }
+    );
+
+  /*
+   * Si toutes les données attendues sont déjà structurées dans la source,
+   * aucun appel IA n'est nécessaire.
+   */
+  if (!missingFields.length) {
+    return normaliserResultatOpenAIBusinessPlan_(
+      {
+        fields:deterministicFields,
+        model:"deterministic-labelled-source",
+        deterministic:true,
+        extractionMethod:
+          BP_IMPORT_LABELLED_SOURCE_METHOD
       },
       texteSource
     );
@@ -671,10 +1033,15 @@ function analyserBusinessPlanAvecOpenAI_(
     );
   }
 
+  /*
+   * L'IA ne reçoit que les champs encore réellement manquants.
+   * Cela réduit la taille du schéma et évite de perdre des faits financiers
+   * déjà lus de manière déterministe.
+   */
   var result =
     AG24_OPENAI_extractBusinessPlan_(
       texteSource,
-      BP_IMPORT_EXTRACTION_FIELDS.slice(),
+      missingFields,
       BP_IMPORT_FIELD_GUIDE
     );
 
@@ -688,15 +1055,32 @@ function analyserBusinessPlanAvecOpenAI_(
     );
   }
 
+  var aiFields =
+    result.content.fields &&
+    typeof result.content.fields === "object"
+      ? result.content.fields
+      : {};
+
   var content =
     Object.assign(
       {},
       result.content,
       {
+        fields:
+          Object.assign(
+            {},
+            aiFields,
+            deterministicFields
+          ),
         model:
           String(
             result.model || ""
-          )
+          ),
+        deterministic:false,
+        extractionMethod:
+          labelled.detected
+            ? "HYBRID_LABELLED_SOURCE_PLUS_OPENAI"
+            : "OPENAI_BUSINESS_PLAN_EXTRACTION"
       }
     );
 
@@ -1088,8 +1472,12 @@ function construireChampBusinessPlanVerifie_(
 
   var deterministicStructuredExtraction =
     item.deterministic === true &&
-    item.extractionMethod ===
-      BP_IMPORT_DETERMINISTIC_METHOD;
+    [
+      BP_IMPORT_DETERMINISTIC_METHOD,
+      BP_IMPORT_LABELLED_SOURCE_METHOD
+    ].indexOf(
+      item.extractionMethod
+    ) !== -1;
 
   var evidenceVerified =
     deterministicStructuredExtraction && evidence
@@ -2361,6 +2749,105 @@ function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1() {
         .MAX_EXTRACTED_EMAIL_CHARS &&
     report.emailTruncated ===
       true;
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
+}
+
+
+function AG24_BP_IMPORT_LABELLED_FINANCE_SYSTEM_TEST_V1() {
+  var source = [
+    "6. Besoin de financement",
+    "Devise",
+    "XAF",
+    "Montant total des",
+    "investissements",
+    "50 000 000 XAF",
+    "Montant du stock initial",
+    "2 000 000 XAF",
+    "Besoin en fonds de roulement",
+    "estimé",
+    "5 000 000 XAF",
+    "Trésorerie de sécurité",
+    "souhaitée",
+    "3 000 000 XAF",
+    "Apport du promoteur et des",
+    "associés",
+    "15 000 000 XAF",
+    "Autres financements déjà",
+    "prévus",
+    "0 XAF - aucun autre financement",
+    "Montant demandé à la banque",
+    "45 000 000 XAF",
+    "Durée de remboursement",
+    "souhaitée",
+    "60 mois",
+    "Différé souhaité",
+    "6 mois",
+    "Taux d'intérêt annuel estimatif",
+    "9,5 %"
+  ].join("\n");
+
+  var labelled =
+    extraireChampsEtiquetesBusinessPlan_(
+      source
+    );
+
+  var normalized =
+    normaliserResultatOpenAIBusinessPlan_(
+      {
+        fields:labelled.fields,
+        model:"system-test",
+        deterministic:true,
+        extractionMethod:
+          BP_IMPORT_LABELLED_SOURCE_METHOD
+      },
+      source
+    );
+
+  var fields = normalized.fields || {};
+
+  var report = {
+    success:
+      fields.devise.value === "XAF" &&
+      fields.devise.status === "FOUND" &&
+      fields.montantInvestissements.status === "FOUND" &&
+      fields.montantStockInitial.status === "FOUND" &&
+      fields.besoinFondsRoulementDeclare.status === "FOUND" &&
+      fields.tresorerieSecurite.status === "FOUND" &&
+      fields.apportPromoteur.status === "FOUND" &&
+      fields.autresFinancements.status === "FOUND" &&
+      fields.montantDemande.status === "FOUND" &&
+      fields.dureeRemboursementMois.status === "FOUND" &&
+      fields.differeMois.status === "FOUND" &&
+      fields.tauxInteretAnnuel.status === "FOUND",
+    version:
+      BP_IMPORT_AI_CONFIG.VERSION,
+    detectedCount:
+      labelled.fieldCount,
+    extractedFields:
+      labelled.extractedFields,
+    values:{
+      devise:fields.devise.value,
+      investissements:fields.montantInvestissements.value,
+      stock:fields.montantStockInitial.value,
+      bfr:fields.besoinFondsRoulementDeclare.value,
+      tresorerie:fields.tresorerieSecurite.value,
+      apport:fields.apportPromoteur.value,
+      autres:fields.autresFinancements.value,
+      montant:fields.montantDemande.value,
+      duree:fields.dureeRemboursementMois.value,
+      differe:fields.differeMois.value,
+      taux:fields.tauxInteretAnnuel.value
+    }
+  };
 
   Logger.log(
     JSON.stringify(
