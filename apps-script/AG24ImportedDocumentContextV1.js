@@ -183,6 +183,23 @@ function AG24_IMPORT_CONTEXT_cleanupExpired_() {
   return removed;
 }
 
+/** Nettoyage opérateur après une saturation du quota PropertiesService. */
+function purgerContextesImportBusinessPlan() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var prefix = AG24_IMPORTED_DOCUMENT_CONTEXT_V1.PREFIX + ':';
+  var removed = 0;
+  Object.keys(all).forEach(function(key) {
+    if (key.indexOf(prefix) === 0 ||
+        key.indexOf(AG24_IMPORTED_DOCUMENT_CONTEXT_V1.EMAIL_INDEX_PREFIX + ':') === 0) {
+      props.deleteProperty(key);
+      removed++;
+    }
+  });
+  Logger.log('Contextes temporaires supprimés : ' + removed);
+  return {success:true, removed:removed};
+}
+
 function AG24_IMPORT_CONTEXT_create_(analysisResult,importMeta,fileInfo) {
   AG24_IMPORT_CONTEXT_cleanupExpired_();
   var id =
