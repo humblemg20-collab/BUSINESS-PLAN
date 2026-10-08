@@ -89,9 +89,25 @@ function BPB_enregistrerContexteImportPourBancable(
     );
 
   if (!context) {
-    throw new Error(
-      'IMPORT_CONTEXT_INVALID_OR_EXPIRED'
-    );
+    // La transition standard peut être rejouée après l'attachement initial.
+    // Le contexte est alors déjà nettoyé, mais ses valeurs et leur provenance
+    // sont conservées dans PREMIUM/IMPORT_PROVENANCE.
+    const dejaAttache =
+      BPB_lireJsonChunked_(BPB_cle_(id,'META')) || {};
+    const provenanceExistante =
+      BPB_lireJsonChunked_(BPB_cle_(id,'IMPORT_PROVENANCE')) || {};
+    if (dejaAttache.importContextAttached === true &&
+        Object.keys(provenanceExistante).length) {
+      return {
+        succes:true,
+        dossierId:id,
+        contexteImport:true,
+        dejaAttache:true,
+        champsPrefilles:Object.keys(provenanceExistante).length,
+        champs:Object.keys(provenanceExistante)
+      };
+    }
+    throw new Error('IMPORT_CONTEXT_INVALID_OR_EXPIRED');
   }
 
   const standard =
