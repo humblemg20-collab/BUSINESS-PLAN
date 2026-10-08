@@ -89,25 +89,9 @@ function BPB_enregistrerContexteImportPourBancable(
     );
 
   if (!context) {
-    // La transition standard peut être rejouée après l'attachement initial.
-    // Le contexte est alors déjà nettoyé, mais ses valeurs et leur provenance
-    // sont conservées dans PREMIUM/IMPORT_PROVENANCE.
-    const dejaAttache =
-      BPB_lireJsonChunked_(BPB_cle_(id,'META')) || {};
-    const provenanceExistante =
-      BPB_lireJsonChunked_(BPB_cle_(id,'IMPORT_PROVENANCE')) || {};
-    if (dejaAttache.importContextAttached === true &&
-        Object.keys(provenanceExistante).length) {
-      return {
-        succes:true,
-        dossierId:id,
-        contexteImport:true,
-        dejaAttache:true,
-        champsPrefilles:Object.keys(provenanceExistante).length,
-        champs:Object.keys(provenanceExistante)
-      };
-    }
-    throw new Error('IMPORT_CONTEXT_INVALID_OR_EXPIRED');
+    throw new Error(
+      'IMPORT_CONTEXT_INVALID_OR_EXPIRED'
+    );
   }
 
   const standard =
@@ -183,11 +167,10 @@ function BPB_enregistrerContexteImportPourBancable(
     );
   });
 
-  try {
-    AG24_IMPORT_CONTEXT_delete_(
-      contextId
-    );
-  } catch (cleanupError) {}
+  // Le contexte reste disponible pendant sa durée de vie courte afin qu'une
+  // transition ou un rechargement de la partie Bancable puisse rejouer le
+  // préremplissage. Le nettoyage des contextes expirés est automatique lors
+  // du prochain import.
 
   if (typeof AG24_AUDIT_event_ === 'function') {
     try {
