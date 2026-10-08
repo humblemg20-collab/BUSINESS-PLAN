@@ -212,13 +212,17 @@ if (APP / "BusinessPlanImport.js").exists():
         fail("Business Plan import extraction is not routed through OpenAI")
 
     for marker in [
-        'VERSION: "5.3.0"',
+        'VERSION: "5.4.0"',
         "MAX_EXTRACTED_LONG_FIELD_CHARS: 8000",
         "MAX_EXTRACTED_SHORT_FIELD_CHARS: 600",
         "MAX_EXTRACTED_EMAIL_CHARS: 320",
         "function BP_IMPORT_fieldMaxChars_(",
         "function BP_IMPORT_boundText_(",
         "function BP_IMPORT_financeScalarDeterministicallyValid_(",
+        "BP_IMPORT_LABELLED_SOURCE_METHOD",
+        "function extraireChampsEtiquetesBusinessPlan_(",
+        "HYBRID_LABELLED_SOURCE_PLUS_OPENAI",
+        "AG24_BP_IMPORT_LABELLED_FINANCE_SYSTEM_TEST_V1",
         "AG24_BP_IMPORT_FINANCE_EVIDENCE_SYSTEM_TEST_V1",
         "valueTruncated:",
         "BUSINESS_PLAN_IMPORT_FIELD_BOUNDED",
