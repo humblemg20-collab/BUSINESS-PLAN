@@ -144,7 +144,41 @@ function AG24_IMPORT_CONTEXT_delete_(id) {
   );
 }
 
+/** Nettoie les contextes temporaires expirés avant de créer un nouvel import. */
+function AG24_IMPORT_CONTEXT_cleanupExpired_() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var prefix = AG24_IMPORTED_DOCUMENT_CONTEXT_V1.PREFIX + ':';
+  var ids = {};
+  Object.keys(all).forEach(function(key) {
+    if (key.indexOf(prefix) !== 0) return;
+    var rest = key.slice(prefix.length);
+    var id = rest.split(':')[0];
+    if (/^IMP_[A-Za-z0-9]{32,80}$/.test(id)) ids[id] = true;
+  });
+  var removed = 0;
+  Object.keys(ids).forEach(function(id) {
+    var count = Number(all[AG24_IMPORT_CONTEXT_key_(id,'COUNT')] || 0);
+    var raw = '';
+    for (var i=0; i<count && i<100; i++) {
+      raw += String(all[AG24_IMPORT_CONTEXT_key_(id,'CHUNK_'+i)] || '');
+    }
+    var expired = false;
+    try {
+      var parsed = JSON.parse(raw);
+      var created = Date.parse(parsed && parsed.createdAt || '');
+      expired = !created || Date.now() - created > AG24_IMPORTED_DOCUMENT_CONTEXT_V1.MAX_AGE_MS;
+    } catch (error) { expired = true; }
+    if (expired) {
+      AG24_IMPORT_CONTEXT_delete_(id);
+      removed++;
+    }
+  });
+  return removed;
+}
+
 function AG24_IMPORT_CONTEXT_create_(analysisResult,importMeta,fileInfo) {
+  AG24_IMPORT_CONTEXT_cleanupExpired_();
   var id =
     "IMP_" +
     Utilities.getUuid().replace(/-/g,"") +
