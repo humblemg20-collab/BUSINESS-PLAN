@@ -111,6 +111,14 @@ function preparerTransitionBusinessPlanBancable(
     champs:[]
   };
 
+  // Si l'utilisateur a quitté la page d'import, le navigateur peut avoir
+  // perdu l'identifiant temporaire. On récupère alors le dernier contexte
+  // valide associé à l'adresse e-mail du dossier standard.
+  if (!String(importContextId || '').trim() &&
+      typeof AG24_IMPORT_CONTEXT_findForEmail_ === 'function') {
+    importContextId = AG24_IMPORT_CONTEXT_findForEmail_(source.email || '');
+  }
+
   if (
     String(
       importContextId || ''

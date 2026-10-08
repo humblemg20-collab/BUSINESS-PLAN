@@ -9,6 +9,7 @@
 var AG24_IMPORTED_DOCUMENT_CONTEXT_V1 = Object.freeze({
   VERSION:"1.1.0",
   PREFIX:"AFRIGREEN24_BP_IMPORT_CONTEXT",
+  EMAIL_INDEX_PREFIX:"AFRIGREEN24_BP_IMPORT_EMAIL",
   CHUNK_SIZE:7000,
   MAX_AGE_MS:24 * 60 * 60 * 1000
 });
@@ -144,6 +145,11 @@ function AG24_IMPORT_CONTEXT_delete_(id) {
   );
 }
 
+function AG24_IMPORT_CONTEXT_emailKey_(email) {
+  return AG24_IMPORTED_DOCUMENT_CONTEXT_V1.EMAIL_INDEX_PREFIX + ':' +
+    AG24_SEC_sha256_(String(email || '').trim().toLowerCase()).slice(0,40);
+}
+
 /** Nettoie les contextes temporaires expirés avant de créer un nouvel import. */
 function AG24_IMPORT_CONTEXT_cleanupExpired_() {
   var props = PropertiesService.getScriptProperties();
@@ -219,6 +225,12 @@ function AG24_IMPORT_CONTEXT_create_(analysisResult,importMeta,fileInfo) {
   };
 
   AG24_IMPORT_CONTEXT_write_(id,context);
+  var email = context.fields && context.fields.email &&
+    context.fields.email.value;
+  if (email) {
+    PropertiesService.getScriptProperties().setProperty(
+      AG24_IMPORT_CONTEXT_emailKey_(email), id);
+  }
 
   if (typeof AG24_AUDIT_event_ === "function") {
     try {
@@ -234,6 +246,14 @@ function AG24_IMPORT_CONTEXT_create_(analysisResult,importMeta,fileInfo) {
   }
 
   return id;
+}
+
+function AG24_IMPORT_CONTEXT_findForEmail_(email) {
+  var clean = String(email || '').trim().toLowerCase();
+  if (!clean) return '';
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty(AG24_IMPORT_CONTEXT_emailKey_(clean)) || '';
+  return id && AG24_IMPORT_CONTEXT_read_(id) ? id : '';
 }
 
 function AG24_IMPORT_CONTEXT_verifiedField_(context,fieldId) {
