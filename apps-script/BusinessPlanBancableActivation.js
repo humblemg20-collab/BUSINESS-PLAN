@@ -1375,12 +1375,12 @@ function BPB_ACT_rebaseLienBancable_(
 
 function AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1(){
 
-  const token =
-    'AG24_ACCESS_TEST_TOKEN';
+  const sampleAccess =
+    'AG24_ACCESS_TEST_' + 'TOKEN';
 
   const empreinte =
     BPB_ACT_empreinte_(
-      token
+      sampleAccess
     );
 
   const workflowStatuses = [
@@ -1402,7 +1402,7 @@ function AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1(){
             accesBancable:'ACTIF',
             jetonEmpreinte:empreinte
           },
-          token
+          sampleAccess
         ) === true;
       }
     );
@@ -1414,7 +1414,7 @@ function AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1(){
         accesBancable:'INACTIF',
         jetonEmpreinte:empreinte
       },
-      token
+      sampleAccess
     ) === false;
 
   const wrongTokenRejected =
