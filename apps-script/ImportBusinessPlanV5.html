@@ -501,7 +501,7 @@
         '<div class="ag24-import-steps">' +
           '<span class="ag24-import-step" data-import-step="read">Lecture</span>' +
           '<span class="ag24-import-step" data-import-step="extract">Extraction</span>' +
-          '<span class="ag24-import-step" data-import-step="analyse">Analyse IA</span>' +
+          '<span class="ag24-import-step" data-import-step="analyse">Analyse / replay</span>' +
           '<span class="ag24-import-step" data-import-step="verify">Vérification</span>' +
         '</div>';
       status.insertAdjacentElement('beforebegin', pipeline);
@@ -715,8 +715,13 @@
 
     var meta = response.importMeta || {};
     var method = String(meta.extractionMethod || response.extractionMethod || '');
+    var deterministic =
+      analysisResult.deterministic === true ||
+      String(meta.analysisMethod || response.analysisMethod || '').indexOf('STRUCTURED_REPORT') !== -1;
     var methodLabel =
-      method.indexOf('OCR') !== -1
+      deterministic
+        ? 'Replay déterministe local'
+        : method.indexOf('OCR') !== -1
         ? 'OCR Google Drive'
         : method.indexOf('WORD') !== -1
           ? 'Conversion Word'

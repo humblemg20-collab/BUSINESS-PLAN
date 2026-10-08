@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * AFRIGREEN24 — BUSINESS PLAN IMPORT V4 OPENAI — DRIVE API V3
+ * AFRIGREEN24 — BUSINESS PLAN IMPORT V5 DETERMINISTIC-FIRST — DRIVE API V3
  * ============================================================
  *
  * Dépendances déjà présentes dans le projet :
@@ -11,15 +11,16 @@
  * PDF / WORD
  * -> conversion Google Docs / OCR
  * -> texte
- * -> OpenAI /extract-business-plan
+ * -> replay déterministe si rapport généré par AfriGreen24
+ * -> OpenAI /extract-business-plan sinon
  * -> contrôle local de la preuve
  * -> FOUND / TO_CONFIRM / MISSING
  * ============================================================
  */
 
 const BP_IMPORT_AI_CONFIG = Object.freeze({
-  VERSION: "5.2.1",
-  SCHEMA_VERSION: "afrigreen24_bp_import_v6",
+  VERSION: "5.3.0",
+  SCHEMA_VERSION: "afrigreen24_bp_import_v7",
   MAX_FILE_BYTES: 15 * 1024 * 1024,
   MAX_TEXT_CHARS: 90000,
   MIN_TEXT_CHARS: 80,
@@ -211,6 +212,194 @@ const BP_IMPORT_STATUS = Object.freeze({
   USER_COMPLETED: "USER_COMPLETED"
 });
 
+const BP_IMPORT_DETERMINISTIC_METHOD =
+  "AFRIGREEN24_BUSINESS_PLAN_STRUCTURED_REPORT";
+
+
+/**
+ * Extraction déterministe du Business Plan produit par notre propre
+ * générateur. Cette voie est volontairement exécutée avant OpenAI : un
+ * document dont la structure propriétaire est reconnue est rejoué localement
+ * avec les valeurs et les preuves déjà visibles dans le document.
+ */
+function extraireRapportBusinessPlanDeterministe_(sourceText) {
+  var source = String(sourceText || "").replace(/\r/g, "");
+  var normalized = normaliserTexteVerificationBP_(source);
+  var normalizedStructure = normalized
+    .replace(/[\.:]/g, " ")
+    .replace(/\s+/g, " ");
+  var result = {
+    detected: false,
+    sourceSectionDetected: false,
+    fieldCount: 0,
+    fields: {},
+    missingFields: []
+  };
+
+  var requiredMarkers = [
+    "business plan",
+    "sommaire",
+    "document prepare a partir des informations fournies par le porteur du projet",
+    "12 conclusion"
+  ];
+
+  if (!requiredMarkers.every(function(marker) {
+    return normalizedStructure.indexOf(marker) !== -1;
+  })) {
+    return result;
+  }
+
+  result.detected = true;
+  result.sourceSectionDetected = true;
+
+  var lines = source.split(/\n/).map(function(line) {
+    return String(line || "").trim();
+  });
+
+  function cleanValue(value) {
+    return nettoyerValeurImportBP_(String(value || ""))
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function normalizedLabel(value) {
+    return normaliserTexteVerificationBP_(value)
+      .replace(/\s*:\s*$/, "")
+      .replace(/^(\d+)\s*[\.\-:]\s*/, "$1 ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function findLabeled(labels) {
+    var wanted = (labels || []).map(normalizedLabel);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line) continue;
+      var tabParts = line.split(/\t+/);
+      if (tabParts.length >= 2 &&
+          wanted.indexOf(normalizedLabel(tabParts[0])) !== -1) {
+        var tabValue = cleanValue(tabParts.slice(1).join(" "));
+        if (tabValue) {
+          return { value: tabValue, evidence: line };
+        }
+      }
+      var colon = line.indexOf(":");
+      if (colon > -1) {
+        var left = normalizedLabel(line.substring(0, colon));
+        if (wanted.indexOf(left) !== -1) {
+          var inlineValue = cleanValue(line.substring(colon + 1));
+          if (inlineValue) {
+            return { value: inlineValue, evidence: line };
+          }
+        }
+      }
+      if (wanted.indexOf(normalizedLabel(line)) !== -1) {
+        for (var j = i + 1; j < lines.length; j++) {
+          if (!lines[j]) continue;
+          var nextNormalized = normalizedLabel(lines[j]);
+          if (/^\d{1,2}\s*(?:[\.\-:])/.test(nextNormalized)) break;
+          if (wanted.indexOf(nextNormalized) !== -1) break;
+          return {
+            value: cleanValue(lines[j]),
+            evidence: line + "\n" + lines[j]
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  function findSection(title) {
+    var wanted = normalizedLabel(title);
+    var start = -1;
+    for (var i = 0; i < lines.length; i++) {
+      var normalizedLine = normalizedLabel(lines[i]);
+      if (normalizedLine === wanted || normalizedLine.indexOf(wanted) === 0) {
+        start = i + 1;
+        break;
+      }
+    }
+    if (start < 0) return null;
+    var collected = [];
+    for (var j = start; j < lines.length; j++) {
+      var line = lines[j];
+      var normalizedLine2 = normalizedLabel(line);
+      if (/^\d{1,2}\s*(?:[\.\-:])/.test(normalizedLine2)) break;
+      if (/^sommaire$/.test(normalizedLine2)) break;
+      if (line) collected.push(line);
+    }
+    var value = cleanValue(collected.join(" "));
+    return value ? { value: value, evidence: collected.join("\n") } : null;
+  }
+
+  function addField(field, candidate) {
+    if (!candidate || !candidate.value || result.fields[field]) return;
+    result.fields[field] = {
+      value: candidate.value,
+      confidence: 1,
+      evidence: String(candidate.evidence || candidate.value).slice(0, BP_IMPORT_AI_CONFIG.MAX_EVIDENCE_CHARS),
+      extractionMethod: BP_IMPORT_DETERMINISTIC_METHOD,
+      deterministic: true,
+      provenance: {
+        extractionMethod: BP_IMPORT_DETERMINISTIC_METHOD,
+        deterministic: true,
+        sourceSectionDetected: true
+      }
+    };
+    result.fieldCount++;
+  }
+
+  var labeled = [
+    ["projectName", ["Nom du projet"]],
+    ["promoterName", ["Porteur du projet"]],
+    ["country", ["Pays ou zone", "Pays"]],
+    ["sector", ["Secteur d'activité", "Secteur d’activite", "Secteur"]],
+    ["stage", ["Stade du projet"]],
+    ["affectedPeople", ["Population concernée", "Population concernee"]],
+    ["valueProposition", ["Proposition de valeur"]],
+    ["targetCustomers", ["Clientèle cible", "Clientele cible"]],
+    ["competitors", ["Concurrence et alternatives"]],
+    ["revenueModel", ["Sources de revenus"]],
+    ["pricing", ["Politique tarifaire"]],
+    ["mainCosts", ["Principaux coûts", "Principaux couts"]],
+    ["salesChannels", ["Canaux déclarés", "Canaux declares"]],
+    ["team", ["Équipe déclarée", "Equipe declaree"]],
+    ["fundingType", ["Type de financement"]],
+    ["fundingNeed", ["Montant recherché", "Montant recherche"]],
+    ["useOfFunds", ["Utilisation prévue", "Utilisation prevue"]],
+    ["impact", ["Impact déclaré", "Impact declare"]],
+    ["risks", ["Risque déclaré", "Risque declare"]]
+  ];
+
+  labeled.forEach(function(item) {
+    addField(item[0], findLabeled(item[1]));
+  });
+
+  [
+    ["problem", "3. Problème et opportunité"],
+    ["solution", "4. Solution proposée"]
+  ].forEach(function(item) {
+    addField(item[0], findSection(item[1]));
+  });
+
+  if (!result.fields.benefit && result.fields.valueProposition) {
+    addField("benefit", result.fields.valueProposition);
+  }
+
+  BP_IMPORT_FIELDS.forEach(function(field) {
+    if (!result.fields[field]) result.missingFields.push(field);
+  });
+
+  console.log(JSON.stringify({
+    event: "business_plan_structured_report_deterministic_extraction",
+    detected: result.detected,
+    fieldCount: result.fieldCount,
+    missingFields: result.missingFields
+  }));
+
+  return result;
+}
+
 
 /**
  * Point d'entrée appelé par Index.html.
@@ -296,6 +485,15 @@ function recevoirFichierBusinessPlan(payload) {
       extractionMethod:
         extraction.method,
 
+      analysisMethod:
+        analysisResult.extractionMethod ||
+        (analysisResult.deterministic
+          ? BP_IMPORT_DETERMINISTIC_METHOD
+          : "OPENAI_BUSINESS_PLAN_EXTRACTION"),
+
+      deterministic:
+        analysisResult.deterministic === true,
+
       textLength:
         texte.length,
 
@@ -340,6 +538,12 @@ function recevoirFichierBusinessPlan(payload) {
         extractionMethod:
           extraction.method,
 
+        analysisMethod:
+          analysisResult.extractionMethod ||
+          (analysisResult.deterministic
+            ? BP_IMPORT_DETERMINISTIC_METHOD
+            : "OPENAI_BUSINESS_PLAN_EXTRACTION"),
+
         wordCount:
           wordCount,
 
@@ -377,6 +581,12 @@ function recevoirFichierBusinessPlan(payload) {
 
       extractionMethod:
         extraction.method,
+
+      analysisMethod:
+        analysisResult.extractionMethod ||
+        (analysisResult.deterministic
+          ? BP_IMPORT_DETERMINISTIC_METHOD
+          : "OPENAI_BUSINESS_PLAN_EXTRACTION"),
 
       textLength:
         texte.length,
@@ -424,7 +634,8 @@ function recevoirFichierBusinessPlan(payload) {
 
 
 /**
- * Extraction structurée via OpenAI.
+ * Extraction structurée : replay déterministe pour nos rapports, puis OpenAI
+ * pour les documents externes ou les formats narratifs.
  *
  * L'adapter AG24_OPENAI_extractBusinessPlan_ effectue un seul appel
  * Responses API et renvoie uniquement les champs demandés.
@@ -432,6 +643,24 @@ function recevoirFichierBusinessPlan(payload) {
 function analyserBusinessPlanAvecOpenAI_(
   texteSource
 ) {
+
+  var deterministic =
+    extraireRapportBusinessPlanDeterministe_(
+      texteSource
+    );
+
+  if (deterministic.detected) {
+    return normaliserResultatOpenAIBusinessPlan_(
+      {
+        fields: deterministic.fields,
+        model: "deterministic-business-plan-report",
+        deterministic: true,
+        extractionMethod:
+          BP_IMPORT_DETERMINISTIC_METHOD
+      },
+      texteSource
+    );
+  }
 
   if (
     typeof AG24_OPENAI_extractBusinessPlan_ !==
@@ -531,6 +760,14 @@ function normaliserResultatOpenAIBusinessPlan_(
     model:
       String(
         content.model || ""
+      ),
+
+    deterministic:
+      content.deterministic === true,
+
+    extractionMethod:
+      String(
+        content.extractionMethod || ""
       ),
 
     fields:
@@ -849,11 +1086,18 @@ function construireChampBusinessPlanVerifie_(
     };
   }
 
+  var deterministicStructuredExtraction =
+    item.deterministic === true &&
+    item.extractionMethod ===
+      BP_IMPORT_DETERMINISTIC_METHOD;
+
   var evidenceVerified =
-    verifierPreuveBusinessPlan_(
-      evidence,
-      texteSource
-    );
+    deterministicStructuredExtraction && evidence
+      ? true
+      : verifierPreuveBusinessPlan_(
+          evidence,
+          texteSource
+        );
 
   /*
    * A bounded extraction can never be silently accepted as FOUND: the user
@@ -894,6 +1138,22 @@ function construireChampBusinessPlanVerifie_(
 
     evidenceVerified:
       evidenceVerified,
+
+    extractionMethod:
+      item.extractionMethod || "",
+
+    deterministic:
+      deterministicStructuredExtraction,
+
+    provenance:
+      deterministicStructuredExtraction
+        ? item.provenance || {
+            extractionMethod:
+              BP_IMPORT_DETERMINISTIC_METHOD,
+            deterministic:
+              true
+          }
+        : null,
 
     valueTruncated:
       boundedValue.bounded,
@@ -1176,14 +1436,33 @@ function normaliserValeurCanoniqueImportBP_(field, value) {
   if (field === "stage") {
     if (normalise.indexOf("prepare") !== -1 && normalise.indexOf("lancement") !== -1) return "Je prépare le lancement";
     if (normalise.indexOf("prototype") !== -1) return "J’ai déjà un prototype";
-    if (normalise.indexOf("commence") !== -1 && normalise.indexOf("vend") !== -1) return "J’ai commencé à vendre";
+    if (
+      (
+        normalise.indexOf("commence") !== -1 &&
+        normalise.indexOf("vend") !== -1
+      ) ||
+      normalise.indexOf("premier revenu") !== -1 ||
+      normalise.indexOf("premiers revenus") !== -1 ||
+      normalise.indexOf("revenus") !== -1 ||
+      normalise.indexOf("pilote") !== -1
+    ) {
+      return "J’ai commencé à vendre";
+    }
     if (normalise.indexOf("croissance") !== -1) return "Mon activité est déjà en croissance";
     if (normalise.indexOf("idee") !== -1) return "J’ai seulement une idée";
   }
 
   if (field === "fundingType") {
     if (normalise.indexOf("subvention") !== -1) return "Subvention";
-    if (normalise.indexOf("pret") !== -1 || normalise.indexOf("banque") !== -1) return "Prêt bancaire";
+    if (
+      normalise.indexOf("pret") !== -1 ||
+      normalise.indexOf("banque") !== -1 ||
+      normalise.indexOf("bancaire") !== -1 ||
+      normalise.indexOf("credit") !== -1 ||
+      normalise.indexOf("emprunt") !== -1
+    ) {
+      return "Prêt bancaire";
+    }
     if (normalise.indexOf("invest") !== -1) return "Investissement";
     if (normalise.indexOf("parten") !== -1) return "Partenariat";
     if (normalise.indexOf("sais pas") !== -1) return "Je ne sais pas encore";
@@ -1887,6 +2166,119 @@ function TEST_BP_STAGE_FUNDING_MAPPING_LOCAL_() {
     failed: erreurs.length,
     results: results
   };
+}
+
+
+/**
+ * Régression locale du replay déterministe d'un Business Plan généré.
+ * Ce test ne fait aucun appel réseau et vérifie aussi que le fallback IA
+ * n'est pas sollicité lorsque la structure propriétaire est reconnue.
+ */
+function TEST_BP_STRUCTURED_REPORT_DETERMINISTIC_IMPORT_LOCAL_() {
+  var source = [
+    "BUSINESS PLAN",
+    "Nom du projet", "SolarFresh Cameroun",
+    "Porteur du projet", "Awa Test",
+    "Pays ou zone", "Cameroun",
+    "Secteur d’activité", "Énergie renouvelable",
+    "Sommaire",
+    "03 Problème et opportunité",
+    "04 Solution proposée",
+    "12 Conclusion",
+    "1. Résumé exécutif",
+    "Le projet propose une solution solaire utile.",
+    "2. Présentation du projet",
+    "3. Problème et opportunité",
+    "Les clients ruraux ont un accès limité à l’énergie.",
+    "Population concernée", "Ménages et PME rurales",
+    "4. Solution proposée",
+    "Une offre solaire fiable et accessible.",
+    "Proposition de valeur", "Énergie propre à coût maîtrisé",
+    "5. Analyse du marché",
+    "Clientèle cible", "Ménages et PME rurales",
+    "Concurrence et alternatives", "Groupes électrogènes",
+    "6. Modèle économique",
+    "Sources de revenus", "Vente et location de kits solaires",
+    "Politique tarifaire", "Tarifs mensuels accessibles",
+    "Principaux coûts", "Équipements et installation",
+    "7. Stratégie commerciale et marketing",
+    "Canaux déclarés", "Partenaires locaux et digital",
+    "8. Équipe et organisation opérationnelle",
+    "Équipe déclarée", "Équipe fondatrice et techniciens",
+    "9. Besoin de financement",
+    "Type de financement", "Prêt bancaire",
+    "Montant recherché", "45 000 000 XAF",
+    "Utilisation prévue", "Stock, équipements et marketing",
+    "10. Impact économique, social et environnemental",
+    "Impact déclaré", "Réduction du diesel et création d’emplois",
+    "11. Risques identifiés",
+    "Risque déclaré", "Retards d’approvisionnement",
+    "12. Conclusion", "Le projet est structuré.",
+    "Document préparé à partir des informations fournies par le porteur du projet."
+  ].join("\n");
+
+  var extraction =
+    extraireRapportBusinessPlanDeterministe_(source);
+
+  if (!extraction.detected || extraction.fieldCount < 18) {
+    throw new Error(
+      "Replay déterministe incomplet : " +
+      JSON.stringify(extraction)
+    );
+  }
+
+  var previousBridge =
+    typeof AG24_OPENAI_extractBusinessPlan_ === "function"
+      ? AG24_OPENAI_extractBusinessPlan_
+      : null;
+
+  var previousBridgeWasOwn =
+    Object.prototype.hasOwnProperty.call(
+      this,
+      "AG24_OPENAI_extractBusinessPlan_"
+    );
+
+  try {
+    AG24_OPENAI_extractBusinessPlan_ = function() {
+      throw new Error("OPENAI_SHOULD_NOT_BE_CALLED");
+    };
+
+    var result =
+      analyserBusinessPlanAvecOpenAI_(source);
+
+    if (
+      result.model !==
+        "deterministic-business-plan-report" ||
+      !result.fields.projectName.deterministic ||
+      result.fields.projectName.status !==
+        BP_IMPORT_STATUS.FOUND ||
+      result.analysis.found < 18
+    ) {
+      throw new Error(
+        "Résultat déterministe invalide : " +
+        JSON.stringify(result.analysis)
+      );
+    }
+
+    return {
+      success: true,
+      detected: extraction.detected,
+      fieldCount: extraction.fieldCount,
+      found: result.analysis.found,
+      missing: result.analysis.missing,
+      model: result.model
+    };
+  } finally {
+    if (previousBridgeWasOwn) {
+      AG24_OPENAI_extractBusinessPlan_ = previousBridge;
+    } else {
+      try {
+        delete AG24_OPENAI_extractBusinessPlan_;
+      } catch (error) {
+        AG24_OPENAI_extractBusinessPlan_ = previousBridge;
+      }
+    }
+  }
 }
 
 function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1() {

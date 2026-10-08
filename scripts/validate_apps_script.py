@@ -212,7 +212,7 @@ if (APP / "BusinessPlanImport.js").exists():
         fail("Business Plan import extraction is not routed through OpenAI")
 
     for marker in [
-        'VERSION: "5.2.1"',
+        'VERSION: "5.3.0"',
         "MAX_EXTRACTED_LONG_FIELD_CHARS: 8000",
         "MAX_EXTRACTED_SHORT_FIELD_CHARS: 600",
         "MAX_EXTRACTED_EMAIL_CHARS: 320",
@@ -1360,7 +1360,7 @@ if import_backend.exists():
         "verifierSignatureFichierBusinessPlan_",
         "evaluerQualiteImportBusinessPlan_",
         "BUSINESS_PLAN_IMPORT_COMPLETED",
-        "afrigreen24_bp_import_v6",
+        "afrigreen24_bp_import_v7",
     ]:
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")
