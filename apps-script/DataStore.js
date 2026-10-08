@@ -159,6 +159,7 @@ function enregistrerSoumission_(data, liens, profilCommercial) {
   );
 
   var montantRecherche = datastorePremiereValeur_(
+    data.fundingNeed,
     data.fundingAmount,
     data.montantFinancement,
     data.montantRecherche,
