@@ -308,6 +308,8 @@ if activation_path.exists():
         "BPB_ACT_rebaseLienBancable_",
         "BANCABLE_EXISTING_LINK_CANONICALIZED",
         "AG24_BANCABLE_CANONICAL_LINK_SYSTEM_TEST_V1",
+        "BPB_ACT_estAccesAutoriseMeta_",
+        "AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1",
     ]:
         if marker not in activation_text:
             fail(f"Canonical import handoff marker missing: {marker}")
@@ -806,7 +808,7 @@ else:
         "CanonicalBranch = \"work/apps-script-v92\"",
         "CANONICAL_BRANCH_MISMATCH",
         "CANONICAL_BRANCH_SHA_MISMATCH",
-        "ExpectedRegressionVersion = \"1.13.0\"",
+        "ExpectedRegressionVersion = \"1.13.1\"",
         "ExpectedReadinessGateVersion = \"1.2.0\"",
         "PREMIUM_SOURCE_CONTRACT=PASS",
         "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
@@ -835,6 +837,7 @@ premium_contracts = {
         'VERSION:"1.13.0"',
         "IMPORTED_DOCUMENT_CONTEXT",
         "BANCABLE_GAP_ONLY",
+        "BANCABLE_ACCESS_LIFECYCLE",
         "FINANCEUR_PRODUCTION_ROUTE",
         "FINANCEUR_CANARY_SELECTION",
     ],
