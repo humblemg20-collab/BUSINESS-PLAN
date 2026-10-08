@@ -4696,10 +4696,15 @@
           }
         )
 
-      const generationMethod = forceAlerts
-        ? 'genererRapportPreparationBancaireAvecAlertesDepuisInterface'
-        : 'genererRapportPreparationBancaireDepuisInterface';
-      generationRunner[generationMethod](DOSSIER_ID, JETON_ACCES);
+      if (forceAlerts) {
+        generationRunner.genererRapportPreparationBancaireAvecAlertesDepuisInterface(
+          DOSSIER_ID, JETON_ACCES
+        );
+      } else {
+        generationRunner.genererRapportPreparationBancaireDepuisInterface(
+          DOSSIER_ID, JETON_ACCES
+        );
+      }
 
     }
 
