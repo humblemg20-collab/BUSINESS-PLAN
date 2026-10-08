@@ -821,6 +821,57 @@ function routerBusinessPlanBancable(
  * ============================================================
  */
 
+function BPB_ACT_estAccesAutoriseMeta_(
+  meta,
+  jeton
+){
+
+  const source =
+    meta &&
+    typeof meta ===
+      'object'
+      ? meta
+      : {};
+
+
+  const token =
+    String(
+      jeton || ''
+    )
+    .trim();
+
+
+  const empreinte =
+    String(
+      source.jetonEmpreinte || ''
+    )
+    .trim();
+
+
+  /*
+   * Séparation stricte des responsabilités :
+   * - accesBancable = état d'autorisation ;
+   * - statut = état du workflow (questionnaire, audit, génération...).
+   *
+   * Le workflow ne doit jamais invalider un lien d'accès encore actif.
+   */
+  return (
+    source.accesBancable ===
+      'ACTIF'
+    &&
+    Boolean(token)
+    &&
+    Boolean(empreinte)
+    &&
+    empreinte ===
+      BPB_ACT_empreinte_(
+        token
+      )
+  );
+
+}
+
+
 function BPB_ACT_verifierAcces_(
   dossierId,
   jeton
@@ -843,37 +894,11 @@ function BPB_ACT_verifierAcces_(
     {};
 
 
-  const actif =
-
-    meta.statut ===
-    BPB_ACTIVATION_CONFIG
-      .STATUT_ACTIF
-
-    &&
-
-    meta.accesBancable ===
-    'ACTIF';
-
-
-  const jetonValide =
-
-    Boolean(
+  if(
+    !BPB_ACT_estAccesAutoriseMeta_(
+      meta,
       jeton
     )
-
-    &&
-
-    meta.jetonEmpreinte ===
-    BPB_ACT_empreinte_(
-      String(
-        jeton
-      )
-    );
-
-
-  if(
-    !actif ||
-    !jetonValide
   ){
 
     throw new Error(
@@ -943,14 +968,12 @@ function BPB_ACT_activerDossier_(
 
       if(
 
-        meta.statut ===
-        BPB_ACTIVATION_CONFIG
-          .STATUT_ACTIF
+        meta.accesBancable ===
+        'ACTIF'
 
         &&
 
-        meta.accesBancable ===
-        'ACTIF'
+        meta.jetonEmpreinte
 
         &&
 
@@ -1346,6 +1369,88 @@ function BPB_ACT_rebaseLienBancable_(
   }
 
   return canonical + '?' + query;
+
+}
+
+
+function AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1(){
+
+  const token =
+    'AG24_ACCESS_TEST_TOKEN';
+
+  const empreinte =
+    BPB_ACT_empreinte_(
+      token
+    );
+
+  const workflowStatuses = [
+    BPB_ACTIVATION_CONFIG.STATUT_ACTIF,
+    'QUESTIONNAIRE_EN_COURS',
+    'CORRECTIONS_REQUISES',
+    'AUDIT_VALIDE_EN_ATTENTE_CONFIRMATION',
+    'PRET_POUR_GENERATION',
+    'VALIDATION_FINALE_ENREGISTREE',
+    'FINANCEUR_GENERE'
+  ];
+
+  const workflowStatusIndependent =
+    workflowStatuses.every(
+      function(statut){
+        return BPB_ACT_estAccesAutoriseMeta_(
+          {
+            statut:statut,
+            accesBancable:'ACTIF',
+            jetonEmpreinte:empreinte
+          },
+          token
+        ) === true;
+      }
+    );
+
+  const inactiveRejected =
+    BPB_ACT_estAccesAutoriseMeta_(
+      {
+        statut:'QUESTIONNAIRE_EN_COURS',
+        accesBancable:'INACTIF',
+        jetonEmpreinte:empreinte
+      },
+      token
+    ) === false;
+
+  const wrongTokenRejected =
+    BPB_ACT_estAccesAutoriseMeta_(
+      {
+        statut:'QUESTIONNAIRE_EN_COURS',
+        accesBancable:'ACTIF',
+        jetonEmpreinte:empreinte
+      },
+      'WRONG_TOKEN'
+    ) === false;
+
+  const success =
+    workflowStatusIndependent &&
+    inactiveRejected &&
+    wrongTokenRejected;
+
+  const report = {
+    success:success,
+    workflowStatusIndependent:
+      workflowStatusIndependent,
+    inactiveRejected:
+      inactiveRejected,
+    wrongTokenRejected:
+      wrongTokenRejected
+  };
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 
 }
 
