@@ -146,6 +146,19 @@ function lireBrouillonBPSheet_(email, code) {
       return { rowNumber: i + 1, draftId: String(row[0]), email: String(row[1]), codeHash: String(row[2]), createdAt: String(row[3]), lastSavedAt: String(row[4]), expiresAt: String(row[5]), currentStep: Number(row[6] || 0), progress: Number(row[7] || 0), resumeCount: Number(row[8] || 0), state: String(row[9] || "") };
     }
   }
+  var legacyKey = BP_DRAFT_CONFIG.propertyPrefix + hash;
+  var legacyRaw = PropertiesService.getScriptProperties().getProperty(legacyKey);
+  if (legacyRaw) {
+    try {
+      var legacy = JSON.parse(legacyRaw);
+      legacy.codeHash = hash;
+      ecrireBrouillonBPSheet_(legacy);
+      PropertiesService.getScriptProperties().deleteProperty(legacyKey);
+      return lireBrouillonBPSheet_(email, code);
+    } catch (error) {
+      throw new Error("Le brouillon sauvegardé est illisible.");
+    }
+  }
   throw new Error("Email ou code de reprise incorrect.");
 }
 
