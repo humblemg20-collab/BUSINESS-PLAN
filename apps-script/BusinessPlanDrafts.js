@@ -9,7 +9,9 @@ var BP_DRAFT_CONFIG = Object.freeze({
   codePrefix: "BP",
   maxStateChars: 45000,
   chunkSize: 8000,
-  propertyPrefix: "AG24_BP_DRAFT_"
+  propertyPrefix: "AG24_BP_DRAFT_",
+  sheetIdProperty: "AG24_BP_DRAFT_SHEET_ID",
+  sheetName: "Brouillons"
 });
 
 function creerCodeRepriseBusinessPlan(payload) {
@@ -27,12 +29,10 @@ function creerCodeRepriseBusinessPlan(payload) {
   var draftId = "BP-" + Utilities.getUuid().replace(/-/g, "").slice(0, 20).toUpperCase();
   var now = new Date();
   var expiresAt = new Date(now.getTime() + BP_DRAFT_CONFIG.validityDays * 86400000);
-  var key = BP_DRAFT_CONFIG.propertyPrefix + creerHashRepriseBP_(email, code);
-  var props = PropertiesService.getScriptProperties();
-
-  props.setProperty(key, JSON.stringify({
+  var record = {
     draftId: draftId,
     email: email,
+    codeHash: creerHashRepriseBP_(email, code),
     createdAt: now.toISOString(),
     lastSavedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
@@ -40,7 +40,8 @@ function creerCodeRepriseBusinessPlan(payload) {
     progress: normaliserEntierBP_(payload.progress, 0, 100),
     resumeCount: 0,
     state: json
-  }));
+  };
+  ecrireBrouillonBPSheet_(record);
 
   var emailSent = envoyerCodeRepriseBusinessPlan_(email, code, expiresAt);
   return {
@@ -58,9 +59,7 @@ function sauvegarderBrouillonBusinessPlan(payload) {
   var code = normaliserCodeRepriseBP_(payload.code);
   if (!email || !code) throw new Error("Informations de reprise incomplètes.");
 
-  var key = BP_DRAFT_CONFIG.propertyPrefix + creerHashRepriseBP_(email, code);
-  var props = PropertiesService.getScriptProperties();
-  var record = lireBrouillonBP_(props, key);
+  var record = lireBrouillonBPSheet_(email, code);
   verifierBrouillonBP_(record, email, payload.draftId);
 
   var state = payload.state && typeof payload.state === "object" ? payload.state : {};
@@ -71,7 +70,7 @@ function sauvegarderBrouillonBusinessPlan(payload) {
   record.currentStep = normaliserEntierBP_(payload.currentStep, 0, 1000);
   record.progress = normaliserEntierBP_(payload.progress, 0, 100);
   record.state = json;
-  props.setProperty(key, JSON.stringify(record));
+  mettreAJourBrouillonBPSheet_(record);
   return { success: true, draftId: record.draftId, savedAt: record.lastSavedAt, expiresAt: record.expiresAt };
 }
 
@@ -81,11 +80,10 @@ function reprendreBrouillonBusinessPlan(payload) {
   var code = normaliserCodeRepriseBP_(payload.code);
   if (!email || !code) throw new Error("Veuillez renseigner votre email et votre code de reprise.");
 
-  var key = BP_DRAFT_CONFIG.propertyPrefix + creerHashRepriseBP_(email, code);
-  var record = lireBrouillonBP_(PropertiesService.getScriptProperties(), key);
+  var record = lireBrouillonBPSheet_(email, code);
   verifierBrouillonBP_(record, email);
   record.resumeCount = Number(record.resumeCount || 0) + 1;
-  PropertiesService.getScriptProperties().setProperty(key, JSON.stringify(record));
+  mettreAJourBrouillonBPSheet_(record);
 
   var state = {};
   try { state = JSON.parse(record.state || "{}"); } catch (error) { throw new Error("Les données sauvegardées sont illisibles."); }
@@ -108,17 +106,56 @@ function marquerBrouillonBusinessPlanTermine(payload) {
   var email = normaliserEmailBrouillonBP_(payload.email);
   var code = normaliserCodeRepriseBP_(payload.code);
   if (!email || !code) return { success: false };
-  var key = BP_DRAFT_CONFIG.propertyPrefix + creerHashRepriseBP_(email, code);
-  var record = lireBrouillonBP_(PropertiesService.getScriptProperties(), key);
+  var record = lireBrouillonBPSheet_(email, code);
   verifierBrouillonBP_(record, email, payload.draftId);
-  PropertiesService.getScriptProperties().deleteProperty(key);
+  supprimerBrouillonBPSheet_(record.rowNumber);
   return { success: true };
 }
 
-function lireBrouillonBP_(props, key) {
-  var raw = props.getProperty(key);
-  if (!raw) throw new Error("Email ou code de reprise incorrect.");
-  try { return JSON.parse(raw); } catch (error) { throw new Error("Le brouillon sauvegardé est illisible."); }
+function obtenirFeuilleBrouillonsBP_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty(BP_DRAFT_CONFIG.sheetIdProperty);
+  var spreadsheet;
+  if (id) {
+    try { spreadsheet = SpreadsheetApp.openById(id); } catch (error) { spreadsheet = null; }
+  }
+  if (!spreadsheet) {
+    spreadsheet = SpreadsheetApp.create("AfriGreen24 — Brouillons Business Plan");
+    props.setProperty(BP_DRAFT_CONFIG.sheetIdProperty, spreadsheet.getId());
+  }
+  var sheet = spreadsheet.getSheetByName(BP_DRAFT_CONFIG.sheetName) || spreadsheet.insertSheet(BP_DRAFT_CONFIG.sheetName);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["draftId", "email", "codeHash", "createdAt", "lastSavedAt", "expiresAt", "currentStep", "progress", "resumeCount", "state"]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function ecrireBrouillonBPSheet_(record) {
+  var sheet = obtenirFeuilleBrouillonsBP_();
+  sheet.appendRow([record.draftId, record.email, record.codeHash, record.createdAt, record.lastSavedAt, record.expiresAt, record.currentStep, record.progress, record.resumeCount, record.state]);
+}
+
+function lireBrouillonBPSheet_(email, code) {
+  var sheet = obtenirFeuilleBrouillonsBP_();
+  var values = sheet.getDataRange().getValues();
+  var hash = creerHashRepriseBP_(email, code);
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][2]) === hash) {
+      var row = values[i];
+      return { rowNumber: i + 1, draftId: String(row[0]), email: String(row[1]), codeHash: String(row[2]), createdAt: String(row[3]), lastSavedAt: String(row[4]), expiresAt: String(row[5]), currentStep: Number(row[6] || 0), progress: Number(row[7] || 0), resumeCount: Number(row[8] || 0), state: String(row[9] || "") };
+    }
+  }
+  throw new Error("Email ou code de reprise incorrect.");
+}
+
+function mettreAJourBrouillonBPSheet_(record) {
+  obtenirFeuilleBrouillonsBP_().getRange(record.rowNumber, 1, 1, 10).setValues([[record.draftId, record.email, record.codeHash, record.createdAt, record.lastSavedAt, record.expiresAt, record.currentStep, record.progress, record.resumeCount, record.state]]);
+}
+
+function supprimerBrouillonBPSheet_(rowNumber) {
+  var sheet = obtenirFeuilleBrouillonsBP_();
+  if (rowNumber > 1 && rowNumber <= sheet.getLastRow()) sheet.deleteRow(rowNumber);
 }
 
 function verifierBrouillonBP_(record, email, draftId) {
