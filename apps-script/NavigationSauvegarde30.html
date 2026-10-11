@@ -115,6 +115,8 @@
         recovery.draftId = result.draftId || '';
         recovery.email = email;
         recovery.code = result.code || '';
+        var createButton = document.getElementById('ag24CreateRecovery');
+        if (createButton) createButton.remove();
         updateSaveStatus(result.emailSent ? 'Code envoyé par email' : 'Code créé, email à vérifier');
         window.alert('Votre code de reprise est : ' + recovery.code + '\nIl est valable 30 jours.');
       })
@@ -140,6 +142,8 @@
         recovery.draftId = result.draftId || '';
         recovery.email = result.email || email;
         recovery.code = code;
+        var createButton = document.getElementById('ag24CreateRecovery');
+        if (createButton) createButton.remove();
         applyData((result.state || {}).form || {});
         displaySavedStep(result.currentStep || 1);
         updateSaveStatus('Dossier restauré');
