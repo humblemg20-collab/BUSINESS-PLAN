@@ -154,6 +154,8 @@
       .reprendreBrouillonBusinessPlan({ email: email, code: code });
   }
 
+  window.reprendreBusinessPlanAvecCode = resumeRecoveryCode;
+
   function getFields() {
     return Array.prototype.slice.call(
       document.querySelectorAll('#questionnairePage input, #questionnairePage textarea, #questionnairePage select')
@@ -347,11 +349,9 @@
       actions.id = 'ag24EmailRecovery';
       actions.className = 'ag24-email-recovery';
       actions.innerHTML =
-        '<button type="button" id="ag24CreateRecovery">Sauvegarder avec un code email</button>' +
-        '<button type="button" id="ag24ResumeRecovery">Reprendre avec mon code</button>';
+        '<button type="button" id="ag24CreateRecovery">Sauvegarder avec un code email</button>';
       card.insertBefore(actions, card.firstChild);
       document.getElementById('ag24CreateRecovery').addEventListener('click', createRecoveryCode);
-      document.getElementById('ag24ResumeRecovery').addEventListener('click', resumeRecoveryCode);
     }
   }
 
