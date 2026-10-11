@@ -1,6 +1,9 @@
 param(
   [string]$DeploymentId = "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
   [string]$ExpectedScriptId = "1McxpCYTwJPAf8vFOAl6niawk9ro-DSnVzhMblqfVG08uPa6x5ItmjZWz",
+  [string]$CanonicalBranch = "work/apps-script-v92",
+  [string]$ExpectedRegressionVersion = "1.13.2",
+  [string]$ExpectedReadinessGateVersion = "1.2.0",
   [switch]$SkipPush
 )
 
@@ -67,23 +70,44 @@ function Invoke-Clasp {
 
 function Get-DeploymentVersion {
   param(
-    [Parameter(Mandatory=$true)][string]$DeploymentId
+    [Parameter(Mandatory=$true)][string]$DeploymentId,
+    [string]$EvidencePath = ""
   )
 
   $result = Invoke-Clasp -Arguments @("list-deployments")
+
+  if ($EvidencePath) {
+    $result.Text | Set-Content -Path $EvidencePath -Encoding UTF8
+  }
 
   if ($result.ExitCode -ne 0) {
     return $null
   }
 
-  $pattern = [regex]::Escape($DeploymentId) + "\s+@(\d+)"
-  $match = [regex]::Match($result.Text, $pattern)
+  $lines = @($result.Text -split "\r?\n")
 
-  if (-not $match.Success) {
-    return $null
+  foreach ($line in $lines) {
+    if ($line.IndexOf($DeploymentId, [System.StringComparison]::Ordinal) -lt 0) {
+      continue
+    }
+
+    $versionMatch = [regex]::Match($line, "@(\d+)")
+
+    if ($versionMatch.Success) {
+      return [int]$versionMatch.Groups[1].Value
+    }
   }
 
-  return [int]$match.Groups[1].Value
+  foreach ($line in $lines) {
+    if ($line.IndexOf($DeploymentId, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+      Write-Host "DEPLOYMENT_ID_CASE_MISMATCH=TRUE"
+      Write-Host "EXPECTED_DEPLOYMENT_ID=$DeploymentId"
+      Write-Host "OBSERVED_DEPLOYMENT_LINE=$line"
+      break
+    }
+  }
+
+  return $null
 }
 
 function Wait-DeploymentVersion {
@@ -221,7 +245,10 @@ function Wait-ProductionHealth {
 
 $state = [ordered]@{
   releaseId = $ReleaseId
+  canonicalBranch = $CanonicalBranch
   canonicalSha = ""
+  regressionVersion = $ExpectedRegressionVersion
+  readinessGateVersion = $ExpectedReadinessGateVersion
   deploymentId = $DeploymentId
   previousVersion = $null
   candidateVersion = $null
@@ -236,7 +263,7 @@ $state = [ordered]@{
 
 try {
   Write-Host "============================================================"
-  Write-Host "BUSINESS PLAN POWERSHELL RELEASE ENGINE V1"
+  Write-Host "BUSINESS PLAN POWERSHELL RELEASE ENGINE V2"
   Write-Host "RELEASE_ID=$ReleaseId"
   Write-Host "============================================================"
 
@@ -249,7 +276,7 @@ try {
   }
 
   Write-Host ""
-  Write-Host "[1/8] Canonical Git main"
+  Write-Host "[1/8] Canonical Git branch"
 
   $dirty = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "status", "--porcelain")
   Assert-Native -Result $dirty -Step "git status"
@@ -258,23 +285,32 @@ try {
     throw "WORKTREE_DIRTY: commit or discard local changes before release."
   }
 
-  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "checkout", "main")) -Step "git checkout main"
   Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "fetch", "origin")) -Step "git fetch origin"
-  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "pull", "--ff-only", "origin", "main")) -Step "git pull main"
+  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "checkout", $CanonicalBranch)) -Step "git checkout canonical branch"
+  Assert-Native -Result (Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "pull", "--ff-only", "origin", $CanonicalBranch)) -Step "git pull canonical branch"
+
+  $branchResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "branch", "--show-current")
+  Assert-Native -Result $branchResult -Step "git branch --show-current"
+  $currentBranch = $branchResult.Text.Trim()
+
+  if ($currentBranch -ne $CanonicalBranch) {
+    throw "CANONICAL_BRANCH_MISMATCH"
+  }
 
   $headResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", "HEAD")
   Assert-Native -Result $headResult -Step "git rev-parse HEAD"
   $head = $headResult.Text.Trim()
 
-  $originResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", "origin/main")
-  Assert-Native -Result $originResult -Step "git rev-parse origin/main"
-  $originMain = $originResult.Text.Trim()
+  $originResult = Invoke-Native -File "git" -Arguments @("-C", $RepoRoot, "rev-parse", ("origin/" + $CanonicalBranch))
+  Assert-Native -Result $originResult -Step "git rev-parse origin canonical branch"
+  $originCanonical = $originResult.Text.Trim()
 
-  Write-Host "LOCAL_MAIN=$head"
-  Write-Host "ORIGIN_MAIN=$originMain"
+  Write-Host "CANONICAL_BRANCH=$CanonicalBranch"
+  Write-Host "LOCAL_SHA=$head"
+  Write-Host "ORIGIN_SHA=$originCanonical"
 
-  if ($head -ne $originMain) {
-    throw "CANONICAL_MAIN_MISMATCH"
+  if ($head -ne $originCanonical) {
+    throw "CANONICAL_BRANCH_SHA_MISMATCH"
   }
 
   $state.canonicalSha = $head
@@ -289,6 +325,54 @@ try {
   }
 
   Write-Host "SCRIPT_ID=$($claspJson.scriptId)"
+
+  $regressionPath = Join-Path $AppsScript "AG24PremiumDocumentRegressionSuiteV1.js"
+  $readinessPath = Join-Path $AppsScript "AG24PremiumFinanceurReleaseReadinessGateV1.js"
+
+  if (-not (Test-Path $regressionPath)) {
+    throw "REGRESSION_SUITE_SOURCE_MISSING"
+  }
+
+  if (-not (Test-Path $readinessPath)) {
+    throw "RELEASE_READINESS_GATE_SOURCE_MISSING"
+  }
+
+  $regressionSource = Get-Content $regressionPath -Raw
+  $readinessSource = Get-Content $readinessPath -Raw
+
+  if ($regressionSource -notmatch ('VERSION:"' + [regex]::Escape($ExpectedRegressionVersion) + '"')) {
+    throw "REGRESSION_VERSION_MISMATCH"
+  }
+
+  if ($readinessSource -notmatch ('VERSION:"' + [regex]::Escape($ExpectedReadinessGateVersion) + '"')) {
+    throw "READINESS_GATE_VERSION_MISMATCH"
+  }
+
+  Write-Host "REGRESSION_SOURCE_VERSION=$ExpectedRegressionVersion"
+  Write-Host "READINESS_GATE_SOURCE_VERSION=$ExpectedReadinessGateVersion"
+  Write-Host "PREMIUM_SOURCE_CONTRACT=PASS"
+
+  $validatorPath = Join-Path $RepoRoot "scripts\validate_apps_script.py"
+  $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+
+  if ($null -ne $pythonCommand) {
+    $validation = Invoke-Native -File $pythonCommand.Source -Arguments @($validatorPath)
+  }
+  else {
+    $pyCommand = Get-Command py -ErrorAction SilentlyContinue
+    if ($null -eq $pyCommand) {
+      throw "PYTHON_NOT_FOUND_FOR_LOCAL_VALIDATION"
+    }
+    $validation = Invoke-Native -File $pyCommand.Source -Arguments @("-3", $validatorPath)
+  }
+
+  $validationLogPath = Join-Path $EvidenceDir "local-validation.log"
+  $validation.Text | Set-Content -Path $validationLogPath -Encoding UTF8
+  Write-Host $validation.Text
+  Write-Host "LOCAL_VALIDATION_LOG=$validationLogPath"
+
+  Assert-Native -Result $validation -Step "local Apps Script validation"
+  Write-Host "LOCAL_APPS_SCRIPT_VALIDATION=PASS"
 
   Set-Location $AppsScript
 
@@ -327,9 +411,16 @@ try {
   Write-Host ""
   Write-Host "[4/8] Capture known-good deployment"
 
-  $previousVersion = Get-DeploymentVersion -DeploymentId $DeploymentId
+  $deploymentsBeforePath = Join-Path $EvidenceDir "deployments-before.log"
+
+  $previousVersion = Get-DeploymentVersion -DeploymentId $DeploymentId -EvidencePath $deploymentsBeforePath
+
+  Write-Host "DEPLOYMENTS_BEFORE_LOG=$deploymentsBeforePath"
+  Write-Host "TARGET_DEPLOYMENT_ID=$DeploymentId"
 
   if ($null -eq $previousVersion) {
+    Write-Host "DEPLOYMENT_LOOKUP=FAIL"
+    Write-Host "Inspect $deploymentsBeforePath for the deployment inventory returned by clasp."
     throw "CURRENT_DEPLOYMENT_VERSION_NOT_FOUND"
   }
 
@@ -352,7 +443,7 @@ try {
   Write-Host ""
   Write-Host "[6/8] Update existing production deployment"
 
-  $description = "PowerShell release | $head | $ReleaseId"
+  $description = "PowerShell release | $CanonicalBranch | $head | $ReleaseId"
 
   $deploy = Invoke-Clasp -Arguments @(
     "create-deployment",
@@ -453,7 +544,10 @@ try {
   Write-Host "============================================================"
   Write-Host "BUSINESS PLAN POWERSHELL RELEASE = PASS"
   Write-Host "RELEASE_ID=$ReleaseId"
+  Write-Host "CANONICAL_BRANCH=$CanonicalBranch"
   Write-Host "CANONICAL_SHA=$head"
+  Write-Host "REGRESSION_VERSION=$ExpectedRegressionVersion"
+  Write-Host "READINESS_GATE_VERSION=$ExpectedReadinessGateVersion"
   Write-Host "PREVIOUS_VERSION=$previousVersion"
   Write-Host "PRODUCTION_VERSION=$candidateVersion"
   Write-Host "PRODUCTION_HEALTH=PASS"

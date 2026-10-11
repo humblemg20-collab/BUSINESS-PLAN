@@ -62,6 +62,13 @@ function genererRapportPreparationBancaireDepuisInterface(dossierId, jetonAcces)
   );
 }
 
+function genererRapportPreparationBancaireAvecAlertesDepuisInterface(dossierId, jetonAcces) {
+  const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-preparation-report-forced');
+  return BPB3_reponseClientGeneration_(
+    genererRapportPreparationBancaire_(id, { forcer: true })
+  );
+}
+
 function genererBusinessPlanFinanceurDepuisInterface(dossierId, jetonAcces) {
   const id = AG24_SEC_assertBancableAccess_(dossierId, jetonAcces, 'generate-financier-plan');
   return BPB3_reponseClientGeneration_(
@@ -85,7 +92,7 @@ function genererRapportPreparationBancaire_(dossierId, options) {
     const source = BPB_obtenirDossierUnifie_(id);
     const analyse = analyserBusinessPlanBancable(source.standard, source.bancable);
 
-    if (!analyse.audit || !analyse.audit.pretPourGeneration) {
+    if (!analyse.audit || (!analyse.audit.pretPourGeneration && !opts.forcer)) {
       throw new Error('Le dossier contient encore une anomalie critique et ne peut pas être généré.');
     }
 
@@ -177,10 +184,48 @@ function BPB3_reponseClientGeneration_(generation) {
         : Number(generation.score),
     niveau: String(generation.niveau || ''),
     moteurRedaction: String(generation.moteurRedaction || ''),
+    documentRenderer:
+      String(
+        generation.documentRenderer || ''
+      ),
+    premiumFallbackUsed:
+      Boolean(
+        generation.premiumFallbackUsed
+      ),
+    premiumRendererVersion:
+      String(
+        generation.premiumRendererVersion || ''
+      ),
+    physicalPageCount:
+      generation.physicalPageCount === null ||
+      generation.physicalPageCount === undefined
+        ? undefined
+        : Number(generation.physicalPageCount),
     dashboardSync:
       generation.dashboardSync &&
       typeof generation.dashboardSync === 'object'
         ? generation.dashboardSync
+        : undefined,
+    productionAcceptance:
+      generation.productionAcceptance &&
+      typeof generation.productionAcceptance === 'object'
+        ? {
+            success:
+              Boolean(
+                generation.productionAcceptance.success
+              ),
+            version:
+              String(
+                generation.productionAcceptance.version ||
+                ''
+              ),
+            failures:
+              Array.isArray(
+                generation.productionAcceptance.failures
+              )
+                ? generation.productionAcceptance.failures
+                : []
+          }
         : undefined
   };
 }
@@ -1232,6 +1277,64 @@ function BPB3_creerDocumentFinanceur_(dossier, modele, folder) {
   };
 }
 
+function BPB3_creerDocumentFinanceurRoute_(dossier, modeleFinancier, folder) {
+  var resultat;
+
+  if (
+    typeof AG24_PREMIUM_BANCABLE_RENDERER_createWithFallback_ ===
+      'function'
+  ) {
+    resultat =
+      AG24_PREMIUM_BANCABLE_RENDERER_createWithFallback_(
+        dossier,
+        modeleFinancier,
+        folder
+      );
+  } else {
+    resultat =
+      BPB3_creerDocumentFinanceur_(
+        dossier,
+        modeleFinancier,
+        folder
+      );
+
+    resultat.renderer =
+      'LEGACY_NO_PREMIUM_ENGINE';
+  }
+
+  if (
+    typeof AG24_AUDIT_event_ ===
+      'function'
+  ) {
+    try {
+      AG24_AUDIT_event_(
+        'BANCABLE_FINANCEUR_RENDERER_SELECTED',
+        {
+          dossierId:
+            String(
+              dossier && dossier.dossierId
+                ? dossier.dossierId
+                : ''
+            ),
+          renderer:
+            String(
+              resultat && resultat.renderer
+                ? resultat.renderer
+                : 'LEGACY'
+            ),
+          premiumFallbackUsed:
+            Boolean(
+              resultat &&
+              resultat.renderer === 'LEGACY_FALLBACK'
+            )
+        }
+      );
+    } catch (auditError) {}
+  }
+
+  return resultat;
+}
+
 function genererBusinessPlanFinanceur_(dossierId, options) {
   const id = BPB3_normaliserDossierId_(dossierId);
   const opts = options && typeof options === 'object' ? options : {};
@@ -1260,7 +1363,11 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
     const modeleFinancier = BPB3_construireModeleFinancier_(dossier);
     dossier.narratifIA = BPB5_obtenirNarratifIA_(dossier, modeleFinancier);
     const folder = BPB3_obtenirDossierSortie_();
-    const resultatDocument = BPB3_creerDocumentFinanceur_(dossier, modeleFinancier, folder);
+    const resultatDocument = BPB3_creerDocumentFinanceurRoute_(
+      dossier,
+      modeleFinancier,
+      folder
+    );
     const generation = {
       statut: 'FINANCEUR_GENERE',
       typeDocument: 'BUSINESS_PLAN_FINANCEUR',
@@ -1274,25 +1381,123 @@ function genererBusinessPlanFinanceur_(dossierId, options) {
       pdfId: resultatDocument.pdfId,
       pdfUrl: resultatDocument.pdfUrl,
       folderId: folder.getId(),
-      folderUrl: folder.getUrl()
+      folderUrl: folder.getUrl(),
+      documentRenderer:
+        String(
+          resultatDocument.renderer ||
+          'LEGACY'
+        ),
+      premiumFallbackUsed:
+        resultatDocument.renderer ===
+          'LEGACY_FALLBACK',
+      premiumRendererVersion:
+        resultatDocument.version
+          ? String(resultatDocument.version)
+          : '',
+      physicalPageCount:
+        resultatDocument.visualQualityPdf &&
+        resultatDocument.visualQualityPdf.physicalPageCount
+          ? Number(
+              resultatDocument.visualQualityPdf
+                .physicalPageCount
+            )
+          : null
     };
     BPB3_enregistrerSucces_(id, generation, 'FINANCEUR');
 
-    const bridge = String(dossier.meta.agBridge || '').trim();
-    if (bridge) {
-      try {
-        synchroniserBusinessPlanVersDashboard_(bridge, generation);
-        generation.dashboardSync = { success: true };
-      } catch (error) {
-        const message = error && error.message ? error.message : String(error);
-        console.error('Synchronisation Dashboard AfriGreen24 impossible :', message);
-        generation.dashboardSync = { success: false, error: message };
-      }
+    const bridge =
+      String(dossier.meta.agBridge || '').trim();
+
+    if (
+      typeof BP_DASHBOARD_SYNC_syncStoredFinanceur_ ===
+        'function'
+    ) {
+      generation.dashboardSync =
+        BP_DASHBOARD_SYNC_syncStoredFinanceur_(
+          id,
+          bridge,
+          {
+            throwOnFailure:false
+          }
+        );
     } else {
-      generation.dashboardSync = { success: false, skipped: true };
+      if (bridge) {
+        try {
+          synchroniserBusinessPlanVersDashboard_(
+            bridge,
+            generation
+          );
+          generation.dashboardSync = {
+            success:true,
+            at:new Date().toISOString()
+          };
+        } catch (error) {
+          const message =
+            error && error.message
+              ? error.message
+              : String(error);
+
+          console.error(
+            'Synchronisation Dashboard AfriGreen24 impossible :',
+            message
+          );
+
+          generation.dashboardSync = {
+            success:false,
+            error:message,
+            at:new Date().toISOString()
+          };
+        }
+      } else {
+        generation.dashboardSync = {
+          success:false,
+          skipped:true,
+          at:new Date().toISOString()
+        };
+      }
+
+      BPB3_enregistrerSucces_(
+        id,
+        generation,
+        'FINANCEUR'
+      );
     }
 
-    return Object.assign({ succes: true, reutilise: false }, generation);
+    if (
+      typeof AG24_PREMIUM_ACCEPTANCE_evaluate_ ===
+        'function'
+    ) {
+      const acceptance =
+        AG24_PREMIUM_ACCEPTANCE_evaluate_(
+          generation,
+          {
+            dashboardExpected:Boolean(bridge),
+            verifyDriveFiles:true
+          }
+        );
+
+      generation.productionAcceptance =
+        typeof AG24_PREMIUM_ACCEPTANCE_record_ ===
+          'function'
+            ? AG24_PREMIUM_ACCEPTANCE_record_(
+                acceptance
+              )
+            : acceptance;
+
+      BPB3_enregistrerSucces_(
+        id,
+        generation,
+        'FINANCEUR'
+      );
+    }
+
+    return Object.assign(
+      {
+        succes:true,
+        reutilise:false
+      },
+      generation
+    );
   } catch (error) {
     BPB3_enregistrerEchec_(id, error, 'FINANCEUR');
     throw error;

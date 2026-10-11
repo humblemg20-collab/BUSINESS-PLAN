@@ -14,7 +14,7 @@
 const BusinessPlanBancable = (() => {
   'use strict';
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.1';
   const DEVISE_PAR_DEFAUT = 'XOF';
   const TOLERANCE_EQUILIBRE = 1;
 
@@ -283,15 +283,48 @@ const BusinessPlanBancable = (() => {
     return index;
   }
 
-  function getQuestionnaire(reponsesStandard, reponsesPremium) {
+  function getQuestionnaire(
+    reponsesStandard,
+    reponsesPremium,
+    provenanceImport
+  ) {
     const standard = normaliserStandard(reponsesStandard);
     const premium = reponsesPremium || {};
+    const provenance =
+      provenanceImport &&
+      typeof provenanceImport === 'object'
+        ? provenanceImport
+        : {};
     const questionsManquantes = [];
+    let prefilledToConfirmCount = 0;
 
     QUESTIONNAIRE.forEach(section => {
-      // Toutes les questions Premium restent visibles afin que l’utilisateur
-      // puisse relire et corriger ses réponses après une sauvegarde ou un audit.
-      const questions = section.questions.slice();
+      /*
+       * Gap-only UX:
+       * - DOCUMENTED / DECLARED / USER_CONFIRMED : ne jamais redemander ;
+       * - DOCUMENTED_TO_CONFIRM : afficher la question déjà préremplie pour
+       *   une confirmation rapide ;
+       * - absence réelle : demander normalement.
+       */
+      const questions =
+        section.questions.filter(function(question) {
+          const info =
+            provenance[question.id] || {};
+          const truthStatus =
+            String(info.truthStatus || '');
+
+          if (
+            truthStatus ===
+            'DOCUMENTED_TO_CONFIRM'
+          ) {
+            prefilledToConfirmCount += 1;
+            return true;
+          }
+
+          return !estRenseigne(
+            premium[question.id]
+          );
+        });
 
       if (questions.length > 0) {
         questionsManquantes.push({
@@ -306,7 +339,9 @@ const BusinessPlanBancable = (() => {
     return {
       version: VERSION,
       standardDetecte: standard,
-      sections: questionsManquantes
+      sections: questionsManquantes,
+      prefilledToConfirmCount:
+        prefilledToConfirmCount
     };
   }
 
@@ -1239,9 +1274,70 @@ const BusinessPlanBancable = (() => {
     return resultat;
   }
 
+  function testQuestionnaireGapOnly_() {
+    const premium = {
+      devise:'EUR',
+      montantInvestissements:100000,
+      besoinFondsRoulementDeclare:20000,
+      apportPromoteur:15000,
+      montantDemande:105000,
+      dureeRemboursementMois:60,
+      tauxInteretAnnuel:8
+    };
+
+    const provenance = {
+      devise:{truthStatus:'DOCUMENTED'},
+      montantDemande:{truthStatus:'DECLARED'},
+      dureeRemboursementMois:{truthStatus:'DOCUMENTED'},
+      tauxInteretAnnuel:{
+        truthStatus:'DOCUMENTED_TO_CONFIRM'
+      }
+    };
+
+    const questionnaire =
+      getQuestionnaire(
+        {
+          nomProjet:'Test',
+          nomPromoteur:'Test'
+        },
+        premium,
+        provenance
+      );
+
+    const ids = [];
+    (questionnaire.sections || []).forEach(function(section) {
+      (section.questions || []).forEach(function(question) {
+        ids.push(question.id);
+      });
+    });
+
+    const success =
+      ids.indexOf('devise') === -1 &&
+      ids.indexOf('montantDemande') === -1 &&
+      ids.indexOf('dureeRemboursementMois') === -1 &&
+      ids.indexOf('tauxInteretAnnuel') !== -1 &&
+      ids.indexOf('lignesVentes') !== -1 &&
+      questionnaire.prefilledToConfirmCount === 1;
+
+    return {
+      success:success,
+      version:VERSION,
+      trustedFieldsNotAsked:
+        ids.indexOf('devise') === -1 &&
+        ids.indexOf('montantDemande') === -1 &&
+        ids.indexOf('dureeRemboursementMois') === -1,
+      documentSuggestionPrefilledForConfirmation:
+        ids.indexOf('tauxInteretAnnuel') !== -1 &&
+        questionnaire.prefilledToConfirmCount === 1,
+      remainingQuestions:
+        ids.length
+    };
+  }
+
   return Object.freeze({
     VERSION,
     getQuestionnaire,
+    testQuestionnaireGapOnly_,
     validerReponsesPremium,
     construireDossier,
     calculerIndicateurs,
@@ -1254,12 +1350,36 @@ const BusinessPlanBancable = (() => {
 /**
  * Fonctions publiques pratiques pour les appels depuis HTMLService ou google.script.run.
  */
-function obtenirQuestionnaireBusinessPlanBancable(reponsesStandard, reponsesPremium) {
-  return BusinessPlanBancable.getQuestionnaire(reponsesStandard, reponsesPremium);
+function obtenirQuestionnaireBusinessPlanBancable(
+  reponsesStandard,
+  reponsesPremium,
+  provenanceImport
+) {
+  return BusinessPlanBancable.getQuestionnaire(
+    reponsesStandard,
+    reponsesPremium,
+    provenanceImport
+  );
 }
 
 function analyserBusinessPlanBancable(reponsesStandard, reponsesPremium) {
   return BusinessPlanBancable.analyser(reponsesStandard, reponsesPremium);
+}
+
+function AG24_BANCABLE_GAP_ONLY_SYSTEM_TEST_V1() {
+  var report =
+    BusinessPlanBancable
+      .testQuestionnaireGapOnly_();
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
 }
 
 function testerBusinessPlanBancable_() {

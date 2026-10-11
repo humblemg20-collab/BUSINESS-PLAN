@@ -86,8 +86,8 @@ Le déploiement nécessite les secrets GitHub décrits dans `docs/SECURITY_RUNBO
 
 Le parcours d’import de documents est traité comme un workflow complet :
 
-`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → OpenAI Structured Outputs → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
+`PDF / DOC / DOCX → validation navigateur → contrôle taille/type → vérification de signature binaire → conversion/OCR Drive → extraction texte → replay déterministe si rapport AfriGreen24 reconnu, sinon OpenAI Structured Outputs → vérification locale des preuves → FOUND / TO_CONFIRM / MISSING → confirmation utilisateur → génération`.
 
 Le rendu est isolé dans `apps-script/ImportBusinessPlanV5.html` afin de ne pas alourdir davantage `Index.html`. Le moteur ajoute le glisser-déposer, une progression visible, un résumé du fichier, la méthode d’extraction, la qualité de lecture, un aperçu du texte extrait et une revue des informations déjà validées.
 
-Le backend `BusinessPlanImport.js` reste décisionnaire : une information n’est classée `FOUND` que lorsque sa preuve est retrouvée dans le document et que le seuil de confiance est atteint. L’IA extrait ; le code déterministe valide.
+Le backend `BusinessPlanImport.js` reste décisionnaire : une information n’est classée `FOUND` que lorsque sa preuve est retrouvée dans le document et que le seuil de confiance est atteint. Les rapports générés par l’application sont rejoués sans appel réseau avec la provenance `AFRIGREEN24_BUSINESS_PLAN_STRUCTURED_REPORT`; les documents externes passent par OpenAI, puis le code déterministe valide les preuves.

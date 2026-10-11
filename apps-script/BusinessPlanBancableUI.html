@@ -1668,6 +1668,8 @@
 
       generationEnCours:false,
 
+      generationTimer:null,
+
       saveQueued:false,
 
       dirty:false,
@@ -3454,7 +3456,7 @@
       );
 
 
-      google
+      const generationRunner = google
         .script
         .run
 
@@ -4233,8 +4235,20 @@
             'Corrections en cours';
 
 
-          state.sectionIndex =
-            0;
+          const firstAlert = alerts[0] || {};
+          const targetSection = {
+            BFR_INCOHERENT: 'financement',
+            SCENARIO_PRUDENT_FRAGILE: 'remboursement',
+            PROFIL_PROMOTEUR_INCOMPLET: 'execution',
+            APPORT_ABSENT: 'financement',
+            APPORT_FAIBLE: 'financement',
+            CAPACITE_DEPASSEE: 'execution',
+            REMBOURSEMENT_NON_DOCUMENTE: 'repayment'
+          }[String(firstAlert.code || firstAlert.id || '')] || '';
+          const targetIndex = targetSection
+            ? state.sections.findIndex(function(section) { return section.id === targetSection; })
+            : -1;
+          state.sectionIndex = targetIndex >= 0 ? targetIndex : 0;
 
 
           renderAll();
@@ -4246,6 +4260,19 @@
       actions.appendChild(
         back
       );
+
+      if (!audit.pretPourGeneration) {
+        const downloadAnyway = document.createElement('button');
+        downloadAnyway.type = 'button';
+        downloadAnyway.className = 'btn btn-secondary';
+        downloadAnyway.textContent = 'Générer malgré les alertes';
+        downloadAnyway.addEventListener('click', function() {
+          if (window.confirm('Le document contiendra les alertes non résolues. Voulez-vous quand même le générer ?')) {
+            lancerGeneration(true);
+          }
+        });
+        actions.appendChild(downloadAnyway);
+      }
 
 
       if(
@@ -4534,8 +4561,8 @@
       }
 
 
-      panel.innerHTML =
-        '';
+      if (state.generationTimer) clearInterval(state.generationTimer);
+      panel.innerHTML = '';
 
 
       const title =
@@ -4558,15 +4585,43 @@
         'Cette opération peut prendre quelques instants. Ne fermez pas cette page.';
 
 
-      panel.append(
-        title,
-        text
-      );
+      const progress = document.createElement('div');
+      progress.style.cssText = 'height:10px;background:#e5eee9;border-radius:8px;overflow:hidden;margin:16px 0;';
+      const bar = document.createElement('div');
+      bar.id = 'generation-progress-bar';
+      bar.style.cssText = 'height:100%;width:8%;background:#176b45;border-radius:8px;transition:width .5s ease;';
+      progress.appendChild(bar);
+      const steps = ['Préparation des données', 'Calcul du modèle financier', 'Création du Google Docs', 'Export du PDF', 'Vérification finale'];
+      const list = document.createElement('ol');
+      list.id = 'generation-progress-steps';
+      list.style.cssText = 'margin:12px 0;padding-left:24px;line-height:1.9;';
+      steps.forEach(function(step, index) {
+        const item = document.createElement('li');
+        item.dataset.step = String(index);
+        item.textContent = step + (index === 0 ? ' — en cours…' : ' — en attente');
+        list.appendChild(item);
+      });
+      const elapsed = document.createElement('small');
+      elapsed.id = 'generation-elapsed';
+      elapsed.textContent = 'Temps écoulé : 0 s';
+      panel.append(title, text, progress, list, elapsed);
+      const started = Date.now();
+      state.generationTimer = setInterval(function() {
+        const seconds = Math.floor((Date.now() - started) / 1000);
+        const phase = Math.min(4, Math.floor(seconds / 8));
+        const percent = Math.min(92, 8 + phase * 20 + Math.min(19, seconds % 8 * 2));
+        const progressBar = document.getElementById('generation-progress-bar');
+        if (progressBar) progressBar.style.width = percent + '%';
+        document.querySelectorAll('#generation-progress-steps li').forEach(function(item, index) {
+          item.textContent = steps[index] + (index < phase ? ' — terminé' : index === phase ? ' — en cours…' : ' — en attente');
+        });
+        if (elapsed) elapsed.textContent = 'Temps écoulé : ' + seconds + ' s';
+      }, 1000);
 
     }
 
 
-    function lancerGeneration(){
+    function lancerGeneration(forceAlerts){
 
       if(
         state.generationEnCours
@@ -4593,6 +4648,10 @@
 
             state.generationEnCours =
               false;
+            if (state.generationTimer) {
+              clearInterval(state.generationTimer);
+              state.generationTimer = null;
+            }
 
 
             if(
@@ -4621,6 +4680,10 @@
 
             state.generationEnCours =
               false;
+            if (state.generationTimer) {
+              clearInterval(state.generationTimer);
+              state.generationTimer = null;
+            }
 
 
             afficherErreurGeneration(
@@ -4633,10 +4696,15 @@
           }
         )
 
-        .genererRapportPreparationBancaireDepuisInterface(
-          DOSSIER_ID,
-          JETON_ACCES
+      if (forceAlerts) {
+        generationRunner.genererRapportPreparationBancaireAvecAlertesDepuisInterface(
+          DOSSIER_ID, JETON_ACCES
         );
+      } else {
+        generationRunner.genererRapportPreparationBancaireDepuisInterface(
+          DOSSIER_ID, JETON_ACCES
+        );
+      }
 
     }
 
@@ -5307,8 +5375,7 @@
 
       if(
         !result ||
-        !result.pdfId ||
-        !result.pdfUrl
+        !result.pdfId
       ){
 
         console.warn(
@@ -5335,6 +5402,19 @@
 
             console.log(
               '[AfriGreen24 Documents] Synchronisation réussie :',
+              response
+            );
+
+            if(
+              result &&
+              response &&
+              typeof response === 'object'
+            ){
+              result.dashboardSync =
+                response;
+            }
+
+            afficherStatutSynchronisationDashboard_(
               response
             );
 

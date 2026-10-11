@@ -34,6 +34,7 @@ required = [
     APP / "BusinessPlanProjectBrandingV1.js",
     APP / "BusinessPlanAdaptivePdfFitV1.js",
     APP / "BusinessPlanRenderInputSafetyV1.js",
+    APP / "AG24ImportedDocumentContextV1.js",
 ]
 
 for path in required:
@@ -211,15 +212,25 @@ if (APP / "BusinessPlanImport.js").exists():
         fail("Business Plan import extraction is not routed through OpenAI")
 
     for marker in [
-        'VERSION: "5.1.0"',
+        'VERSION: "5.4.0"',
         "MAX_EXTRACTED_LONG_FIELD_CHARS: 8000",
         "MAX_EXTRACTED_SHORT_FIELD_CHARS: 600",
         "MAX_EXTRACTED_EMAIL_CHARS: 320",
         "function BP_IMPORT_fieldMaxChars_(",
         "function BP_IMPORT_boundText_(",
+        "function BP_IMPORT_financeScalarDeterministicallyValid_(",
+        "BP_IMPORT_LABELLED_SOURCE_METHOD",
+        "function extraireChampsEtiquetesBusinessPlan_(",
+        "HYBRID_LABELLED_SOURCE_PLUS_OPENAI",
+        "AG24_BP_IMPORT_LABELLED_FINANCE_SYSTEM_TEST_V1",
+        "AG24_BP_IMPORT_FINANCE_EVIDENCE_SYSTEM_TEST_V1",
         "valueTruncated:",
         "BUSINESS_PLAN_IMPORT_FIELD_BOUNDED",
         "function AG24_BP_IMPORT_FIELD_LIMIT_SYSTEM_TEST_V1()",
+        "BP_IMPORT_FINANCE_FIELDS",
+        "BP_IMPORT_EXTRACTION_FIELDS",
+        "BP_IMPORT_FIELD_GUIDE",
+        "AG24_IMPORT_CONTEXT_create_",
     ]:
         if marker not in text:
             fail(f"Business Plan import field-limit marker missing: {marker}")
@@ -290,6 +301,55 @@ if activation_path.exists():
 
     if "paiementRequis:" not in activation_text or "false" not in activation_text:
         fail("Unified Business Plan transition must explicitly disable payment requirement")
+
+    for marker in [
+        "importContextId",
+        "BPB_enregistrerContexteImportPourBancable",
+        "importedPrefillCount",
+        "URL_WEB_APP_CANONIQUE",
+        "AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R",
+        "BANCABLE_WEB_APP_URL_REPAIRED",
+        "BPB_ACT_rebaseLienBancable_",
+        "BANCABLE_EXISTING_LINK_CANONICALIZED",
+        "AG24_BANCABLE_CANONICAL_LINK_SYSTEM_TEST_V1",
+        "BPB_ACT_estAccesAutoriseMeta_",
+        "AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1",
+    ]:
+        if marker not in activation_text:
+            fail(f"Canonical import handoff marker missing: {marker}")
+
+    stale_bancable_deployment = (
+        "AKfycbxQsd8HczZwdT4Ymb3WdJtZNna5dfneFVSLtR-M14AjF1NIyryS2Hv0AW4pXNGlEb-K"
+    )
+    if stale_bancable_deployment in activation_text:
+        fail("Bancable activation must never route users to the legacy @42 deployment")
+
+controller_path = APP / "BusinessPlanBancableController.js"
+if controller_path.exists():
+    controller_text = controller_path.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "VERSION: '1.3.1'",
+        "IMPORT_CONTEXT",
+        "IMPORT_PROVENANCE",
+        "AG24_IMPORT_CONTEXT_mergePremium_",
+        "DOCUMENTED_TO_CONFIRM",
+        "USER_CONFIRMED",
+    ]:
+        if marker not in controller_text:
+            fail(f"Bancable canonical import contract missing: {marker}")
+
+bancable_path = APP / "BusinessPlanBancable.js"
+if bancable_path.exists():
+    bancable_text = bancable_path.read_text(encoding="utf-8", errors="replace")
+    for marker in [
+        "const VERSION = '1.3.1'",
+        "Gap-only UX",
+        "DOCUMENTED_TO_CONFIRM",
+        "prefilledToConfirmCount",
+        "AG24_BANCABLE_GAP_ONLY_SYSTEM_TEST_V1",
+    ]:
+        if marker not in bancable_text:
+            fail(f"Bancable gap-only contract missing: {marker}")
 
 
 # OpenAI production release gate contract
@@ -747,9 +807,15 @@ else:
     )
 
     for marker in [
-        "BUSINESS PLAN POWERSHELL RELEASE ENGINE V1",
+        "BUSINESS PLAN POWERSHELL RELEASE ENGINE V2",
         "WORKTREE_DIRTY",
-        "CANONICAL_MAIN_MISMATCH",
+        "CanonicalBranch = \"work/apps-script-v92\"",
+        "CANONICAL_BRANCH_MISMATCH",
+        "CANONICAL_BRANCH_SHA_MISMATCH",
+        "ExpectedRegressionVersion = \"1.13.2\"",
+        "ExpectedReadinessGateVersion = \"1.2.0\"",
+        "PREMIUM_SOURCE_CONTRACT=PASS",
+        "LOCAL_APPS_SCRIPT_VALIDATION=PASS",
         "APPS_SCRIPT_HEAD_PUSH=PASS",
         "APPS_SCRIPT_HEAD_PUSH=SKIPPED_BY_CALLER",
         "[switch]$SkipPush",
@@ -769,6 +835,138 @@ else:
     if '$WebAppUrl + "?health=openai-config"' not in release_engine_text:
         fail("PowerShell release engine must build health URL explicitly")
 
+# Premium Financeur release-readiness contract
+premium_contracts = {
+    "AG24PremiumDocumentRegressionSuiteV1.js": [
+        'VERSION:"1.13.2"',
+        "IMPORTED_DOCUMENT_CONTEXT",
+        "BANCABLE_GAP_ONLY",
+        "BANCABLE_ACCESS_LIFECYCLE",
+        "FINANCEUR_PRODUCTION_ROUTE",
+        "FINANCEUR_CANARY_SELECTION",
+    ],
+    "AG24PremiumFinanceurProductionCanaryV1.js": [
+        'VERSION:"1.2.0"',
+        "AUDIT_READY_SHADOW",
+        "sourceGenerationUnchanged",
+        "PREMIUM_FINANCEUR_REAL_CANARY_PASSED",
+    ],
+    "AG24PremiumFinanceurReleaseReadinessGateV1.js": [
+        'VERSION:"1.2.0"',
+        "technicalReleaseReady",
+        "productionDeliveryGatePreserved",
+        "PREMIUM_FINANCEUR_RELEASE_READINESS_PASSED",
+    ],
+    "AG24PremiumBancableRendererV1.js": [
+        'VERSION:"1.0.0"',
+        "PREMIUM_BANCABLE_FINANCEUR_RENDERED",
+        "LEGACY_FALLBACK",
+    ],
+    "AG24PremiumProductionAcceptanceV1.js": [
+        'VERSION:"1.0.0"',
+        "runAg24PremiumProductionAcceptanceLatestV1",
+        "PREMIUM_PRODUCTION_ACCEPTANCE_PASSED",
+        "WAITING_FOR_REAL_PRODUCTION_GENERATION",
+    ],
+    "BusinessPlanDashboardSync.js": [
+        "VERSION: '1.1.0'",
+        "BP_DASHBOARD_SYNC_resolveCanonicalFinanceur_",
+        "BP_DASHBOARD_SYNC_syncStoredFinanceur_",
+        "BANCABLE_DASHBOARD_SYNC_PASSED",
+        "idempotencyKey:",
+    ],
+    "AG24PremiumDocumentHardeningV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_PREMIUM_HARDEN_isSentinel_",
+        "AG24_PREMIUM_HARDEN_money_",
+        "AG24_PREMIUM_HARDEN_renumberSections_",
+        "AG24_PREMIUM_DOCUMENT_HARDENING_SYSTEM_TEST_V1",
+    ],
+    "AG24PremiumRealWorldQaV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_PREMIUM_REALWORLD_QA_SYSTEM_TEST_V1",
+        "unknownCurrencySafe",
+        "sequentialNumbering",
+    ],
+    "AG24PremiumFinancialStoryV1.js": [
+        'VERSION: "1.1.0"',
+        "devise à confirmer",
+        "currencyConfirmed",
+    ],
+    "AG24PremiumFinancialSectionV1.js": [
+        'VERSION:"1.1.0"',
+        "Readiness financière",
+        "AG24_PREMIUM_HARDEN_financialReadiness_",
+        "readinessRequired",
+    ],
+    "AG24PremiumCompetitionSectionV1.js": [
+        'VERSION:"1.1.0"',
+        "AG24_PREMIUM_COMPETITION_isSentinel_",
+    ],
+    "AG24BusinessPlanReferenceBenchmarkV1.js": [
+        'VERSION:"1.0.0"',
+        "BANK_REFERENCE_V1",
+        "BPIFRANCE",
+        "SBA",
+        "FUTURPRENEUR",
+        "AG24_BP_REFERENCE_SYSTEM_TEST_V1",
+    ],
+    "AG24BankReferenceComponentsV1.js": [
+        'VERSION:"1.0.0"',
+        "AG24_BANK_REF_renderExecutiveSummary_",
+        "AG24_BANK_REF_renderFundingRequest_",
+        "AG24_BANK_REF_renderRiskRegister_",
+        "AG24_BANK_REFERENCE_COMPONENTS_SYSTEM_TEST_V1",
+    ],
+    "AG24PremiumDocumentSpecV1.js": [
+        'VERSION: "1.1.1"',
+        "referenceBenchmark:",
+        "AG24_PREMIUM_DOC_referenceAlignment_",
+    ],
+    "AG24PremiumAudienceComposerV1.js": [
+        'VERSION:"1.2.0"',
+        "bankReferenceActive",
+        "AG24_BANK_REF_renderExecutiveSummary_",
+        "AG24_BANK_REF_renderFundingRequest_",
+        "AG24_BANK_REF_renderRiskRegister_",
+    ],
+    "AG24PremiumAudienceIntegrationV1.js": [
+        'VERSION:"1.1.0"',
+        "bankBusinessModel",
+        "bankGoToMarket",
+        "bankTeam",
+    ],
+    "AG24ImportedDocumentContextV1.js": [
+        'VERSION:"1.1.0"',
+        "AG24_IMPORT_CONTEXT_create_",
+        "AG24_IMPORT_CONTEXT_toPremiumPrefill_",
+        "AG24_IMPORT_CONTEXT_candidateField_",
+        "DOCUMENTED",
+        "DOCUMENTED_TO_CONFIRM",
+        "STANDARD_CONFIRMED",
+        "UPLOADED_DOCUMENT",
+        "AG24_IMPORTED_DOCUMENT_CONTEXT_SYSTEM_TEST_V1",
+    ],
+}
+
+for filename, markers in premium_contracts.items():
+    premium_path = APP / filename
+    if not premium_path.exists():
+        fail(f"Premium release contract file missing: {filename}")
+        continue
+
+    premium_text = premium_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    for marker in markers:
+        if marker not in premium_text:
+            fail(
+                f"Premium release contract marker missing in {filename}: {marker}"
+            )
+
+
 # Business Plan Adaptive PDF Fit V1 contract
 pdf_fit_path = APP / "BusinessPlanAdaptivePdfFitV1.js"
 if not pdf_fit_path.exists():
@@ -780,7 +978,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "1.2.0"',
+        'VERSION: "1.3.0"',
         "MAX_ATTEMPTS: 3",
         'id: "compact"',
         'id: "dense"',
@@ -867,7 +1065,7 @@ else:
     )
 
     for marker in [
-        'VERSION: "2.3.1"',
+        'VERSION: "2.9.1"',
         'MASTER_PAGE_COUNT: 15',
         'MAX_RENDER_TEXT_CHARS: 12000',
         'EXECUTIVE_MASTER_ID: "DAHWnRKnNjY"',
@@ -1169,7 +1367,7 @@ if import_backend.exists():
         "verifierSignatureFichierBusinessPlan_",
         "evaluerQualiteImportBusinessPlan_",
         "BUSINESS_PLAN_IMPORT_COMPLETED",
-        "afrigreen24_bp_import_v5",
+        "afrigreen24_bp_import_v8",
     ]:
         if marker not in import_text:
             fail(f"Import V5 backend marker missing: {marker}")

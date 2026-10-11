@@ -15,7 +15,7 @@
  */
 
 var AG24_BP_DESIGN_V2 = Object.freeze({
-  VERSION: "2.3.1",
+  VERSION: "2.9.1",
   MASTER_PAGE_COUNT: 15,
   MAX_RENDER_TEXT_CHARS: 12000,
   EXECUTIVE_MASTER_ID: "DAHWnRKnNjY",
@@ -363,6 +363,15 @@ function AG24_BP_V2_buildSemanticModel_(data) {
           data,
           "opportunity"
         ),
+      consequence:
+        AG24_BP_V2_fact_(
+          data,
+          "problemConsequence"
+        ) ||
+        AG24_BP_V2_fact_(
+          data,
+          "consequence"
+        ),
       funding:
         fundingLabel
     },
@@ -527,10 +536,17 @@ function AG24_BP_V2_buildSemanticModel_(data) {
           ],
           [
             "Concurrence et alternatives",
-            AG24_BP_V2_fact_(
-              data,
-              "competitors"
-            )
+            typeof AG24_PREMIUM_HARDEN_optional_ === "function"
+              ? AG24_PREMIUM_HARDEN_optional_(
+                  AG24_BP_V2_fact_(
+                    data,
+                    "competitors"
+                  )
+                )
+              : AG24_BP_V2_fact_(
+                  data,
+                  "competitors"
+                )
           ]
         ]
       },
@@ -602,7 +618,7 @@ function AG24_BP_V2_buildSemanticModel_(data) {
       {
         number: "08",
         id: "operations",
-        title: "Équipe et organisation opérationnelle",
+        title: "Organisation opérationnelle",
         narrative:
           AG24_BP_V2_narrative_(
             "equipeOperations",
@@ -2199,10 +2215,116 @@ function AG24_BP_V2_addFactsGrid_(
 }
 
 
+function AG24_BP_V2_selectSnapshotMetrics_(
+  metrics,
+  data,
+  theme
+) {
+  metrics =
+    Array.isArray(metrics)
+      ? metrics
+      : [];
+
+  data = data || {};
+  theme = theme || {};
+
+  var audience =
+    String(
+      data.documentAudience ||
+      data.audience ||
+      ""
+    )
+      .toUpperCase();
+
+  var banking =
+    audience === "BANK" ||
+    String(theme.grammar || "") ===
+      "banking";
+
+  var investor =
+    audience === "INVESTOR" ||
+    audience === "IMPACT_INVESTOR";
+
+  var priorities =
+    banking
+      ? [
+          "funding",
+          "dscr",
+          "cfads",
+          "annual-debt-service",
+          "revenue",
+          "gross-margin",
+          "customers",
+          "mrr",
+          "arr"
+        ]
+      : investor
+        ? [
+            "funding",
+            "revenue",
+            "mrr",
+            "arr",
+            "customers",
+            "gross-margin",
+            "cfads"
+          ]
+        : [
+            "funding",
+            "customers",
+            "mrr",
+            "arr",
+            "revenue",
+            "gross-margin",
+            "cfads",
+            "dscr",
+            "annual-debt-service"
+          ];
+
+  var byId = {};
+
+  metrics.forEach(function(metric) {
+    if (
+      metric &&
+      metric.id &&
+      !byId[metric.id]
+    ) {
+      byId[metric.id] = metric;
+    }
+  });
+
+  var selected = [];
+
+  priorities.forEach(function(id) {
+    if (
+      selected.length < 4 &&
+      byId[id]
+    ) {
+      selected.push(byId[id]);
+      delete byId[id];
+    }
+  });
+
+  metrics.forEach(function(metric) {
+    if (
+      selected.length < 4 &&
+      metric &&
+      metric.id &&
+      byId[metric.id]
+    ) {
+      selected.push(metric);
+      delete byId[metric.id];
+    }
+  });
+
+  return selected;
+}
+
+
 function AG24_BP_V2_addSnapshot_(
   body,
   model,
-  theme
+  theme,
+  data
 ) {
   AG24_BP_V2_addSectionTitle_(
     body,
@@ -2226,56 +2348,128 @@ function AG24_BP_V2_addSnapshot_(
     .setFontSize(9)
     .setSpacingAfter(12);
 
+  /*
+   * Premium financial signal layer.
+   * Render only metrics backed by declared/calculated input. Missing values
+   * simply do not render; no plausible values are invented.
+   */
+  if (
+    data &&
+    typeof AG24_PREMIUM_FIN_buildStory_ === "function" &&
+    typeof AG24_PREMIUM_METRIC_STRIP_render_ === "function"
+  ) {
+    var financialStory =
+      AG24_PREMIUM_FIN_buildStory_(
+        data
+      );
+
+    if (
+      financialStory &&
+      Array.isArray(financialStory.metrics) &&
+      financialStory.metrics.length
+    ) {
+      var snapshotMetrics =
+        AG24_BP_V2_selectSnapshotMetrics_(
+          financialStory.metrics,
+          data,
+          theme
+        );
+
+      AG24_PREMIUM_METRIC_STRIP_render_(
+        body,
+        snapshotMetrics,
+        theme
+      );
+
+      if (
+        typeof AG24_AUDIT_event_ ===
+        "function"
+      ) {
+        try {
+          AG24_AUDIT_event_(
+            "PREMIUM_EXECUTIVE_SNAPSHOT_METRICS_RENDERED",
+            {
+              version:
+                financialStory.version,
+              metricIds:
+                snapshotMetrics.map(
+                  function(metric) {
+                    return metric.id;
+                  }
+                )
+            }
+          );
+        } catch (
+          premiumSnapshotAuditError
+        ) {}
+      }
+    }
+  }
+
+  var snapshotFundingMetricPresent =
+    Boolean(
+      typeof snapshotMetrics !== "undefined" &&
+      snapshotMetrics.some(function(metric) {
+        return metric && metric.id === "funding";
+      })
+    );
+
+  var snapshotFacts = [
+    [
+      "Stade",
+      model.project.stage
+    ],
+    [
+      "Secteur",
+      model.project.sector
+    ],
+    [
+      "Zone",
+      model.snapshot.marketArea ||
+      model.project.country
+    ]
+  ];
+
+  if (!snapshotFundingMetricPresent) {
+    snapshotFacts.push([
+      "Financement",
+      model.snapshot.funding
+    ]);
+  }
+
   AG24_BP_V2_addFactsGrid_(
     body,
-    [
-      [
-        "Stade",
-        model.project.stage
-      ],
-      [
-        "Secteur",
-        model.project.sector
-      ],
-      [
-        "Zone",
-        model.snapshot.marketArea ||
-        model.project.country
-      ],
-      [
-        "Financement",
-        model.snapshot.funding
-      ]
-    ],
+    snapshotFacts,
     theme
   );
+
+  function snapshotText_(value) {
+    return (
+      typeof AG24_PREMIUM_HARDEN_snapshotText_ ===
+        "function"
+        ? AG24_PREMIUM_HARDEN_snapshotText_(value)
+        : AG24_BP_V2_text_(value)
+    );
+  }
 
   AG24_BP_V2_addCards_(
     body,
     [
       [
         "PROBLÈME",
-        model.snapshot.problem
+        snapshotText_(model.snapshot.problem)
       ],
       [
         "SOLUTION",
-        model.snapshot.solution
-      ],
-      [
-        "PROPOSITION DE VALEUR",
-        model.snapshot.valueProposition
-      ],
-      [
-        "MODÈLE ÉCONOMIQUE",
-        model.snapshot.revenueModel
+        snapshotText_(model.snapshot.solution)
       ],
       [
         "CLIENTÈLE CIBLE",
-        model.snapshot.targetCustomers
+        snapshotText_(model.snapshot.targetCustomers)
       ],
       [
         "IMPACT",
-        model.snapshot.impact
+        snapshotText_(model.snapshot.impact)
       ]
     ],
     theme
@@ -2634,6 +2828,16 @@ function AG24_BP_V2_addProcessFlow_(
             step &&
             AG24_BP_V2_text_(
               step[0]
+            ) &&
+            AG24_BP_V2_text_(
+              step[1]
+            ) &&
+            !(
+              typeof AG24_PREMIUM_HARDEN_isSentinel_ ===
+                "function" &&
+              AG24_PREMIUM_HARDEN_isSentinel_(
+                step[1]
+              )
             )
           );
         }
@@ -3162,7 +3366,7 @@ function AG24_BP_V2_addProblemPage_(
       ],
       [
         "Conséquence",
-        urgency
+        model.snapshot.consequence
       ],
       [
         "Opportunité",
@@ -3333,28 +3537,48 @@ function AG24_BP_V2_addStrategyPage_(
     theme
   );
 
+  var strategySteps = [
+    [
+      "Acquisition",
+      model.commercial.acquisition
+    ],
+    [
+      "Conversion",
+      model.commercial.conversion
+    ],
+    [
+      "Vente",
+      model.commercial.sales
+    ],
+    [
+      "Fidélisation",
+      model.commercial.retention
+    ]
+  ];
+
+  var populatedStrategySteps =
+    strategySteps.filter(function(step) {
+      return Boolean(
+        AG24_BP_V2_text_(step[1])
+      );
+    });
+
   AG24_BP_V2_addProcessFlow_(
     body,
-    [
-      [
-        "Acquisition",
-        model.commercial.acquisition
-      ],
-      [
-        "Conversion",
-        model.commercial.conversion
-      ],
-      [
-        "Vente",
-        model.commercial.sales
-      ],
-      [
-        "Fidélisation",
-        model.commercial.retention
-      ]
-    ],
+    strategySteps,
     theme
   );
+
+  if (populatedStrategySteps.length < 2) {
+    AG24_BP_V2_addCallout_(
+      body,
+      "Stratégie commerciale à structurer",
+      populatedStrategySteps.length
+        ? "Le canal ou processus disponible est présenté ci-dessus. Les étapes d’acquisition, de conversion et de fidélisation restantes doivent être précisées avant exécution."
+        : "Les canaux d’acquisition, de conversion, de vente et de fidélisation doivent être précisés avant exécution.",
+      theme
+    );
+  }
 
   AG24_BP_V2_addParagraphs_(
     body,
@@ -3409,19 +3633,8 @@ function AG24_BP_V2_addOperationsPage_(
     body,
     [
       [
-        "Équipe",
-        AG24_BP_V2_findCard_(
-          section,
-          "Équipe"
-        )
-      ],
-      [
         "Stade actuel",
         model.project.stage
-      ],
-      [
-        "Porteur",
-        model.project.promoter
       ],
       [
         "Zone d’opération",
@@ -3706,11 +3919,64 @@ function AG24_BP_V2_addRiskPage_(
     .setFontSize(9)
     .setSpacingAfter(12);
 
-  AG24_BP_V2_addRiskRegister_(
-    body,
-    model.risks,
-    theme
-  );
+  /*
+   * Premium Risk Matrix V1 becomes the preferred deterministic renderer.
+   * Fallback to the validated V2 register if the premium component is absent
+   * or there are no normalized risks to render.
+   */
+  var premiumRiskRendered = false;
+
+  if (
+    typeof AG24_PREMIUM_RISK_fromModel_ ===
+      "function" &&
+    typeof AG24_PREMIUM_RISK_render_ ===
+      "function"
+  ) {
+    var premiumRisks =
+      AG24_PREMIUM_RISK_fromModel_(
+        model.risks
+      );
+
+    premiumRiskRendered =
+      Boolean(
+        AG24_PREMIUM_RISK_render_(
+          body,
+          premiumRisks,
+          theme
+        )
+      );
+
+    if (
+      premiumRiskRendered &&
+      typeof AG24_AUDIT_event_ ===
+        "function"
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          "PREMIUM_RISK_MATRIX_RENDERED",
+          {
+            version:
+              AG24_PREMIUM_RISK_MATRIX_V1 &&
+              AG24_PREMIUM_RISK_MATRIX_V1.VERSION
+                ? AG24_PREMIUM_RISK_MATRIX_V1.VERSION
+                : "",
+            riskCount:
+              premiumRisks.length
+          }
+        );
+      } catch (
+        premiumRiskAuditError
+      ) {}
+    }
+  }
+
+  if (!premiumRiskRendered) {
+    AG24_BP_V2_addRiskRegister_(
+      body,
+      model.risks,
+      theme
+    );
+  }
 
   AG24_BP_V2_addPageLabel_(
     body,
@@ -3762,31 +4028,52 @@ function AG24_BP_V2_addRoadmapPage_(
     );
   }
 
-  AG24_BP_V2_addProcessFlow_(
-    body,
-    [
+  var premiumTimelineRendered = false;
+
+  if (
+    typeof AG24_PREMIUM_VISUALS_renderTimeline_ === "function"
+  ) {
+    var premiumTimelineResult =
+      AG24_PREMIUM_VISUALS_renderTimeline_(
+        body,
+        model.roadmap,
+        theme
+      );
+
+    premiumTimelineRendered =
+      Boolean(
+        premiumTimelineResult &&
+        premiumTimelineResult.rendered
+      );
+  }
+
+  if (!premiumTimelineRendered) {
+    AG24_BP_V2_addProcessFlow_(
+      body,
       [
-        "AUJOURD’HUI",
-        model.roadmap.now
+        [
+          "AUJOURD’HUI",
+          model.roadmap.now
+        ],
+        [
+          "6 MOIS",
+          model.roadmap.sixMonths ||
+          "À formaliser"
+        ],
+        [
+          "12 MOIS",
+          model.roadmap.twelveMonths ||
+          "À formaliser"
+        ],
+        [
+          "24 MOIS",
+          model.roadmap.twentyFourMonths ||
+          "À formaliser"
+        ]
       ],
-      [
-        "6 MOIS",
-        model.roadmap.sixMonths ||
-        "À formaliser"
-      ],
-      [
-        "12 MOIS",
-        model.roadmap.twelveMonths ||
-        "À formaliser"
-      ],
-      [
-        "24 MOIS",
-        model.roadmap.twentyFourMonths ||
-        "À formaliser"
-      ]
-    ],
-    theme
-  );
+      theme
+    );
+  }
 
   AG24_BP_V2_addCards_(
     body,
@@ -4086,6 +4373,16 @@ function AG24_BP_V2_renderDocument_(
   data = data || {};
   options = options || {};
 
+  if (
+    typeof AG24_PREMIUM_HARDEN_prepareData_ ===
+      "function"
+  ) {
+    data =
+      AG24_PREMIUM_HARDEN_prepareData_(
+        data
+      );
+  }
+
   var theme =
     AG24_BP_V2_resolveTheme_(
       options.themeId ||
@@ -4096,6 +4393,58 @@ function AG24_BP_V2_renderDocument_(
     AG24_BP_V2_buildSemanticModel_(
       data
     );
+
+  /*
+   * Premium Document Planner V1 is advisory at this stage:
+   * it resolves audience, editorial order and structural gaps without
+   * mutating the validated V2 renderer or canonical project truth.
+   */
+  var premiumDocumentPlan = null;
+
+  if (
+    typeof AG24_PREMIUM_DOC_buildPlan_ ===
+    "function"
+  ) {
+    premiumDocumentPlan =
+      AG24_PREMIUM_DOC_buildPlan_({
+        audience:
+          options.audience ||
+          data.documentAudience ||
+          data.audience ||
+          data.fundingType ||
+          "GENERIC",
+        availableModules:
+          typeof AG24_PREMIUM_DOC_currentV2Capabilities_ ===
+          "function"
+            ? AG24_PREMIUM_DOC_currentV2Capabilities_()
+            : null
+      });
+
+    if (
+      typeof AG24_AUDIT_event_ ===
+      "function"
+    ) {
+      try {
+        AG24_AUDIT_event_(
+          "PREMIUM_DOCUMENT_PLAN_RESOLVED",
+          {
+            version:
+              premiumDocumentPlan.version,
+            audience:
+              premiumDocumentPlan.audience,
+            productionReady:
+              premiumDocumentPlan.productionReady,
+            missingRequiredModules:
+              premiumDocumentPlan.missingRequiredModules,
+            missingPremiumModules:
+              premiumDocumentPlan.missingPremiumModules
+          }
+        );
+      } catch (
+        premiumPlanAuditError
+      ) {}
+    }
+  }
 
   if (
     typeof AG24_BP_VISUAL_assertPreflight_ !==
@@ -4135,39 +4484,256 @@ function AG24_BP_V2_renderDocument_(
   AG24_BP_V2_addSnapshot_(
     body,
     model,
-    theme
+    theme,
+    data
   );
 
-  model.sections.forEach(
-    function(section, index) {
-      AG24_BP_V2_addMasterSectionPage_(
+  var premiumRenderedSections = [];
+  var audienceComposerResult = null;
+
+  /*
+   * Audience Composer V1 owns the body order when the Premium Document Plan
+   * is production-ready. The same canonical truth is reused; only editorial
+   * composition changes by audience.
+   */
+  if (
+    premiumDocumentPlan &&
+    premiumDocumentPlan.productionReady === true &&
+    typeof AG24_PREMIUM_AUDIENCE_COMPOSER_render_ === "function"
+  ) {
+    audienceComposerResult =
+      AG24_PREMIUM_AUDIENCE_COMPOSER_render_(
         body,
-        section,
         model,
+        data,
         theme,
-        index + 3
+        premiumDocumentPlan,
+        {
+          projectIntelligence:
+            options.projectIntelligence || null,
+          beforeClosingRenderer:
+            options.beforeClosingRenderer || null,
+          extensionContext:
+            options.extensionContext || null
+        }
       );
+
+    if (
+      audienceComposerResult &&
+      audienceComposerResult.success === true &&
+      audienceComposerResult.rendered === true
+    ) {
+      premiumRenderedSections =
+        audienceComposerResult.renderedModuleIds.slice();
     }
-  );
+  }
 
-  AG24_BP_V2_addRiskPage_(
-    body,
-    model,
-    theme
-  );
+  /*
+   * Safe fallback: preserve the validated V2 sequence if the audience
+   * composer is unavailable or rejects a non-production-ready plan.
+   */
+  if (
+    !audienceComposerResult ||
+    audienceComposerResult.success !== true ||
+    audienceComposerResult.rendered !== true
+  ) {
+    model.sections.forEach(
+      function(section, index) {
+        AG24_BP_V2_addMasterSectionPage_(
+          body,
+          section,
+          model,
+          theme,
+          index + 3
+        );
 
-  AG24_BP_V2_addRoadmapPage_(
-    body,
-    model,
-    theme
-  );
+        if (
+          section.id === "market"
+        ) {
+          if (
+            typeof AG24_PREMIUM_VISUALS_renderMarket_ === "function"
+          ) {
+            var marketVisualResult =
+              AG24_PREMIUM_VISUALS_renderMarket_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
 
-  AG24_BP_V2_addClosing_(
-    body,
-    model,
-    data,
-    theme
-  );
+            if (
+              marketVisualResult &&
+              marketVisualResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "market-visual"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_COMPETITION_render_ === "function"
+          ) {
+            var competitionResult =
+              AG24_PREMIUM_COMPETITION_render_(
+                body,
+                data,
+                theme
+              );
+
+            if (
+              competitionResult &&
+              competitionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "competition"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_TRACTION_render_ === "function"
+          ) {
+            var tractionResult =
+              AG24_PREMIUM_TRACTION_render_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
+
+            if (
+              tractionResult &&
+              tractionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "traction"
+              );
+            }
+          }
+        }
+
+        if (
+          section.id === "funding" &&
+          typeof AG24_PREMIUM_VISUALS_renderAllocation_ === "function"
+        ) {
+          var allocationVisualResult =
+            AG24_PREMIUM_VISUALS_renderAllocation_(
+              body,
+              data,
+              options.projectIntelligence || null,
+              theme
+            );
+
+          if (
+            allocationVisualResult &&
+            allocationVisualResult.rendered
+          ) {
+            premiumRenderedSections.push(
+              "funding-allocation-visual"
+            );
+          }
+        }
+
+        if (
+          section.id === "operations"
+        ) {
+          if (
+            typeof AG24_PREMIUM_TEAM_GOV_render_ === "function"
+          ) {
+            var teamGovernanceResult =
+              AG24_PREMIUM_TEAM_GOV_render_(
+                body,
+                data,
+                theme
+              );
+
+            if (
+              teamGovernanceResult &&
+              teamGovernanceResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "team-governance"
+              );
+            }
+          }
+
+          if (
+            typeof AG24_PREMIUM_FIN_SECTION_render_ === "function"
+          ) {
+            var financialSectionResult =
+              AG24_PREMIUM_FIN_SECTION_render_(
+                body,
+                data,
+                options.projectIntelligence || null,
+                theme
+              );
+
+            if (
+              financialSectionResult &&
+              financialSectionResult.rendered
+            ) {
+              premiumRenderedSections.push(
+                "financial-story"
+              );
+            }
+          }
+        }
+      }
+    );
+
+    AG24_BP_V2_addRiskPage_(
+      body,
+      model,
+      theme
+    );
+
+    AG24_BP_V2_addRoadmapPage_(
+      body,
+      model,
+      theme
+    );
+
+    if (
+      options.projectIntelligence &&
+      typeof AG24_PREMIUM_EVIDENCE_APPENDIX_render_ === "function"
+    ) {
+      var evidenceAppendixResult =
+        AG24_PREMIUM_EVIDENCE_APPENDIX_render_(
+          body,
+          options.projectIntelligence,
+          theme
+        );
+
+      if (
+        evidenceAppendixResult &&
+        evidenceAppendixResult.rendered
+      ) {
+        premiumRenderedSections.push(
+          "evidence-appendix"
+        );
+      }
+    }
+
+    AG24_BP_V2_addClosing_(
+      body,
+      model,
+      data,
+      theme
+    );
+  }
+
+  var sectionRenumbering = null;
+
+  if (
+    typeof AG24_PREMIUM_HARDEN_renumberSections_ ===
+      "function"
+  ) {
+    sectionRenumbering =
+      AG24_PREMIUM_HARDEN_renumberSections_(
+        body
+      );
+  }
 
   AG24_BP_V2_assertWhiteLabel_(
     document
@@ -4206,6 +4772,14 @@ function AG24_BP_V2_renderDocument_(
     ],
     visualQualityPreflight:
       visualPreflight,
+    premiumDocumentPlan:
+      premiumDocumentPlan,
+    premiumRenderedSections:
+      premiumRenderedSections,
+    audienceComposer:
+      audienceComposerResult,
+    sectionRenumbering:
+      sectionRenumbering,
     whiteLabel:
       true
   };

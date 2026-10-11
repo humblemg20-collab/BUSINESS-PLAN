@@ -3463,7 +3463,10 @@ initialiserBridgeAfriGreen24_();
             .preparerTransitionBusinessPlanBancable(
   idExistant,
   construireDonneesStandardTransition(),
-  AFRIGREEN_DOCUMENT_BRIDGE
+  AFRIGREEN_DOCUMENT_BRIDGE,
+  String(
+    window.businessPlanImportContextId || ""
+  ).trim()
 );
         });
 
@@ -3505,6 +3508,8 @@ initialiserBridgeAfriGreen24_();
               resultat && resultat.lienBancable
                 ? String(resultat.lienBancable)
                 : "";
+
+            preparerLienContactBancable();
           })
           .catch(function(erreur) {
             console.warn(
@@ -3546,6 +3551,17 @@ initialiserBridgeAfriGreen24_();
       };
 
 
+      function ouvrirLienBusinessPlanTop_(lien) {
+        var anchor = document.createElement("a");
+        anchor.href = lien;
+        anchor.target = "_top";
+        anchor.rel = "noopener noreferrer";
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
       function preparerLienContactBancable() {
         var bouton = document.getElementById("bancableContactLink");
 
@@ -3557,6 +3573,14 @@ initialiserBridgeAfriGreen24_();
         bouton.setAttribute("aria-busy", "false");
 
         bouton.onclick = function() {
+          var lienPret =
+            String(window.businessPlanAdvancedLink || "").trim();
+
+          if (lienPret) {
+            ouvrirLienBusinessPlanTop_(lienPret);
+            return;
+          }
+
           bouton.disabled = true;
           bouton.setAttribute("aria-busy", "true");
 
@@ -3565,7 +3589,7 @@ initialiserBridgeAfriGreen24_();
               var lien =
                 resultat && resultat.lienBancable
                   ? String(resultat.lienBancable)
-                  : String(window.businessPlanAdvancedLink || "");
+                  : "";
 
               if (!lien) {
                 throw new Error(
@@ -3574,7 +3598,13 @@ initialiserBridgeAfriGreen24_();
               }
 
               window.businessPlanAdvancedLink = lien;
-              window.location.assign(lien);
+
+              bouton.disabled = false;
+              bouton.setAttribute("aria-busy", "false");
+              bouton.querySelector("span").textContent =
+                "Continuer l’analyse complète";
+
+              preparerLienContactBancable();
             })
             .catch(function(erreur) {
               bouton.disabled = false;
@@ -3716,6 +3746,7 @@ initialiserBridgeAfriGreen24_();
           }
 
           window.businessPlanImportResult = null;
+          window.businessPlanImportContextId = "";
 
 
           var button =
@@ -4060,6 +4091,11 @@ initialiserBridgeAfriGreen24_();
 
                       window.businessPlanImportResult =
                         reponse.analysisResult || null;
+
+                      window.businessPlanImportContextId =
+                        String(
+                          reponse.importContextId || ""
+                        ).trim();
 
                       var analyse =
                         reponse.analysisResult &&
@@ -4842,6 +4878,39 @@ function bpValeurSelectValide_(field, value) {
 
         var pageCompletion = document.getElementById("businessPlanCompletionPage");
         if (pageCompletion) pageCompletion.classList.add("hidden");
+
+        var fundingTypeFinal =
+          document.getElementById("fundingType");
+
+        var fundingTypeValue =
+          fundingTypeFinal
+            ? String(fundingTypeFinal.value || "")
+            : "";
+
+        var fundingTypeNormalized =
+          fundingTypeValue.toLowerCase();
+
+        try {
+          fundingTypeNormalized =
+            fundingTypeNormalized
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "");
+        } catch (normalizeError) {}
+
+        var isBankFlow =
+          fundingTypeNormalized.indexOf("pret") !== -1 ||
+          fundingTypeNormalized.indexOf("banque") !== -1 ||
+          fundingTypeNormalized.indexOf("bancaire") !== -1 ||
+          fundingTypeNormalized.indexOf("credit") !== -1 ||
+          fundingTypeNormalized.indexOf("emprunt") !== -1;
+
+        if (
+          isBankFlow &&
+          typeof window.lancerParcoursFinalFinanceur === "function"
+        ) {
+          window.lancerParcoursFinalFinanceur();
+          return;
+        }
 
         if (
           typeof ouvrirChoixDesignBusinessPlan ===

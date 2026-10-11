@@ -35,7 +35,10 @@ const BPB_ACTIVATION_CONFIG =
       'AfriGreen24',
 
     CLE_URL_WEB_APP:
-      'AFRIGREEN24_BPB_WEB_APP_EXEC_URL'
+      'AFRIGREEN24_BPB_WEB_APP_EXEC_URL',
+
+    URL_WEB_APP_CANONIQUE:
+      'https://script.google.com/macros/s/AKfycbylpvmb6Cao-Sog2VYdwH9G8PrINOgBCdWFW--49dmT5L_M8efZnd-UQOe9oCXq_J2R/exec'
 
   });
 
@@ -56,7 +59,8 @@ const BPB_ACTIVATION_CONFIG =
 function preparerTransitionBusinessPlanBancable(
   dossierStandardId,
   reponsesStandard,
-  agBridge
+  agBridge,
+  importContextId
 ){
 
   AG24_SEC_assertPayloadSize_(
@@ -99,6 +103,35 @@ function preparerTransitionBusinessPlanBancable(
     id,
     source
   );
+
+  var importAttachment = {
+    succes:true,
+    contexteImport:false,
+    champsPrefilles:0,
+    champs:[]
+  };
+
+  // Si l'utilisateur a quitté la page d'import, le navigateur peut avoir
+  // perdu l'identifiant temporaire. On récupère alors le dernier contexte
+  // valide associé à l'adresse e-mail du dossier standard.
+  if (!String(importContextId || '').trim() &&
+      typeof AG24_IMPORT_CONTEXT_findForEmail_ === 'function') {
+    importContextId = AG24_IMPORT_CONTEXT_findForEmail_(source.email || '');
+  }
+
+  if (
+    String(
+      importContextId || ''
+    ).trim()
+  ) {
+    importAttachment =
+      BPB_enregistrerContexteImportPourBancable(
+        id,
+        String(
+          importContextId || ''
+        ).trim()
+      );
+  }
 
   const email =
     BPB_ACT_normaliserEmail_(
@@ -177,7 +210,13 @@ function preparerTransitionBusinessPlanBancable(
       dossierId:
         id,
       existingAccess:
-        activation.dejaActif === true
+        activation.dejaActif === true,
+      importedDocumentContext:
+        importAttachment.contexteImport === true,
+      importedPrefillCount:
+        Number(
+          importAttachment.champsPrefilles || 0
+        )
     }
   );
 
@@ -197,8 +236,14 @@ function preparerTransitionBusinessPlanBancable(
       activation.lienBancable,
     paiementRequis:
       false,
+    contexteImport:
+      importAttachment.contexteImport === true,
+    champsImportes:
+      importAttachment.champs || [],
     message:
-      'L’analyse approfondie et la préparation au financement sont incluses dans votre Business Plan AfriGreen24.'
+      importAttachment.contexteImport === true
+        ? 'Le document importé a été repris comme source canonique. Seules les informations réellement manquantes seront demandées.'
+        : 'L’analyse approfondie et la préparation au financement sont incluses dans votre Business Plan AfriGreen24.'
   };
 
 }
@@ -784,6 +829,57 @@ function routerBusinessPlanBancable(
  * ============================================================
  */
 
+function BPB_ACT_estAccesAutoriseMeta_(
+  meta,
+  jeton
+){
+
+  const source =
+    meta &&
+    typeof meta ===
+      'object'
+      ? meta
+      : {};
+
+
+  const token =
+    String(
+      jeton || ''
+    )
+    .trim();
+
+
+  const empreinte =
+    String(
+      source.jetonEmpreinte || ''
+    )
+    .trim();
+
+
+  /*
+   * Séparation stricte des responsabilités :
+   * - accesBancable = état d'autorisation ;
+   * - statut = état du workflow (questionnaire, audit, génération...).
+   *
+   * Le workflow ne doit jamais invalider un lien d'accès encore actif.
+   */
+  return (
+    source.accesBancable ===
+      'ACTIF'
+    &&
+    Boolean(token)
+    &&
+    Boolean(empreinte)
+    &&
+    empreinte ===
+      BPB_ACT_empreinte_(
+        token
+      )
+  );
+
+}
+
+
 function BPB_ACT_verifierAcces_(
   dossierId,
   jeton
@@ -806,37 +902,11 @@ function BPB_ACT_verifierAcces_(
     {};
 
 
-  const actif =
-
-    meta.statut ===
-    BPB_ACTIVATION_CONFIG
-      .STATUT_ACTIF
-
-    &&
-
-    meta.accesBancable ===
-    'ACTIF';
-
-
-  const jetonValide =
-
-    Boolean(
+  if(
+    !BPB_ACT_estAccesAutoriseMeta_(
+      meta,
       jeton
     )
-
-    &&
-
-    meta.jetonEmpreinte ===
-    BPB_ACT_empreinte_(
-      String(
-        jeton
-      )
-    );
-
-
-  if(
-    !actif ||
-    !jetonValide
   ){
 
     throw new Error(
@@ -906,14 +976,12 @@ function BPB_ACT_activerDossier_(
 
       if(
 
-        meta.statut ===
-        BPB_ACTIVATION_CONFIG
-          .STATUT_ACTIF
+        meta.accesBancable ===
+        'ACTIF'
 
         &&
 
-        meta.accesBancable ===
-        'ACTIF'
+        meta.jetonEmpreinte
 
         &&
 
@@ -927,10 +995,49 @@ function BPB_ACT_activerDossier_(
           )
           .trim();
 
+        let lienDoitEtreMisAJour =
+          false;
+
+        /*
+         * Un ancien dossier peut contenir un lien émis par un ancien
+         * déploiement Apps Script. On conserve son jeton d'accès mais on
+         * rebascule systématiquement sa base vers le déploiement canonique.
+         */
+        const lienCanonique =
+          BPB_ACT_rebaseLienBancable_(
+            lienExistant,
+            BPB_ACT_obtenirUrlWebAppPublique_()
+          );
+
+        if(
+          lienCanonique &&
+          lienCanonique !==
+            lienExistant
+        ){
+          lienExistant =
+            lienCanonique;
+
+          lienDoitEtreMisAJour =
+            true;
+
+          if(
+            typeof AG24_AUDIT_event_ ===
+            'function'
+          ){
+            try{
+              AG24_AUDIT_event_(
+                'BANCABLE_EXISTING_LINK_CANONICALIZED',
+                {
+                  dossierId:id
+                }
+              );
+            }catch(auditError){}
+          }
+        }
+
 
         /*
          * Ancien dossier actif :
-         *
          * si un bridge vient maintenant d'être enregistré
          * mais que l'ancien lien ne contient pas encore
          * agBridge, on l'ajoute au lien existant.
@@ -968,6 +1075,15 @@ function BPB_ACT_activerDossier_(
               bridge
             );
 
+          lienDoitEtreMisAJour =
+            true;
+
+        }
+
+
+        if(
+          lienDoitEtreMisAJour
+        ){
 
           BPB_ecrireJsonChunked_(
 
@@ -1205,6 +1321,207 @@ function BPB_ACT_activerDossier_(
 
 
 /**
+ * Rebase un ancien lien Bancable vers le déploiement canonique
+ * sans modifier le dossierId, le jeton d'accès ni les autres paramètres.
+ * Fonction pure et déterministe : aucune lecture/écriture de stockage.
+ */
+function BPB_ACT_rebaseLienBancable_(
+  lienExistant,
+  urlCanonique
+){
+
+  const lien =
+    String(
+      lienExistant ||
+      ''
+    )
+    .trim();
+
+  const canonical =
+    String(
+      urlCanonique ||
+      ''
+    )
+    .trim();
+
+  if(
+    !lien ||
+    !canonical
+  ){
+    return lien;
+  }
+
+  const indexQuery =
+    lien.indexOf('?');
+
+  if(
+    indexQuery === -1
+  ){
+    return lien;
+  }
+
+  const query =
+    lien.slice(
+      indexQuery + 1
+    );
+
+  if(
+    !/(^|&)page=bancable(&|$)/
+      .test(query) ||
+    !/(^|&)dossierId=[^&]+/
+      .test(query) ||
+    !/(^|&)access=[^&]+/
+      .test(query)
+  ){
+    return lien;
+  }
+
+  return canonical + '?' + query;
+
+}
+
+
+function AG24_BANCABLE_ACCESS_LIFECYCLE_SYSTEM_TEST_V1(){
+
+  const sampleAccess =
+    'AG24_ACCESS_TEST_' + 'TOKEN';
+
+  const empreinte =
+    BPB_ACT_empreinte_(
+      sampleAccess
+    );
+
+  const workflowStatuses = [
+    BPB_ACTIVATION_CONFIG.STATUT_ACTIF,
+    'QUESTIONNAIRE_EN_COURS',
+    'CORRECTIONS_REQUISES',
+    'AUDIT_VALIDE_EN_ATTENTE_CONFIRMATION',
+    'PRET_POUR_GENERATION',
+    'VALIDATION_FINALE_ENREGISTREE',
+    'FINANCEUR_GENERE'
+  ];
+
+  const workflowStatusIndependent =
+    workflowStatuses.every(
+      function(statut){
+        return BPB_ACT_estAccesAutoriseMeta_(
+          {
+            statut:statut,
+            accesBancable:'ACTIF',
+            jetonEmpreinte:empreinte
+          },
+          sampleAccess
+        ) === true;
+      }
+    );
+
+  const inactiveRejected =
+    BPB_ACT_estAccesAutoriseMeta_(
+      {
+        statut:'QUESTIONNAIRE_EN_COURS',
+        accesBancable:'INACTIF',
+        jetonEmpreinte:empreinte
+      },
+      sampleAccess
+    ) === false;
+
+  const wrongTokenRejected =
+    BPB_ACT_estAccesAutoriseMeta_(
+      {
+        statut:'QUESTIONNAIRE_EN_COURS',
+        accesBancable:'ACTIF',
+        jetonEmpreinte:empreinte
+      },
+      'WRONG_TOKEN'
+    ) === false;
+
+  const success =
+    workflowStatusIndependent &&
+    inactiveRejected &&
+    wrongTokenRejected;
+
+  const report = {
+    success:success,
+    workflowStatusIndependent:
+      workflowStatusIndependent,
+    inactiveRejected:
+      inactiveRejected,
+    wrongTokenRejected:
+      wrongTokenRejected
+  };
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
+
+}
+
+
+function AG24_BANCABLE_CANONICAL_LINK_SYSTEM_TEST_V1(){
+
+  const canonical =
+    BPB_ACTIVATION_CONFIG
+      .URL_WEB_APP_CANONIQUE;
+
+  const legacy =
+    'https://script.google.com/macros/s/LEGACY_DEPLOYMENT/exec' +
+    '?page=bancable' +
+    '&dossierId=BP_TEST' +
+    '&access=TOKEN_TEST' +
+    '&agBridge=BRIDGE_TEST';
+
+  const repaired =
+    BPB_ACT_rebaseLienBancable_(
+      legacy,
+      canonical
+    );
+
+  const success =
+    repaired.indexOf(
+      canonical + '?page=bancable'
+    ) === 0 &&
+    repaired.indexOf(
+      'dossierId=BP_TEST'
+    ) !== -1 &&
+    repaired.indexOf(
+      'access=TOKEN_TEST'
+    ) !== -1 &&
+    repaired.indexOf(
+      'agBridge=BRIDGE_TEST'
+    ) !== -1;
+
+  const report = {
+    success:success,
+    canonicalBasePreserved:
+      repaired.indexOf(canonical) === 0,
+    dossierPreserved:
+      repaired.indexOf('dossierId=BP_TEST') !== -1,
+    accessPreserved:
+      repaired.indexOf('access=TOKEN_TEST') !== -1,
+    bridgePreserved:
+      repaired.indexOf('agBridge=BRIDGE_TEST') !== -1
+  };
+
+  Logger.log(
+    JSON.stringify(
+      report,
+      null,
+      2
+    )
+  );
+
+  return report;
+
+}
+
+
+/**
  * ============================================================
  * URL WEB APP
  * ============================================================
@@ -1216,63 +1533,67 @@ function BPB_ACT_obtenirUrlWebAppPublique_(){
     PropertiesService
       .getScriptProperties();
 
+  const canonical =
+    String(
+      BPB_ACTIVATION_CONFIG
+        .URL_WEB_APP_CANONIQUE ||
+      ''
+    )
+    .trim();
+
+  if(
+    !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/
+      .test(
+        canonical
+      )
+  ){
+    throw new Error(
+      'URL canonique Business Plan invalide.'
+    );
+  }
 
   const configuree =
     String(
-
       properties.getProperty(
         BPB_ACTIVATION_CONFIG
           .CLE_URL_WEB_APP
-      )
-
-      ||
-
-      ''
-
+      ) || ''
     )
     .trim();
 
-
+  /*
+   * Une seule source canonique pour toutes les routes Bancable.
+   * Toute ancienne Script Property est réparée avant émission du lien.
+   */
   if(
-    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/
-      .test(
-        configuree
-      )
+    configuree !==
+    canonical
   ){
+    properties.setProperty(
+      BPB_ACTIVATION_CONFIG
+        .CLE_URL_WEB_APP,
+      canonical
+    );
 
-    return configuree;
-
+    if(
+      typeof AG24_AUDIT_event_ ===
+      'function'
+    ){
+      try{
+        AG24_AUDIT_event_(
+          'BANCABLE_WEB_APP_URL_REPAIRED',
+          {
+            previousUrl:
+              configuree || null,
+            canonicalUrl:
+              canonical
+          }
+        );
+      }catch(auditError){}
+    }
   }
 
-
-  const urlService =
-    String(
-      ScriptApp
-        .getService()
-        .getUrl()
-
-      ||
-
-      ''
-    )
-    .trim();
-
-
-  if(
-    /\/exec$/
-      .test(
-        urlService
-      )
-  ){
-
-    return urlService;
-
-  }
-
-
-  throw new Error(
-    'URL publique /exec absente. Configurez AFRIGREEN24_BPB_WEB_APP_EXEC_URL ou vérifiez le déploiement Apps Script actif.'
-  );
+  return canonical;
 
 }
 
